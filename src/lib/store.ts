@@ -17,7 +17,9 @@ import {
   deleteMatch as deleteMatchBackend,
   autosaveMatch as autosaveMatchBackend,
   loadAutosave as loadAutosaveBackend,
-} from "./tauri-api";
+  saveSettings as saveSettingsBackend,
+  loadSettings as loadSettingsBackend,
+} from "./electron-api";
 
 interface AppState {
   // Core instances
@@ -121,10 +123,38 @@ export const useAppStore = create<AppState>((set, get) => {
     defaultLagMs: 5000,
     
     initialize: () => {
-      // Set default home team from settings
-      const defaultHome = get().defaultHomeTeam;
-      if (defaultHome && !get().homeTeam) {
-        set({ homeTeam: defaultHome });
+      // Load settings from persistent storage
+      // Check if electronAPI is available (we're running in Electron)
+      if (typeof window !== 'undefined' && window.electronAPI) {
+        loadSettingsBackend()
+          .then((settings) => {
+            if (settings) {
+              set({
+                defaultHomeTeam: settings.defaultHomeTeam,
+                autosaveDirectory: settings.autosaveDirectory,
+                defaultLeadMs: settings.defaultLeadMs,
+                defaultLagMs: settings.defaultLagMs,
+              });
+              
+              // Set default home team from loaded settings
+              const defaultHome = settings.defaultHomeTeam;
+              if (defaultHome && !get().homeTeam) {
+                set({ homeTeam: defaultHome });
+              }
+            } else {
+              // No settings file exists, save current defaults
+              const { defaultHomeTeam, autosaveDirectory, defaultLeadMs, defaultLagMs } = get();
+              saveSettingsBackend({
+                defaultHomeTeam,
+                autosaveDirectory,
+                defaultLeadMs,
+                defaultLagMs,
+              }).catch(console.error);
+            }
+          })
+          .catch((error) => {
+            console.error('Error loading settings:', error);
+          });
       }
       
       // Set up periodic updates
@@ -272,18 +302,50 @@ export const useAppStore = create<AppState>((set, get) => {
     
     setDefaultHomeTeam: (team) => {
       set({ defaultHomeTeam: team, homeTeam: team });
+      const { autosaveDirectory, defaultLeadMs, defaultLagMs } = get();
+      const settings = {
+        defaultHomeTeam: team,
+        autosaveDirectory,
+        defaultLeadMs,
+        defaultLagMs,
+      };
+      saveSettingsBackend(settings).catch(console.error);
     },
     
     setAutosaveDirectory: (dir) => {
       set({ autosaveDirectory: dir });
+      const { defaultHomeTeam, defaultLeadMs, defaultLagMs } = get();
+      const settings = {
+        defaultHomeTeam,
+        autosaveDirectory: dir,
+        defaultLeadMs,
+        defaultLagMs,
+      };
+      saveSettingsBackend(settings).catch(console.error);
     },
     
     setDefaultLeadMs: (ms) => {
       set({ defaultLeadMs: ms });
+      const { defaultHomeTeam, autosaveDirectory, defaultLagMs } = get();
+      const settings = {
+        defaultHomeTeam,
+        autosaveDirectory,
+        defaultLeadMs: ms,
+        defaultLagMs,
+      };
+      saveSettingsBackend(settings).catch(console.error);
     },
     
     setDefaultLagMs: (ms) => {
       set({ defaultLagMs: ms });
+      const { defaultHomeTeam, autosaveDirectory, defaultLeadMs } = get();
+      const settings = {
+        defaultHomeTeam,
+        autosaveDirectory,
+        defaultLeadMs,
+        defaultLagMs: ms,
+      };
+      saveSettingsBackend(settings).catch(console.error);
     },
     
     startPhase: () => {
@@ -318,9 +380,13 @@ export const useAppStore = create<AppState>((set, get) => {
       
       const xmlContent = exportToSportscodeXML(updatedMatch);
       
+      // Create default filename from match details
+      const cleanName = (name: string) => name.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_-]/g, "");
+      const defaultFilename = `${updatedMatch.date}_${cleanName(updatedMatch.homeTeam)}_vs_${cleanName(updatedMatch.awayTeam)}.xml`;
+      
       // Export using Electron API (dialog handled in main process)
-      const { exportXML: exportXMLBackend } = await import("./tauri-api");
-      await exportXMLBackend(xmlContent);
+      const { exportXML: exportXMLBackend } = await import("./electron-api");
+      await exportXMLBackend(xmlContent, defaultFilename);
     },
   };
 });

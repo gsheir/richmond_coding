@@ -9,8 +9,41 @@ const __dirname = path.dirname(__filename);
 
 let mainWindow = null;
 
-// Get matches directory
+// Get settings file path
+function getSettingsPath() {
+  return path.join(app.getPath('userData'), 'settings.json');
+}
+
+// Load settings synchronously
+function loadSettings() {
+  try {
+    const settingsPath = getSettingsPath();
+    if (fs.existsSync(settingsPath)) {
+      const data = fs.readFileSync(settingsPath, 'utf8');
+      return JSON.parse(data);
+    }
+  } catch (error) {
+    console.error('Error loading settings:', error);
+  }
+  return null;
+}
+
+// Get matches directory (reads from settings)
 function getMatchesDir() {
+  const settings = loadSettings();
+  
+  if (settings && settings.autosaveDirectory) {
+    // Expand ~ to home directory
+    let dirPath = settings.autosaveDirectory;
+    if (dirPath.startsWith('~/')) {
+      dirPath = path.join(os.homedir(), dirPath.slice(2));
+    } else if (dirPath === '~') {
+      dirPath = os.homedir();
+    }
+    return dirPath;
+  }
+  
+  // Default fallback
   const homeDir = os.homedir();
   return path.join(homeDir, 'Documents', 'Richmond Hockey Club', 'matches');
 }
@@ -35,7 +68,7 @@ function createWindow() {
     vibrancy: 'under-window',
     backgroundColor: '#00000000',
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
@@ -155,7 +188,17 @@ ipcMain.handle('save-match', async (_event, matchId, matchData) => {
   try {
     ensureMatchesDir();
     const filePath = path.join(getMatchesDir(), `${matchId}.json`);
-    fs.writeFileSync(filePath, matchData, 'utf8');
+    const tempPath = `${filePath}.tmp`;
+    
+    // Validate JSON before writing
+    JSON.parse(matchData);
+    
+    // Atomic write: write to temp file first
+    fs.writeFileSync(tempPath, matchData, 'utf8');
+    
+    // Rename temp file to actual file (atomic operation)
+    fs.renameSync(tempPath, filePath);
+    
     return { success: true };
   } catch (error) {
     console.error('Error saving match:', error);
@@ -167,6 +210,13 @@ ipcMain.handle('load-match', async (_event, matchId) => {
   try {
     const filePath = path.join(getMatchesDir(), `${matchId}.json`);
     const data = fs.readFileSync(filePath, 'utf8');
+    
+    // Validate JSON structure
+    const match = JSON.parse(data);
+    if (!match.id || !match.date || !match.homeTeam || !match.awayTeam) {
+      throw new Error('Invalid match file: missing required fields');
+    }
+    
     return { success: true, data };
   } catch (error) {
     console.error('Error loading match:', error);
@@ -185,8 +235,17 @@ ipcMain.handle('list-matches', async () => {
       .map(file => {
         try {
           const content = fs.readFileSync(path.join(matchesDir, file), 'utf8');
+          const match = JSON.parse(content);
+          
+          // Validate required fields
+          if (!match.id || !match.date || !match.homeTeam || !match.awayTeam) {
+            console.warn(`Skipping invalid match file: ${file}`);
+            return null;
+          }
+          
           return content;
-        } catch {
+        } catch (error) {
+          console.warn(`Failed to read match file ${file}:`, error);
           return null;
         }
       })
@@ -214,7 +273,17 @@ ipcMain.handle('autosave-match', async (_event, matchData) => {
   try {
     ensureMatchesDir();
     const filePath = path.join(getMatchesDir(), '.autosave.json');
-    fs.writeFileSync(filePath, matchData, 'utf8');
+    const tempPath = `${filePath}.tmp`;
+    
+    // Validate JSON before writing
+    JSON.parse(matchData);
+    
+    // Atomic write: write to temp file first
+    fs.writeFileSync(tempPath, matchData, 'utf8');
+    
+    // Rename temp file to actual file (atomic operation)
+    fs.renameSync(tempPath, filePath);
+    
     return { success: true };
   } catch (error) {
     console.error('Error autosaving match:', error);
@@ -227,6 +296,14 @@ ipcMain.handle('load-autosave', async () => {
     const filePath = path.join(getMatchesDir(), '.autosave.json');
     if (fs.existsSync(filePath)) {
       const data = fs.readFileSync(filePath, 'utf8');
+      
+      // Validate JSON structure
+      const match = JSON.parse(data);
+      if (!match.id || !match.date || !match.homeTeam || !match.awayTeam) {
+        console.warn('Invalid autosave file found, ignoring');
+        return { success: true, data: null };
+      }
+      
       return { success: true, data };
     }
     return { success: true, data: null };
@@ -236,11 +313,59 @@ ipcMain.handle('load-autosave', async () => {
   }
 });
 
-ipcMain.handle('export-xml', async (_event, matchData) => {
+ipcMain.handle('save-settings', async (_event, settingsData) => {
+  try {
+    const settingsPath = getSettingsPath();
+    const tempPath = `${settingsPath}.tmp`;
+    
+    // Validate JSON before writing
+    const settings = JSON.parse(settingsData);
+    if (!settings.defaultHomeTeam || !settings.autosaveDirectory || 
+        settings.defaultLeadMs === undefined || settings.defaultLagMs === undefined) {
+      throw new Error('Invalid settings: missing required fields');
+    }
+    
+    // Atomic write: write to temp file first
+    fs.writeFileSync(tempPath, settingsData, 'utf8');
+    
+    // Rename temp file to actual file (atomic operation)
+    fs.renameSync(tempPath, settingsPath);
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error saving settings:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+ipcMain.handle('load-settings', async () => {
+  try {
+    const settingsPath = getSettingsPath();
+    if (fs.existsSync(settingsPath)) {
+      const data = fs.readFileSync(settingsPath, 'utf8');
+      
+      // Validate JSON structure
+      const settings = JSON.parse(data);
+      if (!settings.defaultHomeTeam || !settings.autosaveDirectory || 
+          settings.defaultLeadMs === undefined || settings.defaultLagMs === undefined) {
+        console.warn('Invalid settings file found, using defaults');
+        return { success: true, data: null };
+      }
+      
+      return { success: true, data };
+    }
+    return { success: true, data: null };
+  } catch (error) {
+    console.error('Error loading settings:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+ipcMain.handle('export-xml', async (_event, matchData, defaultFilename) => {
   try {
     const result = await dialog.showSaveDialog(mainWindow, {
       title: 'Export Match as XML',
-      defaultPath: path.join(os.homedir(), 'Documents', 'match.xml'),
+      defaultPath: path.join(os.homedir(), 'Documents', defaultFilename || 'match.xml'),
       filters: [
         { name: 'XML Files', extensions: ['xml'] },
         { name: 'All Files', extensions: ['*'] },

@@ -178,10 +178,14 @@ export const generateMatchId = (
   awayTeam: string
 ): string => {
   const cleanTeam = (team: string) =>
-    team.replace(/\s+/g, "_").replace(/\//g, "-");
+    team.replace(/\s+/g, "_").replace(/\//g, "-").replace(/[^a-zA-Z0-9_-]/g, "");
   
   const homeClean = cleanTeam(homeTeam);
   const awayClean = cleanTeam(awayTeam);
   
-  return `${date}_${homeClean}_vs_${awayClean}`;
+  // Add timestamp for uniqueness (in case of multiple matches on same day)
+  const now = new Date();
+  const timeStamp = now.toISOString().split('T')[1].replace(/:/g, '-').split('.')[0];
+  
+  return `${date}_${homeClean}_vs_${awayClean}_${timeStamp}`;
 };

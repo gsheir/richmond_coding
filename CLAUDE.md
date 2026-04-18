@@ -74,15 +74,15 @@ The Electron main process lives in `electron/main.js` and handles:
 
 ### Preload Script
 
-The preload script (`electron/preload.js`) creates a secure bridge between the main and renderer processes using `contextBridge`. It exposes the `electronAPI` to the React frontend.
+The preload script (`electron/preload.cjs`) creates a secure bridge between the main and renderer processes using `contextBridge`. It exposes the `electronAPI` to the React frontend.
 
 ### Renderer Process
 
-The React application runs in the renderer process and communicates with the main process via IPC calls through the `electronAPI` (see `src/lib/tauri-api.ts`).
+The React application runs in the renderer process and communicates with the main process via IPC calls through the `electronAPI` (see `src/lib/electron-api.ts`).
 
 ### Backend API
 
-The `src/lib/tauri-api.ts` file contains the Electron IPC bindings. Despite the filename, it now uses Electron's IPC instead of Tauri's invoke pattern. The API surface remains identical to maintain compatibility.
+The `src/lib/electron-api.ts` file contains the Electron IPC bindings for match operations, settings persistence, and file exports.
 
 ## Native macOS Features
 

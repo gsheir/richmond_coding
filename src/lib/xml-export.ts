@@ -59,25 +59,3 @@ function escapeXml(text: string): string {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&apos;");
 }
-
-export function exportToCSV(match: Match): string {
-  const { phases } = match;
-  
-  const header = "ID,Start Time,End Time,Code,Label,Context,Termination\n";
-  
-  const rows = phases
-    .filter((phase) => phase.phaseCode !== null)
-    .map((phase) => {
-      const startTime = getPhaseStartTimeSeconds(phase).toFixed(3);
-      const endTime = getPhaseEndTimeSeconds(phase).toFixed(3);
-      const code = phase.phaseCode || "";
-      const label = phase.phaseLabel || "";
-      const context = phase.contextLabels.join("; ");
-      const termination = phase.terminationEvent || "";
-      
-      return `${phase.id},${startTime},${endTime},"${code}","${label}","${context}","${termination}"`;
-    })
-    .join("\n");
-
-  return header + rows;
-}

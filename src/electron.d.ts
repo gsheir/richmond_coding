@@ -7,7 +7,9 @@ interface ElectronAPI {
   deleteMatch: (matchId: string) => Promise<{ success: boolean; error?: string }>;
   autosaveMatch: (matchData: string) => Promise<{ success: boolean; error?: string }>;
   loadAutosave: () => Promise<{ success: boolean; data?: string | null; error?: string }>;
-  exportXML: (matchData: string) => Promise<{ success: boolean; filePath?: string; canceled?: boolean; error?: string }>;
+  exportXML: (matchData: string, defaultFilename: string) => Promise<{ success: boolean; filePath?: string; canceled?: boolean; error?: string }>;
+  saveSettings: (settingsData: string) => Promise<{ success: boolean; error?: string }>;
+  loadSettings: () => Promise<{ success: boolean; data?: string | null; error?: string }>;
   onNavigateToSettings: (callback: () => void) => void;
   onNewMatch: (callback: () => void) => void;
   onSaveMatch: (callback: () => void) => void;
