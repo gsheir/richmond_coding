@@ -1,19 +1,24 @@
 // Sidebar navigation (Linear-inspired)
-import { Code, FolderOpen, Settings } from "lucide-react";
+import { FolderOpen, Settings, FileText, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useAppStore } from "@/lib/store";
+import { Button } from "./ui/Button";
 
 interface SidebarProps {
-  currentPage: "code" | "matches" | "settings";
-  onNavigate: (page: "code" | "matches" | "settings") => void;
+  currentPage: "matches" | "settings" | null;
+  onNavigate: (page: "matches" | "settings") => void;
+  onSwitchToTab: (tabId: string) => void;
   isOpen: boolean;
   isOverlay?: boolean;
   onClose?: () => void;
 }
 
-export function Sidebar({ currentPage, onNavigate, isOpen, isOverlay = false, onClose }: SidebarProps) {
+export function Sidebar({ currentPage, onNavigate, onSwitchToTab, isOpen, isOverlay = false, onClose }: SidebarProps) {
+  const { tabs, activeTabId, closeTab } = useAppStore();
+  const [closingTabId, setClosingTabId] = useState<string | null>(null);
+  
   const navItems = [
-    { id: "code" as const, label: "Code", icon: Code },
     { id: "matches" as const, label: "Matches", icon: FolderOpen },
     { id: "settings" as const, label: "Settings", icon: Settings },
   ];
@@ -74,28 +79,125 @@ export function Sidebar({ currentPage, onNavigate, isOpen, isOverlay = false, on
         </div>
       </div>
 
-      <nav className="flex-1 px-2 space-y-1">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = currentPage === item.id;
+      <nav className="flex-1 px-2 space-y-1 overflow-y-auto">
+        {/* Navigation items */}
+        <div className="space-y-1">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = currentPage === item.id;
 
-          return (
-            <button
-              key={item.id}
-              onClick={() => onNavigate(item.id)}
-              className={cn(
-                "w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
-                isActive
-                  ? "bg-accent text-accent-foreground"
-                  : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-              )}
-            >
-              <Icon className="w-4 h-4" />
-              {item.label}
-            </button>
-          );
-        })}
+            return (
+              <button
+                key={item.id}
+                onClick={() => onNavigate(item.id)}
+                className={cn(
+                  "w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
+                  isActive
+                    ? "bg-accent text-accent-foreground"
+                    : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                )}
+              >
+                <Icon className="w-4 h-4" />
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Open matches section */}
+        {tabs.length > 0 && (
+          <>
+            <div className="pt-4 pb-2">
+              <div className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Open Matches
+              </div>
+            </div>
+            
+            <div className="space-y-1">
+              {tabs.map((tabData) => {
+                const isActive = activeTabId === tabData.tab.id && currentPage === null;
+
+                return (
+                  <div
+                    key={tabData.tab.id}
+                    className={cn(
+                      "group relative w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-all",
+                      isActive
+                        ? "bg-accent text-accent-foreground"
+                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                    )}
+                  >
+                    <button
+                      onClick={() => onSwitchToTab(tabData.tab.id)}
+                      className="flex-1 flex items-center gap-2 text-left min-w-0"
+                    >
+                      <FileText className="w-4 h-4 shrink-0" />
+                      <span className="truncate text-xs flex-1 min-w-0">{tabData.tab.label}</span>
+                      {tabData.tab.isDirty && (
+                        <div className="w-1.5 h-1.5 bg-blue-500 rounded-full shrink-0" />
+                      )}
+                    </button>
+                    
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setClosingTabId(tabData.tab.id);
+                      }}
+                      className={cn(
+                        "p-0.5 rounded hover:bg-muted transition-colors shrink-0",
+                        isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                      )}
+                      aria-label="Close tab"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
       </nav>
+
+      {/* Close tab confirmation modal */}
+      {closingTabId && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"
+          onClick={() => setClosingTabId(null)}
+        >
+          <div 
+            className="bg-card border border-border rounded-xl p-6 max-w-sm w-full mx-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold mb-2">Close tab?</h3>
+            <p className="text-sm text-muted-foreground mb-6">
+              Are you sure you want to close this match tab?
+            </p>
+            
+            <div className="flex gap-3 justify-end">
+              <Button
+                onClick={() => setClosingTabId(null)}
+                variant="ghost"
+                size="sm"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (closingTabId) {
+                    closeTab(closingTabId);
+                    setClosingTabId(null);
+                  }
+                }}
+                variant="destructive"
+                size="sm"
+              >
+                Close Tab
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
       </>
     );
   }

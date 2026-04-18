@@ -4,11 +4,13 @@ import { GameClock } from "./clock";
 import { EventEngine } from "./event-engine";
 import {
   Match,
+  Tab,
   ButtonConfig,
   ClockMode,
   ClockState,
   createMatch,
   generateMatchId,
+  getMatchDisplayName,
 } from "./types";
 import {
   saveMatch as saveMatchBackend,
@@ -21,25 +23,23 @@ import {
   loadSettings as loadSettingsBackend,
 } from "./electron-api";
 
-interface AppState {
-  // Core instances
+interface TabData {
+  tab: Tab;
+  match: Match;
   clock: GameClock;
   eventEngine: EventEngine;
-  
-  // Match state
-  currentMatch: Match | null;
-  matches: Match[];
-  
-  // Match details (for new matches)
-  matchDate: string;
-  homeTeam: string;
-  awayTeam: string;
-  
-  // UI state
   clockState: ClockState;
   currentTime: string;
   activePhaseId: number | null;
-  lastAutosaveTime: string | null;
+}
+
+interface AppState {
+  // Tab state
+  tabs: TabData[];
+  activeTabId: string | null;
+  
+  // Match state
+  matches: Match[];
   
   // Button config
   buttonConfig: ButtonConfig[];
@@ -53,21 +53,23 @@ interface AppState {
   // Actions
   initialize: () => void;
   setButtonConfig: (config: ButtonConfig[]) => void;
+  
+  // Tab actions
+  openTab: (matchId: string) => Promise<void>;
+  closeTab: (tabId: string) => void;
+  switchTab: (tabId: string) => void;
+  getActiveTab: () => TabData | null;
+  updateActiveMatch: (date: string, homeTeam: string, awayTeam: string) => void;
+  
+  // Clock actions (operate on active tab)
   startClock: () => void;
   pauseClock: () => void;
   stopClock: () => void;
-  updateClockDisplay: () => void;
-  
-  // Match details actions
-  setMatchDate: (date: string) => void;
-  setHomeTeam: (team: string) => void;
-  setAwayTeam: (team: string) => void;
-  canStartClock: () => boolean;
+  updateClockDisplays: () => void;
   
   // Match actions
-  createNewMatch: (date: string, homeTeam: string, awayTeam: string) => void;
-  loadMatch: (matchId: string) => Promise<void>;
-  saveCurrentMatch: () => Promise<void>;
+  createNewMatch: (date: string, homeTeam: string, awayTeam: string) => Promise<void>;
+  saveMatch: (tabId: string) => Promise<void>;
   deleteMatch: (matchId: string) => Promise<void>;
   refreshMatches: () => Promise<void>;
   
@@ -77,45 +79,74 @@ interface AppState {
   setDefaultLeadMs: (ms: number) => void;
   setDefaultLagMs: (ms: number) => void;
   
-  // Phase actions
+  // Phase actions (operate on active tab)
   startPhase: () => void;
   handleButtonClick: (code: string, type: any) => void;
   undoLastPhase: () => void;
   clearAllPhases: () => void;
   
-  // Export
+  // Export (operates on active tab)
   exportXML: () => Promise<void>;
 }
 
 export const useAppStore = create<AppState>((set, get) => {
-  const clock = new GameClock(ClockMode.LIVE);
-  const eventEngine = new EventEngine(clock);
-  
-  // Set up clock listener
-  clock.onStateChange((state) => {
-    set({ clockState: state });
+  const createTabData = (match: Match): TabData => {
+    const clock = new GameClock(ClockMode.LIVE);
+    const eventEngine = new EventEngine(clock);
     
-    // Save match when clock starts
-    if (state === ClockState.RUNNING) {
-      const currentMatch = get().currentMatch;
-      if (currentMatch) {
-        get().saveCurrentMatch();
-      }
+    // Set button config if available
+    const buttonConfig = get()?.buttonConfig || [];
+    if (buttonConfig.length > 0) {
+      eventEngine.setButtonConfig(buttonConfig);
     }
-  });
+    
+    // Load phases if match has them
+    if (match.phases.length > 0) {
+      eventEngine.loadPhases(match.phases);
+    }
+    
+    // Set up clock listener for this tab
+    clock.onStateChange((state) => {
+      const tabs = get().tabs;
+      const tabIndex = tabs.findIndex(t => t.match.id === match.id);
+      if (tabIndex !== -1) {
+        const updatedTabs = [...tabs];
+        updatedTabs[tabIndex] = {
+          ...updatedTabs[tabIndex],
+          clockState: state,
+        };
+        set({ tabs: updatedTabs });
+        
+        // Save match when clock starts
+        if (state === ClockState.RUNNING) {
+          get().saveMatch(updatedTabs[tabIndex].tab.id);
+        }
+      }
+    });
+    
+    const tab: Tab = {
+      id: `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      matchId: match.id,
+      label: getMatchDisplayName(match),
+      isDirty: false,
+      lastAutosaveTime: null,
+    };
+    
+    return {
+      tab,
+      match,
+      clock,
+      eventEngine,
+      clockState: ClockState.STOPPED,
+      currentTime: "00:00",
+      activePhaseId: null,
+    };
+  };
   
   return {
-    clock,
-    eventEngine,
-    currentMatch: null,
+    tabs: [],
+    activeTabId: null,
     matches: [],
-    matchDate: new Date().toISOString().split("T")[0],
-    homeTeam: "",
-    awayTeam: "",
-    clockState: ClockState.STOPPED,
-    currentTime: "00:00",
-    activePhaseId: null,
-    lastAutosaveTime: null,
     buttonConfig: [],
     defaultHomeTeam: "Richmond",
     autosaveDirectory: "~/Documents/Richmond Hockey Club/matches",
@@ -124,7 +155,6 @@ export const useAppStore = create<AppState>((set, get) => {
     
     initialize: () => {
       // Load settings from persistent storage
-      // Check if electronAPI is available (we're running in Electron)
       if (typeof window !== 'undefined' && window.electronAPI) {
         loadSettingsBackend()
           .then((settings) => {
@@ -135,12 +165,6 @@ export const useAppStore = create<AppState>((set, get) => {
                 defaultLeadMs: settings.defaultLeadMs,
                 defaultLagMs: settings.defaultLagMs,
               });
-              
-              // Set default home team from loaded settings
-              const defaultHome = settings.defaultHomeTeam;
-              if (defaultHome && !get().homeTeam) {
-                set({ homeTeam: defaultHome });
-              }
             } else {
               // No settings file exists, save current defaults
               const { defaultHomeTeam, autosaveDirectory, defaultLeadMs, defaultLagMs } = get();
@@ -157,26 +181,42 @@ export const useAppStore = create<AppState>((set, get) => {
           });
       }
       
-      // Set up periodic updates
+      // Set up periodic clock updates for all tabs
       setInterval(() => {
-        get().updateClockDisplay();
+        get().updateClockDisplays();
       }, 100);
       
-      // Set up autosave every 10 seconds
+      // Set up autosave every 10 seconds for all running tabs
       setInterval(() => {
-        const { currentMatch, eventEngine, clockState } = get();
-        if (currentMatch && clockState === ClockState.RUNNING) {
-          const updatedMatch = {
-            ...currentMatch,
-            phases: eventEngine.getAllPhases(),
-            modifiedAt: new Date().toISOString(),
-          };
-          autosaveMatchBackend(updatedMatch)
-            .then(() => {
-              set({ lastAutosaveTime: new Date().toISOString() });
-            })
-            .catch(console.error);
-        }
+        const tabs = get().tabs;
+        tabs.forEach((tabData) => {
+          if (tabData.clockState === ClockState.RUNNING) {
+            const updatedMatch = {
+              ...tabData.match,
+              phases: tabData.eventEngine.getAllPhases(),
+              modifiedAt: new Date().toISOString(),
+              clockTimeMs: tabData.clock.currentTimeMs(),
+            };
+            autosaveMatchBackend(updatedMatch)
+              .then(() => {
+                // Update last autosave time for this tab
+                const currentTabs = get().tabs;
+                const tabIndex = currentTabs.findIndex(t => t.tab.id === tabData.tab.id);
+                if (tabIndex !== -1) {
+                  const updatedTabs = [...currentTabs];
+                  updatedTabs[tabIndex] = {
+                    ...updatedTabs[tabIndex],
+                    tab: {
+                      ...updatedTabs[tabIndex].tab,
+                      lastAutosaveTime: new Date().toISOString(),
+                    },
+                  };
+                  set({ tabs: updatedTabs });
+                }
+              })
+              .catch(console.error);
+          }
+        });
       }, 10000);
       
       // Load matches
@@ -193,90 +233,196 @@ export const useAppStore = create<AppState>((set, get) => {
     
     setButtonConfig: (config) => {
       set({ buttonConfig: config });
-      get().eventEngine.setButtonConfig(config);
-    },
-    
-    setMatchDate: (date) => set({ matchDate: date }),
-    setHomeTeam: (team) => set({ homeTeam: team }),
-    setAwayTeam: (team) => set({ awayTeam: team }),
-    
-    canStartClock: () => {
-      const { matchDate, homeTeam, awayTeam } = get();
-      return matchDate.length > 0 && homeTeam.trim().length > 0 && awayTeam.trim().length > 0;
-    },
-    
-    startClock: () => {
-      const { clock, currentMatch, matchDate, homeTeam, awayTeam } = get();
-      
-      // Validate match details before starting
-      if (!get().canStartClock()) {
-        console.error("Cannot start clock: match details incomplete");
-        return;
-      }
-      
-      // Create match if it doesn't exist
-      if (!currentMatch) {
-        get().createNewMatch(matchDate, homeTeam.trim(), awayTeam.trim());
-      }
-      
-      clock.start();
-    },
-    
-    pauseClock: () => {
-      get().clock.pause();
-    },
-    
-    stopClock: () => {
-      get().clock.stop();
-    },
-    
-    updateClockDisplay: () => {
-      const { clock, eventEngine } = get();
-      const activePhase = eventEngine.getActivePhase();
-      
-      set({
-        currentTime: clock.getTimeString(),
-        activePhaseId: activePhase?.id ?? null,
+      // Update all existing tabs with new button config
+      const tabs = get().tabs;
+      tabs.forEach(tabData => {
+        tabData.eventEngine.setButtonConfig(config);
       });
     },
     
-    createNewMatch: (date, homeTeam, awayTeam) => {
-      const id = generateMatchId(date, homeTeam, awayTeam);
-      const match = createMatch(id, date, homeTeam, awayTeam);
-      
-      set({ currentMatch: match });
-      get().eventEngine.clearAll();
+    getActiveTab: () => {
+      const { tabs, activeTabId } = get();
+      if (!activeTabId) return null;
+      return tabs.find(t => t.tab.id === activeTabId) || null;
     },
     
-    loadMatch: async (matchId) => {
+    openTab: async (matchId: string) => {
+      const { tabs } = get();
+      
+      // Check if tab already exists for this match
+      const existingTab = tabs.find(t => t.tab.matchId === matchId);
+      if (existingTab) {
+        set({ activeTabId: existingTab.tab.id });
+        return;
+      }
+      
+      // Load match data
       try {
         const match = await loadMatchBackend(matchId);
-        set({ 
-          currentMatch: match,
-          matchDate: match.date,
-          homeTeam: match.homeTeam,
-          awayTeam: match.awayTeam,
+        const tabData = createTabData(match);
+        
+        // Restore clock time if saved
+        if (match.clockTimeMs !== undefined && match.clockTimeMs > 0) {
+          tabData.clock.restoreTimeMs(match.clockTimeMs);
+          // Update tab data to reflect new clock state and time
+          tabData.clockState = tabData.clock.getState();
+          tabData.currentTime = tabData.clock.getTimeString();
+        }
+        
+        set({
+          tabs: [...tabs, tabData],
+          activeTabId: tabData.tab.id,
         });
-        get().eventEngine.loadPhases(match.phases);
-        get().clock.stop();
       } catch (error) {
         console.error("Failed to load match:", error);
       }
     },
     
-    saveCurrentMatch: async () => {
-      const { currentMatch, eventEngine } = get();
-      if (!currentMatch) return;
+    closeTab: (tabId: string) => {
+      const { tabs, activeTabId } = get();
+      const tabIndex = tabs.findIndex(t => t.tab.id === tabId);
+      
+      if (tabIndex === -1) return;
+      
+      const tabToClose = tabs[tabIndex];
+      
+      // Save match before closing (fire and forget)
+      const matchToSave = {
+        ...tabToClose.match,
+        phases: tabToClose.eventEngine.getAllPhases(),
+        modifiedAt: new Date().toISOString(),
+        clockTimeMs: tabToClose.clock.currentTimeMs(),
+      };
+      saveMatchBackend(matchToSave).catch(error => {
+        console.error("Failed to save match on tab close:", error);
+      });
+      
+      // Stop clock if running
+      tabToClose.clock.stop();
+      
+      // Remove tab
+      const newTabs = tabs.filter(t => t.tab.id !== tabId);
+      
+      // Update active tab if we're closing the active one
+      let newActiveId = activeTabId;
+      if (activeTabId === tabId) {
+        newActiveId = newTabs.length > 0 ? newTabs[newTabs.length - 1].tab.id : null;
+      }
+      
+      set({ tabs: newTabs, activeTabId: newActiveId });
+    },
+    
+    switchTab: (tabId: string) => {
+      set({ activeTabId: tabId });
+    },
+    
+    updateActiveMatch: (date: string, homeTeam: string, awayTeam: string) => {
+      const activeTab = get().getActiveTab();
+      if (!activeTab) return;
       
       const updatedMatch = {
-        ...currentMatch,
-        phases: eventEngine.getAllPhases(),
+        ...activeTab.match,
+        date,
+        homeTeam,
+        awayTeam,
         modifiedAt: new Date().toISOString(),
+      };
+      
+      const updatedTab = {
+        ...activeTab,
+        match: updatedMatch,
+        tab: {
+          ...activeTab.tab,
+          label: getMatchDisplayName(updatedMatch),
+          isDirty: true,
+        },
+      };
+      
+      const tabs = get().tabs;
+      const tabIndex = tabs.findIndex(t => t.tab.id === activeTab.tab.id);
+      if (tabIndex !== -1) {
+        const newTabs = [...tabs];
+        newTabs[tabIndex] = updatedTab;
+        set({ tabs: newTabs });
+      }
+    },
+    
+    startClock: () => {
+      const activeTab = get().getActiveTab();
+      if (!activeTab) return;
+      activeTab.clock.start();
+    },
+    
+    pauseClock: () => {
+      const activeTab = get().getActiveTab();
+      if (!activeTab) return;
+      activeTab.clock.pause();
+    },
+    
+    stopClock: () => {
+      const activeTab = get().getActiveTab();
+      if (!activeTab) return;
+      activeTab.clock.stop();
+    },
+    
+    updateClockDisplays: () => {
+      const tabs = get().tabs;
+      const updatedTabs = tabs.map(tabData => {
+        const activePhase = tabData.eventEngine.getActivePhase();
+        return {
+          ...tabData,
+          currentTime: tabData.clock.getTimeString(),
+          activePhaseId: activePhase?.id ?? null,
+        };
+      });
+      set({ tabs: updatedTabs });
+    },
+    
+    createNewMatch: async (date, homeTeam, awayTeam) => {
+      const id = generateMatchId(date, homeTeam, awayTeam);
+      const match = createMatch(id, date, homeTeam, awayTeam);
+      
+      // Save the new match immediately
+      try {
+        await saveMatchBackend(match);
+        await get().refreshMatches();
+        
+        // Open in a new tab
+        await get().openTab(match.id);
+      } catch (error) {
+        console.error("Failed to create match:", error);
+      }
+    },
+    
+    saveMatch: async (tabId: string) => {
+      const { tabs } = get();
+      const tabData = tabs.find(t => t.tab.id === tabId);
+      if (!tabData) return;
+      
+      const updatedMatch = {
+        ...tabData.match,
+        phases: tabData.eventEngine.getAllPhases(),
+        modifiedAt: new Date().toISOString(),
+        clockTimeMs: tabData.clock.currentTimeMs(),
       };
       
       try {
         await saveMatchBackend(updatedMatch);
-        set({ currentMatch: updatedMatch });
+        
+        // Update tab with saved match and clear dirty flag
+        const tabIndex = tabs.findIndex(t => t.tab.id === tabId);
+        if (tabIndex !== -1) {
+          const newTabs = [...tabs];
+          newTabs[tabIndex] = {
+            ...newTabs[tabIndex],
+            match: updatedMatch,
+            tab: {
+              ...newTabs[tabIndex].tab,
+              isDirty: false,
+            },
+          };
+          set({ tabs: newTabs });
+        }
       } catch (error) {
         console.error("Failed to save match:", error);
       }
@@ -285,6 +431,14 @@ export const useAppStore = create<AppState>((set, get) => {
     deleteMatch: async (matchId) => {
       try {
         await deleteMatchBackend(matchId);
+        
+        // Close tab if match is open
+        const { tabs } = get();
+        const tabToClose = tabs.find(t => t.tab.matchId === matchId);
+        if (tabToClose) {
+          get().closeTab(tabToClose.tab.id);
+        }
+        
         await get().refreshMatches();
       } catch (error) {
         console.error("Failed to delete match:", error);
@@ -301,7 +455,7 @@ export const useAppStore = create<AppState>((set, get) => {
     },
     
     setDefaultHomeTeam: (team) => {
-      set({ defaultHomeTeam: team, homeTeam: team });
+      set({ defaultHomeTeam: team });
       const { autosaveDirectory, defaultLeadMs, defaultLagMs } = get();
       const settings = {
         defaultHomeTeam: team,
@@ -349,33 +503,56 @@ export const useAppStore = create<AppState>((set, get) => {
     },
     
     startPhase: () => {
+      const activeTab = get().getActiveTab();
+      if (!activeTab) return;
+      
       const { defaultLeadMs, defaultLagMs } = get();
-      get().eventEngine.startUndefinedPhase(defaultLeadMs, defaultLagMs);
+      activeTab.eventEngine.startUndefinedPhase(defaultLeadMs, defaultLagMs);
     },
     
     handleButtonClick: (code, type) => {
-      get().eventEngine.handleButtonClick(code, type);
+      const activeTab = get().getActiveTab();
+      if (!activeTab) return;
+      
+      activeTab.eventEngine.handleButtonClick(code, type);
     },
     
     undoLastPhase: () => {
-      get().eventEngine.undoLastAction();
+      const activeTab = get().getActiveTab();
+      if (!activeTab) return;
+      
+      activeTab.eventEngine.undoLastAction();
     },
     
     clearAllPhases: () => {
+      const activeTab = get().getActiveTab();
+      if (!activeTab) return;
+      
       if (confirm("Are you sure you want to clear all phases?")) {
-        get().eventEngine.clearAll();
-        set({ activePhaseId: null });
+        activeTab.eventEngine.clearAll();
+        
+        // Update tab state
+        const tabs = get().tabs;
+        const tabIndex = tabs.findIndex(t => t.tab.id === activeTab.tab.id);
+        if (tabIndex !== -1) {
+          const newTabs = [...tabs];
+          newTabs[tabIndex] = {
+            ...newTabs[tabIndex],
+            activePhaseId: null,
+          };
+          set({ tabs: newTabs });
+        }
       }
     },
     
     exportXML: async () => {
-      const { currentMatch, eventEngine } = get();
-      if (!currentMatch) return;
+      const activeTab = get().getActiveTab();
+      if (!activeTab) return;
       
       const { exportToSportscodeXML } = await import("./xml-export");
       const updatedMatch = {
-        ...currentMatch,
-        phases: eventEngine.getAllPhases(),
+        ...activeTab.match,
+        phases: activeTab.eventEngine.getAllPhases(),
       };
       
       const xmlContent = exportToSportscodeXML(updatedMatch);

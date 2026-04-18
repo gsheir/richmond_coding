@@ -8,13 +8,31 @@ import { AutosaveIndicator } from "./AutosaveIndicator";
 import { Button } from "./ui/Button";
 import { Download, Trash2, Undo } from "lucide-react";
 import { useAppStore } from "@/lib/store";
-import { ClockState } from "@/lib/types";
+import { ClockState, Match } from "@/lib/types";
+import { GameClock } from "@/lib/clock";
+import { EventEngine } from "@/lib/event-engine";
 
-export function CodePage() {
+interface CodePageProps {
+  tabId: string;
+  match: Match;
+  clock: GameClock;
+  eventEngine: EventEngine;
+  clockState: ClockState;
+  currentTime: string;
+  activePhaseId: number | null;
+}
+
+export function CodePage({
+  tabId,
+  match,
+  clock,
+  eventEngine,
+  clockState,
+  currentTime,
+  activePhaseId,
+}: CodePageProps) {
   const {
     buttonConfig,
-    clockState,
-    eventEngine,
     exportXML,
     clearAllPhases,
     undoLastPhase,
@@ -53,7 +71,10 @@ export function CodePage() {
     <div className="flex flex-col h-full p-4 gap-4">
       {/* Top bar with clock and actions */}
       <div className="flex items-center justify-between gap-4">
-        <ClockWidget />
+        <ClockWidget
+          clockState={clockState}
+          currentTime={currentTime}
+        />
 
         <div className="flex items-center gap-2">
           <Button
@@ -92,7 +113,11 @@ export function CodePage() {
       </div>
 
       {/* Match details card - full width */}
-      <MatchDetailsCard />
+      <MatchDetailsCard
+        tabId={tabId}
+        match={match}
+        clockState={clockState}
+      />
 
       {/* Main content area - responsive layout */}
       <div className={`flex-1 ${isNarrow ? 'flex flex-col' : 'flex'} gap-4 min-h-0`}>
@@ -114,7 +139,7 @@ export function CodePage() {
 
       {/* Helper text */}
       <div className="flex items-center justify-between">
-        <AutosaveIndicator />
+        <AutosaveIndicator tabId={tabId} />
         
         <div className="flex-1 text-center text-xs text-muted-foreground">
           {!isRunning && "Press Start to begin coding"}

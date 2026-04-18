@@ -46,6 +46,15 @@ export interface Match {
   phases: Phase[];
   createdAt: string;
   modifiedAt: string;
+  clockTimeMs?: number;
+}
+
+export interface Tab {
+  id: string;
+  matchId: string;
+  label: string;
+  isDirty: boolean;
+  lastAutosaveTime: string | null;
 }
 
 export interface ButtonConfig {

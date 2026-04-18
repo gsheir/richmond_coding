@@ -67,6 +67,16 @@ export class GameClock {
     this.notifyStateChange();
   }
 
+  restoreTimeMs(timeMs: number): void {
+    // Restore clock time when loading a saved match
+    // Set to PAUSED state so the time is visible
+    this.pausedElapsedMs = timeMs;
+    if (timeMs > 0 && this.state === ClockState.STOPPED) {
+      this.state = ClockState.PAUSED;
+      this.notifyStateChange();
+    }
+  }
+
   currentTimeMs(): number {
     if (this.state === ClockState.STOPPED) {
       return 0;

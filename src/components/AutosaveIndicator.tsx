@@ -2,11 +2,17 @@
 import { useEffect, useState } from "react";
 import { Save } from "lucide-react";
 import { useAppStore } from "@/lib/store";
-import { ClockState } from "@/lib/types";
 
-export function AutosaveIndicator() {
-  const { lastAutosaveTime, clockState } = useAppStore();
+interface AutosaveIndicatorProps {
+  tabId: string;
+}
+
+export function AutosaveIndicator({ tabId }: AutosaveIndicatorProps) {
+  const tabs = useAppStore((state) => state.tabs);
   const [timeAgo, setTimeAgo] = useState<string>("");
+  
+  const tabData = tabs.find(t => t.tab.id === tabId);
+  const lastAutosaveTime = tabData?.tab.lastAutosaveTime || null;
 
   useEffect(() => {
     const updateTimeAgo = () => {
@@ -35,7 +41,7 @@ export function AutosaveIndicator() {
     return () => clearInterval(interval);
   }, [lastAutosaveTime]);
 
-  if (clockState !== ClockState.RUNNING && !lastAutosaveTime) {
+  if (!tabData || !lastAutosaveTime) {
     return null;
   }
 

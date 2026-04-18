@@ -4,12 +4,15 @@ import { Button } from "./ui/Button";
 import { useAppStore } from "@/lib/store";
 import { ClockState } from "@/lib/types";
 
-export function ClockWidget() {
-  const { clockState, currentTime, startClock, pauseClock, canStartClock } =
-    useAppStore();
+interface ClockWidgetProps {
+  clockState: ClockState;
+  currentTime: string;
+}
+
+export function ClockWidget({ clockState, currentTime }: ClockWidgetProps) {
+  const { startClock, pauseClock } = useAppStore();
   
   const isRunning = clockState === ClockState.RUNNING;
-  const canStart = canStartClock();
 
   return (
     <div className="flex items-center gap-3">
@@ -28,8 +31,6 @@ export function ClockWidget() {
             variant="attack"
             size="sm"
             className="gap-1.5"
-            disabled={!canStart}
-            title={!canStart ? "Please fill in all match details" : ""}
           >
             <Play className="w-3.5 h-3.5" />
             Start
