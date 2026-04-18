@@ -1,5 +1,15 @@
 // Settings page
 import { useAppStore } from "@/lib/store";
+import { useState, useEffect } from "react";
+import { ButtonConfig } from "@/lib/types";
+import { VisualLayoutEditor } from "./VisualLayoutEditor";
+import { 
+  loadCodingWindowConfig, 
+  getCodingWindowConfigPath,
+  openConfigDirectory,
+} from "@/lib/electron-api";
+import { ExternalLink, FolderOpen } from "lucide-react";
+import { Button } from "./ui/Button";
 
 export function SettingsPage() {
   const { 
@@ -11,15 +21,72 @@ export function SettingsPage() {
     setAutosaveDirectory,
     setDefaultLeadMs,
     setDefaultLagMs,
+    setButtonConfig,
   } = useAppStore();
 
+  const [buttons, setButtons] = useState<ButtonConfig[]>([]);
+  const [configPath, setConfigPath] = useState<string>("");
+  const [isLoadingConfig, setIsLoadingConfig] = useState(true);
+
+  // Load button configuration on mount
+  useEffect(() => {
+    const loadConfig = async () => {
+      try {
+        setIsLoadingConfig(true);
+        const config = await loadCodingWindowConfig();
+        setButtons(config.buttons);
+        // Also update global store on initial load
+        if (config.buttons.length > 0) {
+          setButtonConfig(config.buttons);
+        }
+        const path = await getCodingWindowConfigPath();
+        setConfigPath(path);
+      } catch (error) {
+        console.error("Failed to load button configuration:", error);
+      } finally {
+        setIsLoadingConfig(false);
+      }
+    };
+    loadConfig();
+  }, [setButtonConfig]);
+
+  const handleOpenConfigDirectory = async () => {
+    try {
+      await openConfigDirectory();
+    } catch (error) {
+      console.error("Failed to open config directory:", error);
+    }
+  };
+
   return (
-    <div className="flex flex-col h-full p-4 gap-4">
+    <div className="flex flex-col h-full p-4 gap-4 overflow-y-auto">
       <div>
         <h2 className="text-xl font-bold">Settings</h2>
         <p className="text-xs text-muted-foreground mt-0.5">
           Configure your coding preferences
         </p>
+      </div>
+
+      {/* Config Files Link */}
+      <div className="bg-card/80 backdrop-blur-sm rounded-xl border border-border/50 p-3 flex items-start justify-between gap-4">
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <FolderOpen className="w-4 h-4 text-muted-foreground" />
+            <h3 className="text-sm font-semibold">Configuration Files</h3>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Configuration is stored in JSON format. You can edit the file manually if preferred.
+          </p>
+          {configPath && (
+            <p className="text-xs text-muted-foreground/70 font-mono mt-1">
+              {configPath}
+            </p>
+          )}
+        </div>
+        <Button onClick={handleOpenConfigDirectory} size="sm" variant="secondary">
+          <ExternalLink className="w-4 h-4" />
+          Open Directory
+        </Button>
       </div>
 
       <div className="bg-card/80 backdrop-blur-sm rounded-xl border border-border/50 p-4 space-y-6">
@@ -109,6 +176,26 @@ export function SettingsPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Code Window Configuration */}
+      <div className="bg-card/80 backdrop-blur-sm rounded-xl border border-border/50 p-4">
+        <h3 className="text-sm font-semibold mb-1.5">Code Window Configuration</h3>
+        <p className="text-xs text-muted-foreground mb-4">
+          Customise the coding buttons that appear in the Code page. Drag buttons to reposition them, or use the editor to modify their properties.
+        </p>
+
+        {isLoadingConfig ? (
+          <div className="py-8 text-center text-muted-foreground text-sm">
+            Loading configuration...
+          </div>
+        ) : (
+          <VisualLayoutEditor 
+            buttons={buttons} 
+            onButtonsChange={setButtons}
+            onConfigSaved={(savedButtons) => setButtonConfig(savedButtons)}
+          />
+        )}
       </div>
     </div>
   );

@@ -113,10 +113,11 @@ export function Sidebar({ currentPage, onNavigate, onSwitchToTab, isOpen, isOver
                 className={cn(
                   "w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
                   isActive
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                    ? "bg-foreground/10 text-foreground"
+                    : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
                 )}
               >
+
                 <Icon className="w-4 h-4" />
                 {item.label}
               </button>
@@ -143,8 +144,8 @@ export function Sidebar({ currentPage, onNavigate, onSwitchToTab, isOpen, isOver
                     className={cn(
                       "group relative w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-all",
                       isActive
-                        ? "bg-accent text-accent-foreground"
-                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                        ? "bg-foreground/10 text-foreground"
+                        : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
                     )}
                   >
                     <button

@@ -127,3 +127,64 @@ export async function loadSettings(): Promise<Settings | null> {
   
   return result.data ? JSON.parse(result.data) : null;
 }
+
+// Coding window configuration operations
+export async function loadCodingWindowConfig(): Promise<any> {
+  if (!window.electronAPI) {
+    console.error('electronAPI not available');
+    throw new Error('Electron API not ready');
+  }
+  
+  const result = await window.electronAPI.loadCodingWindowConfig();
+  
+  if (!result.success || !result.data) {
+    throw new Error(result.error || "Failed to load coding window config");
+  }
+  
+  return JSON.parse(result.data);
+}
+
+export async function saveCodingWindowConfig(config: any): Promise<void> {
+  if (!window.electronAPI) {
+    console.error('electronAPI not available');
+    throw new Error('Electron API not ready');
+  }
+  
+  const result = await window.electronAPI.saveCodingWindowConfig(
+    JSON.stringify(config)
+  );
+  
+  if (!result.success) {
+    console.error('Config save failed:', result.error);
+    throw new Error(result.error || "Failed to save coding window config");
+  }
+}
+
+export async function getCodingWindowConfigPath(): Promise<string> {
+  if (!window.electronAPI) {
+    console.error('electronAPI not available');
+    throw new Error('Electron API not ready');
+  }
+  
+  const result = await window.electronAPI.getCodingWindowConfigPath();
+  
+  if (!result.success || !result.path) {
+    throw new Error(result.error || "Failed to get config path");
+  }
+  
+  return result.path;
+}
+
+export async function openConfigDirectory(): Promise<void> {
+  if (!window.electronAPI) {
+    console.error('electronAPI not available');
+    throw new Error('Electron API not ready');
+  }
+  
+  const result = await window.electronAPI.openConfigDirectory();
+  
+  if (!result.success) {
+    console.error('Failed to open config directory:', result.error);
+    throw new Error(result.error || "Failed to open config directory");
+  }
+}

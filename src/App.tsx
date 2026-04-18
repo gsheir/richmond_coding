@@ -61,6 +61,11 @@ function App() {
     setCurrentPage(null);
   };
 
+  const handleOpenMatch = async (matchId: string) => {
+    await useAppStore.getState().openTab(matchId);
+    setCurrentPage(null);
+  };
+
   const hasOpenTabs = tabs.length > 0;
   const activeTab = getActiveTab();
   const showCodePage = currentPage === null && activeTab;
@@ -80,7 +85,7 @@ function App() {
         />
         
         <main className="flex-1 overflow-auto p-4 bg-background">
-          <div className="h-full bg-card/20 rounded-xl border border-border/40 backdrop-blur-sm">
+          <div className="h-full bg-card/50 rounded-xl border border-border/40 backdrop-blur-sm">
             {/* Show code page if a match tab is active, otherwise show navigation pages */}
             {showCodePage ? (
               <CodePage
@@ -94,7 +99,7 @@ function App() {
               />
             ) : (
               <>
-                {currentPage === "matches" && <MatchesPage />}
+                {currentPage === "matches" && <MatchesPage onOpenMatch={handleOpenMatch} />}
                 {currentPage === "settings" && <SettingsPage />}
               </>
             )}

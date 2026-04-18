@@ -31,6 +31,19 @@ const electronAPI = {
   loadSettings: () =>
     ipcRenderer.invoke('load-settings'),
 
+  // Coding window configuration operations
+  loadCodingWindowConfig: () =>
+    ipcRenderer.invoke('load-coding-window-config'),
+  
+  saveCodingWindowConfig: (configData) =>
+    ipcRenderer.invoke('save-coding-window-config', configData),
+  
+  getCodingWindowConfigPath: () =>
+    ipcRenderer.invoke('get-coding-window-config-path'),
+  
+  openConfigDirectory: () =>
+    ipcRenderer.invoke('open-config-directory'),
+
   // Menu event listeners
   onNavigateToSettings: (callback) => {
     ipcRenderer.on('navigate-to-settings', callback);

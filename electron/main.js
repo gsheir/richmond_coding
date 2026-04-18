@@ -384,6 +384,85 @@ ipcMain.handle('export-xml', async (_event, matchData, defaultFilename) => {
   }
 });
 
+// Coding window configuration handlers
+ipcMain.handle('load-coding-window-config', async () => {
+  try {
+    const userConfigPath = path.join(app.getPath('userData'), 'coding_window.json');
+    const defaultConfigPath = app.isPackaged
+      ? path.join(process.resourcesPath, 'default_coding_window.json')
+      : path.join(__dirname, '../public/default_coding_window.json');
+    
+    // Try user config first
+    if (fs.existsSync(userConfigPath)) {
+      const data = fs.readFileSync(userConfigPath, 'utf8');
+      const config = JSON.parse(data);
+      return { success: true, data: JSON.stringify(config) };
+    }
+    
+    // Fall back to default and copy to user location
+    if (fs.existsSync(defaultConfigPath)) {
+      const defaultData = fs.readFileSync(defaultConfigPath, 'utf8');
+      const defaultConfig = JSON.parse(defaultData);
+      
+      // Copy default to user location
+      fs.writeFileSync(userConfigPath, JSON.stringify(defaultConfig, null, 2), 'utf8');
+      
+      return { success: true, data: JSON.stringify(defaultConfig) };
+    }
+    
+    // No config found
+    return { success: false, error: 'No configuration file found' };
+  } catch (error) {
+    console.error('Error loading coding window config:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+ipcMain.handle('save-coding-window-config', async (_event, configData) => {
+  try {
+    const userConfigPath = path.join(app.getPath('userData'), 'coding_window.json');
+    const tempPath = `${userConfigPath}.tmp`;
+    
+    // Validate JSON before writing
+    const config = JSON.parse(configData);
+    if (!config.buttons || !Array.isArray(config.buttons)) {
+      throw new Error('Invalid config: buttons array required');
+    }
+    
+    // Atomic write: write to temp file first
+    fs.writeFileSync(tempPath, JSON.stringify(config, null, 2), 'utf8');
+    
+    // Rename temp file to actual file (atomic operation)
+    fs.renameSync(tempPath, userConfigPath);
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error saving coding window config:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+ipcMain.handle('get-coding-window-config-path', async () => {
+  try {
+    const userConfigPath = path.join(app.getPath('userData'), 'coding_window.json');
+    return { success: true, path: userConfigPath };
+  } catch (error) {
+    console.error('Error getting config path:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+ipcMain.handle('open-config-directory', async () => {
+  try {
+    const userDataPath = app.getPath('userData');
+    await shell.openPath(userDataPath);
+    return { success: true };
+  } catch (error) {
+    console.error('Error opening config directory:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
 // App lifecycle
 app.whenReady().then(() => {
   createWindow();

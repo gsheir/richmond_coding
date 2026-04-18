@@ -60,16 +60,18 @@ export function ButtonGrid({ buttons, disabled = false }: ButtonGridProps) {
               opacity: disabled ? 0.5 : button.style.opacity,
             }}
             className={cn(
-              "rounded-xl font-semibold text-white shadow-lg transition-all",
+              "rounded-xl text-white shadow-lg transition-all",
               "hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-white/50",
               disabled && "cursor-not-allowed"
             )}
           >
             <div className="flex flex-col items-center justify-center h-full gap-1">
-              <span style={{ fontSize: button.style.fontSize * 0.6 }}>
+              <span style={{ fontSize: `${button.style.fontSize}px`, fontWeight: button.style.fontWeight }}>
                 {button.label}
               </span>
-              <span className="text-[10px] opacity-70">{button.hotkey}</span>
+              <span className="text-[10px] opacity-70 border border-white/30 rounded px-1.5 py-0.5">
+                {button.hotkey}
+              </span>
             </div>
           </motion.button>
         );

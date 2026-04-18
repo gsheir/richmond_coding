@@ -7,8 +7,12 @@ import { getMatchDisplayName } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { NewMatchModal } from "./NewMatchModal";
 
-export function MatchesPage() {
-  const { matches, refreshMatches, openTab, deleteMatch } = useAppStore();
+interface MatchesPageProps {
+  onOpenMatch: (matchId: string) => Promise<void>;
+}
+
+export function MatchesPage({ onOpenMatch }: MatchesPageProps) {
+  const { matches, refreshMatches, deleteMatch } = useAppStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
@@ -16,7 +20,7 @@ export function MatchesPage() {
   }, [refreshMatches]);
 
   const handleLoadMatch = async (matchId: string) => {
-    await openTab(matchId);
+    await onOpenMatch(matchId);
   };
 
   const handleDeleteMatch = async (matchId: string, e: React.MouseEvent) => {

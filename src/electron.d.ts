@@ -10,6 +10,10 @@ interface ElectronAPI {
   exportXML: (matchData: string, defaultFilename: string) => Promise<{ success: boolean; filePath?: string; canceled?: boolean; error?: string }>;
   saveSettings: (settingsData: string) => Promise<{ success: boolean; error?: string }>;
   loadSettings: () => Promise<{ success: boolean; data?: string | null; error?: string }>;
+  loadCodingWindowConfig: () => Promise<{ success: boolean; data?: string; error?: string }>;
+  saveCodingWindowConfig: (configData: string) => Promise<{ success: boolean; error?: string }>;
+  getCodingWindowConfigPath: () => Promise<{ success: boolean; path?: string; error?: string }>;
+  openConfigDirectory: () => Promise<{ success: boolean; error?: string }>;
   onNavigateToSettings: (callback: () => void) => void;
   onNewMatch: (callback: () => void) => void;
   onSaveMatch: (callback: () => void) => void;

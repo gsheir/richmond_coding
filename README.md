@@ -20,11 +20,16 @@ This creates a `.dmg` installer in the `release/` directory.
 
 
 
-## Configuring the code window
+## Configuring the Code Window
 
-Edit `public/coding_window.yaml` to customise:
-- Button positions and sizes
-- Colours and styling
-- Hotkeys
-- Lead/lag times
+The app provides a visual configuration editor in the Settings page where you can:
+- Add, edit, and delete coding buttons
+- Drag buttons to reposition them
+- Customise colours, styling, and hotkeys
+- Configure lead/lag times for video clips
+
+Configuration is stored in JSON format at:
+`~/Library/Application Support/Richmond Hockey Club/coding_window.json`
+
+You can also edit this file manually if preferred. Click "Open Directory" in the Settings page to access it.
 
