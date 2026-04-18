@@ -66,10 +66,10 @@ export function ButtonGrid({ buttons, disabled = false }: ButtonGridProps) {
             )}
           >
             <div className="flex flex-col items-center justify-center h-full gap-1">
-              <span style={{ fontSize: button.style.fontSize }}>
+              <span style={{ fontSize: button.style.fontSize * 0.6 }}>
                 {button.label}
               </span>
-              <span className="text-xs opacity-70">{button.hotkey}</span>
+              <span className="text-[10px] opacity-70">{button.hotkey}</span>
             </div>
           </motion.button>
         );

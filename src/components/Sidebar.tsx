@@ -1,5 +1,5 @@
 // Sidebar navigation (Linear-inspired)
-import { FolderOpen, Settings, FileText, X } from "lucide-react";
+import { FolderOpen, Settings, FileText, X, Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import { useAppStore } from "@/lib/store";
@@ -17,6 +17,26 @@ interface SidebarProps {
 export function Sidebar({ currentPage, onNavigate, onSwitchToTab, isOpen, isOverlay = false, onClose }: SidebarProps) {
   const { tabs, activeTabId, closeTab } = useAppStore();
   const [closingTabId, setClosingTabId] = useState<string | null>(null);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    // Initialize from localStorage or system preference
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('theme');
+      if (stored) return stored === 'dark';
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return false;
+  });
+
+  // Apply theme class to document
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDarkMode]);
   
   const navItems = [
     { id: "matches" as const, label: "Matches", icon: FolderOpen },
@@ -158,6 +178,29 @@ export function Sidebar({ currentPage, onNavigate, onSwitchToTab, isOpen, isOver
           </>
         )}
       </nav>
+
+      {/* Theme toggle */}
+      <div className="p-2">
+        <div className="flex items-center gap-2">
+          <Sun className="w-4 h-4 text-muted-foreground" />
+          <button
+            onClick={() => setIsDarkMode(!isDarkMode)}
+            className={cn(
+              "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+              isDarkMode ? "bg-primary" : "bg-input"
+            )}
+            aria-label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            <span
+              className={cn(
+                "inline-block h-4 w-4 transform rounded-full bg-background shadow-lg transition-transform",
+                isDarkMode ? "translate-x-6" : "translate-x-1"
+              )}
+            />
+          </button>
+          <Moon className="w-4 h-4 text-muted-foreground" />
+        </div>
+      </div>
 
       {/* Close tab confirmation modal */}
       {closingTabId && (
