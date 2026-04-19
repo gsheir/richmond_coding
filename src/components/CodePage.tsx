@@ -3,10 +3,11 @@ import { useEffect, useState } from "react";
 import { ClockWidget } from "./ClockWidget";
 import { MatchDetailsCard } from "./MatchDetailsCard";
 import { ButtonGrid } from "./ButtonGrid";
-import { EventLog } from "./EventLog";
+import { PhaseEfficiency } from "./PhaseEfficiency";
+import PhaseContextBreakdown from "./PhaseContextBreakdown";
 import { AutosaveIndicator } from "./AutosaveIndicator";
 import { Button } from "./ui/Button";
-import { Download, Trash2, Undo } from "lucide-react";
+import { Download, Trash2, Undo, Save, MoreVertical, ChevronDown, ChevronUp } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { ClockState, Match } from "@/lib/types";
 import { GameClock } from "@/lib/clock";
@@ -36,9 +37,13 @@ export function CodePage({
     exportXML,
     clearAllPhases,
     undoLastPhase,
+    saveMatch,
   } = useAppStore();
 
   const [isNarrow, setIsNarrow] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [eventLogCollapsed, setEventLogCollapsed] = useState(false);
+  const [phaseEfficiencyCollapsed, setPhaseEfficiencyCollapsed] = useState(false);
 
   const phases = eventEngine.getAllPhases();
   const isRunning = clockState === ClockState.RUNNING;
@@ -59,7 +64,12 @@ export function CodePage({
   // Detect narrow viewport
   useEffect(() => {
     const handleResize = () => {
-      setIsNarrow(window.innerWidth < 1280);
+      const narrow = window.innerWidth < 1280;
+      setIsNarrow(narrow);
+      // Default to collapsed when narrow
+      if (narrow) {
+        setPhaseEfficiencyCollapsed(true);
+      }
     };
 
     handleResize();
@@ -74,6 +84,7 @@ export function CodePage({
         <ClockWidget
           clockState={clockState}
           currentTime={currentTime}
+          clock={clock}
         />
 
         <div className="flex items-center gap-2">
@@ -89,6 +100,16 @@ export function CodePage({
           </Button>
 
           <Button
+            onClick={() => saveMatch(tabId)}
+            variant="attack"
+            size="sm"
+            className="gap-1.5"
+          >
+            <Save className="w-3.5 h-3.5" />
+            Save
+          </Button>
+
+          <Button
             onClick={exportXML}
             variant="outline"
             size="sm"
@@ -99,16 +120,37 @@ export function CodePage({
             Export
           </Button>
 
-          <Button
-            onClick={clearAllPhases}
-            variant="destructive"
-            size="sm"
-            className="gap-1.5"
-            disabled={phases.length === 0}
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            Clear
-          </Button>
+          <div className="relative">
+            <Button
+              onClick={() => setMenuOpen(!menuOpen)}
+              variant="outline"
+              size="sm"
+            >
+              <MoreVertical className="w-3.5 h-3.5" />
+            </Button>
+
+            {menuOpen && (
+              <>
+                <div 
+                  className="fixed inset-0 z-10" 
+                  onClick={() => setMenuOpen(false)}
+                />
+                <div className="absolute right-0 top-full mt-1 z-20 w-40 bg-card border border-border rounded-lg shadow-lg overflow-hidden">
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
+                      clearAllPhases();
+                    }}
+                    disabled={phases.length === 0}
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-destructive/50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-white"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Clear All Phases
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -119,7 +161,7 @@ export function CodePage({
         clockState={clockState}
       />
 
-      {/* Main content area - responsive layout */}
+      {/* Main content area - code window + placeholder card */}
       <div className={`flex-1 ${isNarrow ? 'flex flex-col' : 'flex'} gap-4 min-h-0`}>
         {/* Code window - fixed 720px width on desktop */}
         <div className={isNarrow ? 'flex-1 min-h-0' : 'w-[720px] shrink-0'} >
@@ -131,9 +173,114 @@ export function CodePage({
           </div>
         </div>
 
-        {/* Event log - takes remaining space on desktop, bottom on mobile */}
-        <div className={isNarrow ? 'min-h-40 shrink-0' : 'flex-1 min-h-0'}>
-          <EventLog phases={phases} />
+        {/* Analytics panel */}
+        <div className={isNarrow ? 'shrink-0' : 'flex-1 min-h-0'}>
+          <div className={`h-full bg-card/70 backdrop-blur-sm rounded-xl border border-border/50 overflow-hidden ${isNarrow ? '' : 'p-3'} flex flex-col`}>
+            {/* Collapsible header when narrow */}
+            {isNarrow ? (
+              <>
+                <div 
+                  className="px-3 py-2 border-b border-border/40 flex items-center justify-between cursor-pointer hover:bg-accent/30 transition-colors"
+                  onClick={() => setPhaseEfficiencyCollapsed(!phaseEfficiencyCollapsed)}
+                >
+                  <h3 className="font-semibold text-xs text-muted-foreground">Analytics</h3>
+                  <button className="p-1 hover:bg-accent rounded">
+                    {phaseEfficiencyCollapsed ? (
+                      <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                    )}
+                  </button>
+                </div>
+                {!phaseEfficiencyCollapsed && (
+                  <div className="flex-1 min-h-0 p-3 overflow-y-auto space-y-6">
+                    <div>
+                      <h4 className="text-xs font-semibold mb-2 text-muted-foreground">Phase Efficiency</h4>
+                      <PhaseEfficiency phases={phases} />
+                    </div>
+                    <div className="border-t border-border/40 pt-4">
+                      <h4 className="text-xs font-semibold mb-2 text-muted-foreground">Context Breakdown</h4>
+                      <PhaseContextBreakdown phases={phases} />
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <h3 className="font-semibold text-xs mb-3 text-muted-foreground">Analytics</h3>
+                <div className="flex-1 min-h-0 overflow-y-auto space-y-6">
+                  <div>
+                    <h4 className="text-xs font-semibold mb-2 text-muted-foreground">Phase Efficiency</h4>
+                    <PhaseEfficiency phases={phases} />
+                  </div>
+                  <div className="border-t border-border/40 pt-4">
+                    <h4 className="text-xs font-semibold mb-2 text-muted-foreground">Context Breakdown</h4>
+                    <PhaseContextBreakdown phases={phases} />
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Collapsible Event Log Panel at bottom */}
+      <div className="shrink-0">
+        <div className="bg-card/80 backdrop-blur-sm rounded-xl border border-border/50 overflow-hidden">
+          {/* Header with collapse toggle */}
+          <div 
+            className="px-3 py-2 border-b border-border/40 flex items-center justify-between cursor-pointer hover:bg-accent/30 transition-colors"
+            onClick={() => setEventLogCollapsed(!eventLogCollapsed)}
+          >
+            <div>
+              <h3 className="font-semibold text-xs text-muted-foreground">Event Log</h3>
+              <p className="text-xs text-muted-foreground/70 mt-0.5">
+                {phases.length} phases recorded
+              </p>
+            </div>
+            <button className="p-1 hover:bg-accent rounded">
+              {eventLogCollapsed ? (
+                <ChevronUp className="w-4 h-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+              )}
+            </button>
+          </div>
+
+          {/* Event log content - constrained height for ~6-8 rows */}
+          {!eventLogCollapsed && (
+            <div className="overflow-auto" style={{ maxHeight: '240px' }}>
+              <table className="w-full text-xs">
+                <thead className="sticky top-0 bg-card/90 backdrop-blur-sm border-b border-border/30">
+                  <tr>
+                    <th className="w-6"></th>
+                    <th className="px-3 py-1.5 text-left font-medium text-muted-foreground text-xs">
+                      Time
+                    </th>
+                    <th className="px-3 py-1.5 text-left font-medium text-muted-foreground text-xs">
+                      Code
+                    </th>
+                    <th className="px-3 py-1.5 text-left font-medium text-muted-foreground text-xs">
+                      Context
+                    </th>
+                    <th className="px-3 py-1.5 text-left font-medium text-muted-foreground text-xs">
+                      Termination
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {/* Event log rows will be rendered here */}
+                  <EventLogRows phases={phases} />
+                </tbody>
+              </table>
+
+              {phases.length === 0 && (
+                <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
+                  No phases recorded yet. Press Space to start coding.
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -154,5 +301,210 @@ export function CodePage({
         <div className="w-32" /> {/* Spacer for alignment */}
       </div>
     </div>
+  );
+}
+
+// Separate component for event log rows
+function EventLogRows({ phases }: { phases: any[] }) {
+  const { buttonConfig, updatePhase } = useAppStore();
+  const [editingCell, setEditingCell] = useState<{ phaseId: number; field: string } | null>(null);
+  const [editValue, setEditValue] = useState("");
+
+  // Show newest first
+  const sortedPhases = [...phases].reverse();
+
+  const phaseButtons = buttonConfig.filter((b) => b.type === "phase");
+  const terminationButtons = buttonConfig.filter((b) => b.type === "termination");
+
+  const startEditing = (phaseId: number, field: string, currentValue: string) => {
+    setEditingCell({ phaseId, field });
+    setEditValue(currentValue);
+  };
+
+  const saveEdit = () => {
+    if (!editingCell) return;
+
+    const { phaseId, field } = editingCell;
+
+    if (field === "phaseLabel") {
+      const button = phaseButtons.find((b) => b.label === editValue);
+      if (button) {
+        updatePhase(phaseId, {
+          phaseLabel: button.label,
+          phaseCode: button.code,
+          status: "classified" as any,
+        });
+      }
+    } else if (field === "contextLabels") {
+      const labels = editValue
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+      updatePhase(phaseId, { contextLabels: labels });
+    } else if (field === "terminationEvent") {
+      const button = terminationButtons.find((b) => b.label === editValue);
+      if (button) {
+        updatePhase(phaseId, {
+          terminationEvent: button.label,
+          terminationCategory: button.category || null,
+          status: "terminated" as any,
+        });
+      } else if (editValue === "") {
+        updatePhase(phaseId, {
+          terminationEvent: null,
+          terminationCategory: null,
+          status: "classified" as any,
+        });
+      }
+    }
+
+    setEditingCell(null);
+    setEditValue("");
+  };
+
+  const cancelEdit = () => {
+    setEditingCell(null);
+    setEditValue("");
+  };
+
+  const getDotColor = (phase: any) => {
+    if (phase.status === "terminated") {
+      if (phase.terminationCategory === "success") {
+        return "bg-green-500";
+      } else if (phase.terminationCategory === "failure") {
+        return "bg-red-500";
+      }
+      return "bg-green-500";
+    }
+    
+    if (phase.status === "undefined") {
+      return "bg-yellow-500";
+    } else if (phase.status === "classified") {
+      return "bg-blue-500";
+    }
+    
+    return "bg-gray-500";
+  };
+
+  const formatTime = (ms: number): string => {
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes.toString().padStart(2, "0")}:${seconds
+      .toString()
+      .padStart(2, "0")}`;
+  };
+
+  const cn = (...classes: (string | boolean | undefined)[]) => {
+    return classes.filter(Boolean).join(' ');
+  };
+
+  return (
+    <>
+      {sortedPhases.map((phase) => (
+        <tr
+          key={phase.id}
+          className={cn(
+            "border-b border-border/50 hover:bg-accent/50 transition-colors",
+            phase.status === "undefined" && "bg-yellow-500/10",
+            phase.status === "classified" && "bg-blue-500/10"
+          )}
+        >
+          <td className="px-3 py-1.5">
+            <div
+              className={cn(
+                "w-2 h-2 rounded-full",
+                getDotColor(phase)
+              )}
+            />
+          </td>
+          <td className="px-3 py-1.5 font-mono text-xs">
+            {formatTime(phase.startTimeMs)}
+          </td>
+          <td 
+            className="px-3 py-1.5 font-medium text-xs cursor-pointer hover:bg-accent/30 group relative"
+            onClick={() => startEditing(phase.id, "phaseLabel", phase.phaseLabel || "")}
+          >
+            {editingCell?.phaseId === phase.id && editingCell?.field === "phaseLabel" ? (
+              <select
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onBlur={saveEdit}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") saveEdit();
+                  if (e.key === "Escape") cancelEdit();
+                }}
+                autoFocus
+                className="w-full px-1 py-0.5 text-xs bg-background border border-border rounded"
+              >
+                <option value="">Undefined</option>
+                {phaseButtons.map((btn) => (
+                  <option key={btn.code} value={btn.label}>
+                    {btn.label}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <>
+                {phase.phaseLabel || "Undefined"}
+              </>
+            )}
+          </td>
+          <td 
+            className="px-3 py-1.5 text-xs text-muted-foreground cursor-pointer hover:bg-accent/30 group relative"
+            onClick={() => startEditing(phase.id, "contextLabels", phase.contextLabels.join(", "))}
+          >
+            {editingCell?.phaseId === phase.id && editingCell?.field === "contextLabels" ? (
+              <input
+                type="text"
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onBlur={saveEdit}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") saveEdit();
+                  if (e.key === "Escape") cancelEdit();
+                }}
+                autoFocus
+                placeholder="Comma-separated labels"
+                className="w-full px-1 py-0.5 text-xs bg-background border border-border rounded"
+              />
+            ) : (
+              <>
+                {phase.contextLabels.join(", ") || "–"}
+              </>
+            )}
+          </td>
+          <td 
+            className="px-3 py-1.5 text-xs text-muted-foreground cursor-pointer hover:bg-accent/30 group relative"
+            onClick={() => startEditing(phase.id, "terminationEvent", phase.terminationEvent || "")}
+          >
+            {editingCell?.phaseId === phase.id && editingCell?.field === "terminationEvent" ? (
+              <select
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onBlur={saveEdit}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") saveEdit();
+                  if (e.key === "Escape") cancelEdit();
+                }}
+                autoFocus
+                className="w-full px-1 py-0.5 text-xs bg-background border border-border rounded"
+              >
+                <option value="">–</option>
+                {terminationButtons.map((btn) => (
+                  <option key={btn.code} value={btn.label}>
+                    {btn.label}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <>
+                {phase.terminationEvent || "–"}
+              </>
+            )}
+          </td>
+        </tr>
+      ))}
+    </>
   );
 }

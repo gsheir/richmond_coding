@@ -160,6 +160,22 @@ export async function saveCodingWindowConfig(config: any): Promise<void> {
   }
 }
 
+export async function resetCodingWindowConfig(): Promise<any> {
+  if (!window.electronAPI) {
+    console.error('electronAPI not available');
+    throw new Error('Electron API not ready');
+  }
+  
+  const result = await window.electronAPI.resetCodingWindowConfig();
+  
+  if (!result.success || !result.data) {
+    console.error('Config reset failed:', result.error);
+    throw new Error(result.error || "Failed to reset coding window config");
+  }
+  
+  return JSON.parse(result.data);
+}
+
 export async function getCodingWindowConfigPath(): Promise<string> {
   if (!window.electronAPI) {
     console.error('electronAPI not available');

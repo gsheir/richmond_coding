@@ -117,6 +117,48 @@ export function validateButtonConfig(buttons: ButtonConfig[]): ValidationResult 
           buttonCode: button.code,
         });
       }
+
+      // Validate possession state
+      if (!button.possessionState) {
+        warnings.push({
+          field: 'possessionState',
+          message: 'Possession state not set (required for auto-transitions)',
+          buttonCode: button.code,
+        });
+      } else if (button.possessionState !== 'in-possession' && button.possessionState !== 'out-of-possession') {
+        errors.push({
+          field: 'possessionState',
+          message: 'Possession state must be "in-possession" or "out-of-possession"',
+          buttonCode: button.code,
+        });
+      }
+
+      // Validate hierarchy level
+      if (button.hierarchyLevel === undefined) {
+        warnings.push({
+          field: 'hierarchyLevel',
+          message: 'Hierarchy level not set (required for auto-transitions)',
+          buttonCode: button.code,
+        });
+      } else if (button.hierarchyLevel < 1 || button.hierarchyLevel > 5) {
+        errors.push({
+          field: 'hierarchyLevel',
+          message: 'Hierarchy level must be between 1 and 5',
+          buttonCode: button.code,
+        });
+      }
+    }
+
+    // Validate transition type for termination buttons
+    if (button.type === 'termination' && button.transitionType) {
+      const validTypes = ['upgrade', 'downgrade', 'ball-lost', 'ball-won'];
+      if (!validTypes.includes(button.transitionType)) {
+        errors.push({
+          field: 'transitionType',
+          message: `Invalid transition type (must be one of: ${validTypes.join(', ')})`,
+          buttonCode: button.code,
+        });
+      }
     }
 
     // Validate colour format
@@ -125,6 +167,21 @@ export function validateButtonConfig(buttons: ButtonConfig[]): ValidationResult 
         field: 'style.colour',
         message: 'Invalid colour format (use #RRGGBB)',
         buttonCode: button.code,
+      });
+    }
+  });
+
+  // Check for presence of auto-transition termination buttons
+  const transitionTypes = buttons
+    .filter(b => b.type === 'termination' && b.transitionType)
+    .map(b => b.transitionType);
+  
+  const requiredTypes: Array<'upgrade' | 'downgrade' | 'ball-lost' | 'ball-won'> = ['upgrade', 'downgrade', 'ball-lost', 'ball-won'];
+  requiredTypes.forEach(type => {
+    if (!transitionTypes.includes(type)) {
+      warnings.push({
+        field: 'transitionType',
+        message: `No termination button with transition type "${type}" (auto-transitions may not work fully)`,
       });
     }
   });

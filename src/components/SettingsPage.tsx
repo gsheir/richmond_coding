@@ -180,10 +180,7 @@ export function SettingsPage() {
 
       {/* Code Window Configuration */}
       <div className="bg-card/80 backdrop-blur-sm rounded-xl border border-border/50 p-4">
-        <h3 className="text-sm font-semibold mb-1.5">Code Window Configuration</h3>
-        <p className="text-xs text-muted-foreground mb-4">
-          Customise the coding buttons that appear in the Code page. Drag buttons to reposition them, or use the editor to modify their properties.
-        </p>
+        <h3 className="text-sm font-semibold mb-4">Code Window Configuration</h3>
 
         {isLoadingConfig ? (
           <div className="py-8 text-center text-muted-foreground text-sm">

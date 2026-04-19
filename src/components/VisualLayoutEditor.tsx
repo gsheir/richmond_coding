@@ -1,11 +1,11 @@
 // Visual Layout Editor - drag-and-drop interface for button configuration
 import { useState, useRef, useEffect, DragEvent, MouseEvent } from "react";
 import { ButtonConfig } from "@/lib/types";
-import { Plus, Edit2, Trash2, AlertCircle } from "lucide-react";
+import { Plus, Edit2, Trash2, AlertCircle, RotateCcw, GripVertical } from "lucide-react";
 import { Button } from "./ui/Button";
 import { ButtonEditorModal } from "./ButtonEditorModal";
 import { validateButtonConfig, ValidationResult } from "@/lib/config-validation";
-import { saveCodingWindowConfig } from "@/lib/electron-api";
+import { saveCodingWindowConfig, resetCodingWindowConfig } from "@/lib/electron-api";
 import { formatHotkeyDisplay } from "@/lib/utils";
 
 interface VisualLayoutEditorProps {
@@ -25,6 +25,8 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [isDirty, setIsDirty] = useState(false);
   const [savedButtonsSnapshot, setSavedButtonsSnapshot] = useState<string>(JSON.stringify(buttons));
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [draggedListButton, setDraggedListButton] = useState<string | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   
   // Rectangular selection state
@@ -36,10 +38,10 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
   const CANVAS_HEIGHT = 480;
 
   // Run validation whenever buttons change
-  useState(() => {
+  useEffect(() => {
     const result = validateButtonConfig(buttons);
     setValidation(result);
-  });
+  }, [buttons]);
 
   // Track dirty state by comparing current buttons with saved snapshot
   useEffect(() => {
@@ -307,8 +309,10 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
   const handleSaveConfig = async () => {
     try {
       setSaveStatus("saving");
-      const config = {
-        buttons: buttons.map((btn) => ({
+      
+      // Helper function to serialize a button
+      const serializeButton = (btn: ButtonConfig) => {
+        const baseConfig: any = {
           code: btn.code,
           label: btn.label,
           type: btn.type,
@@ -323,7 +327,34 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
           },
           lead_ms: btn.leadMs,
           lag_ms: btn.lagMs,
-        })),
+        };
+        
+        // Add optional properties if they exist
+        if (btn.possessionState) {
+          baseConfig.possession_state = btn.possessionState;
+        }
+        if (btn.hierarchyLevel !== undefined) {
+          baseConfig.hierarchy_level = btn.hierarchyLevel;
+        }
+        if (btn.transitionType) {
+          baseConfig.transition_type = btn.transitionType;
+        }
+        if (btn.forPossessionState) {
+          baseConfig.for_possession_state = btn.forPossessionState;
+        }
+        
+        return baseConfig;
+      };
+      
+      // Separate buttons by type
+      const phaseButtons = buttons.filter(b => b.type === 'phase').map(serializeButton);
+      const contextButtons = buttons.filter(b => b.type === 'context').map(serializeButton);
+      const terminationButtons = buttons.filter(b => b.type === 'termination').map(serializeButton);
+      
+      const config = {
+        phase_buttons: phaseButtons,
+        context_buttons: contextButtons,
+        termination_buttons: terminationButtons,
       };
 
       await saveCodingWindowConfig(config);
@@ -346,10 +377,231 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
     }
   };
 
+  const handleResetConfig = async () => {
+    try {
+      setSaveStatus("saving");
+      const defaultConfig = await resetCodingWindowConfig();
+      
+      // Combine phase, context, and termination buttons
+      const allButtons = [
+        ...(defaultConfig.phase_buttons || []),
+        ...(defaultConfig.context_buttons || []),
+        ...(defaultConfig.termination_buttons || []),
+      ];
+      
+      // Update buttons from default config
+      const loadedButtons = allButtons.map((btn: any) => ({
+        code: btn.code,
+        label: btn.label,
+        type: btn.type,
+        category: btn.category || undefined,
+        hotkey: btn.hotkey || undefined,
+        position: btn.position,
+        style: {
+          colour: btn.style.colour,
+          opacity: btn.style.opacity,
+          fontSize: btn.style.font_size,
+          fontWeight: btn.style.font_weight,
+        },
+        leadMs: btn.lead_ms,
+        lagMs: btn.lag_ms,
+        possessionState: btn.possession_state,
+        hierarchyLevel: btn.hierarchy_level,
+        transitionType: btn.transition_type,
+        forPossessionState: btn.for_possession_state,
+      }));
+      
+      onButtonsChange(loadedButtons);
+      
+      // Update global store after successful reset
+      if (typeof onConfigSaved === 'function') {
+        onConfigSaved(loadedButtons);
+      }
+      
+      // Update snapshot and clear dirty state
+      setSavedButtonsSnapshot(JSON.stringify(loadedButtons));
+      setIsDirty(false);
+      setShowResetConfirm(false);
+      
+      setSaveStatus("saved");
+      setTimeout(() => setSaveStatus("idle"), 2000);
+    } catch (error) {
+      console.error("Failed to reset config:", error);
+      setSaveStatus("error");
+      setTimeout(() => setSaveStatus("idle"), 3000);
+    }
+  };
+
+  // List drag and drop handlers
+  const handleListDragStart = (e: DragEvent<HTMLTableRowElement>, buttonCode: string) => {
+    setDraggedListButton(buttonCode);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleListDragOver = (e: DragEvent<HTMLTableRowElement>) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleListDrop = (e: DragEvent<HTMLTableRowElement>, targetCode: string, buttonType: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!draggedListButton || draggedListButton === targetCode) {
+      setDraggedListButton(null);
+      return;
+    }
+
+    const draggedButton = buttons.find(b => b.code === draggedListButton);
+    const targetButton = buttons.find(b => b.code === targetCode);
+
+    if (!draggedButton || !targetButton || draggedButton.type !== targetButton.type) {
+      setDraggedListButton(null);
+      return;
+    }
+
+    // Get buttons of the same type
+    const sameTypeButtons = buttons.filter(b => b.type === buttonType);
+    const otherButtons = buttons.filter(b => b.type !== buttonType);
+
+    const draggedIndex = sameTypeButtons.findIndex(b => b.code === draggedListButton);
+    const targetIndex = sameTypeButtons.findIndex(b => b.code === targetCode);
+
+    if (draggedIndex === -1 || targetIndex === -1) {
+      setDraggedListButton(null);
+      return;
+    }
+
+    // Reorder within the same type
+    const reordered = [...sameTypeButtons];
+    const [removed] = reordered.splice(draggedIndex, 1);
+    reordered.splice(targetIndex, 0, removed);
+
+    // Combine with other types
+    const newButtons = [...otherButtons, ...reordered];
+    onButtonsChange(newButtons);
+    setDraggedListButton(null);
+  };
+
+  const handleListDragEnd = () => {
+    setDraggedListButton(null);
+  };
+
   const existingCodes = buttons.map((b) => b.code);
+
+  // Categorise buttons by type
+  const phaseButtons = buttons.filter(b => b.type === 'phase');
+  const contextButtons = buttons.filter(b => b.type === 'context');
+  const terminationButtons = buttons.filter(b => b.type === 'termination');
+
+  // Helper to render a categorised button table
+  const renderButtonTable = (categoryButtons: ButtonConfig[], categoryName: string, categoryType: string) => {
+    if (categoryButtons.length === 0) return null;
+
+    return (
+      <div key={categoryType} className="w-full">
+        <h4 className="text-sm font-medium mb-2">{categoryName}</h4>
+        <div className="border border-border rounded-lg overflow-hidden w-full">
+          <table className="w-full text-sm table-fixed">
+            <thead className="bg-muted/50 border-b border-border">
+              <tr>
+                <th className="w-8"></th>
+                <th className="text-left px-3 py-2 font-medium">Code</th>
+                <th className="text-left px-3 py-2 font-medium">Label</th>
+                <th className="text-left px-3 py-2 font-medium">Hotkey</th>
+                <th className="text-left px-3 py-2 font-medium">Position</th>
+                <th className="text-right px-3 py-2 font-medium">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {categoryButtons.map((button) => (
+                <tr
+                  key={button.code}
+                  draggable
+                  onDragStart={(e) => handleListDragStart(e, button.code)}
+                  onDragOver={handleListDragOver}
+                  onDrop={(e) => handleListDrop(e, button.code, categoryType)}
+                  onDragEnd={handleListDragEnd}
+                  className={`border-b border-border/50 hover:bg-muted/30 transition-colors cursor-move ${
+                    selectedButtons.includes(button.code) ? "bg-muted/50" : ""
+                  } ${draggedListButton === button.code ? "opacity-50" : ""}`}
+                  onClick={(e) => {
+                    if (e.metaKey || e.ctrlKey) {
+                      if (selectedButtons.includes(button.code)) {
+                        setSelectedButtons(selectedButtons.filter((c) => c !== button.code));
+                      } else {
+                        setSelectedButtons([...selectedButtons, button.code]);
+                      }
+                    } else {
+                      setSelectedButtons([button.code]);
+                    }
+                  }}
+                >
+                  <td className="px-2 py-2 text-muted-foreground">
+                    <GripVertical className="w-4 h-4" />
+                  </td>
+                  <td 
+                    className="px-3 py-2 font-mono text-xs font-bold text-white"
+                    style={{ 
+                      backgroundColor: button.style.colour,
+                      opacity: button.style.opacity 
+                    }}
+                  >
+                    {button.code}
+                  </td>
+                  <td className="px-3 py-2">{button.label}</td>
+                  <td className="px-3 py-2">
+                    {button.hotkey ? (
+                      <span className="inline-block border border-border rounded px-1.5 py-0.5 text-xs font-mono">
+                        {formatHotkeyDisplay(button.hotkey)}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">None</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 text-xs text-muted-foreground">
+                    {button.position.x}, {button.position.y}
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    <div className="flex gap-1 justify-end">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditButton(button);
+                        }}
+                        className="p-1 rounded hover:bg-muted transition-colors"
+                        title="Edit"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteButton(button.code);
+                        }}
+                        className="p-1 rounded hover:bg-destructive/20 text-destructive transition-colors"
+                        title="Delete"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-4">
+      {/* Description */}
+      <p className="text-sm text-muted-foreground">
+        Customise the coding buttons that appear in the Code page. Drag buttons to reposition them, click-and-drag on canvas to select multiple, or use the editor to modify properties.
+      </p>
+
       {/* Toolbar */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -375,6 +627,15 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
               <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-blue-500 rounded-full" title="Unsaved changes" />
             )}
           </div>
+          <Button 
+            onClick={() => setShowResetConfirm(true)} 
+            size="sm" 
+            variant="outline"
+            disabled={saveStatus === "saving"}
+          >
+            <RotateCcw className="w-4 h-4" />
+            Reset to Default
+          </Button>
         </div>
         <div className="text-sm text-muted-foreground">
           {buttons.length} button{buttons.length !== 1 ? "s" : ""}
@@ -430,9 +691,6 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
 
       {/* Canvas */}
       <div className="space-y-2">
-        <p className="text-sm text-muted-foreground">
-          Drag buttons to reposition them. Click-and-drag on canvas to select multiple. Cmd/Ctrl+click to toggle selection.
-        </p>
         <div
           ref={canvasRef}
           className="relative border-2 border-border rounded-xl bg-muted/20 overflow-hidden select-none"
@@ -539,84 +797,17 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
         </div>
       </div>
 
-      {/* Button List */}
-      <div className="w-full">
-        <h3 className="text-sm font-semibold mb-2">Button List</h3>
-        <div className="border border-border rounded-lg overflow-hidden w-full">
-          <table className="w-full text-sm table-fixed">
-            <thead className="bg-muted/50 border-b border-border">
-              <tr>
-                <th className="text-left px-3 py-2 font-medium">Code</th>
-                <th className="text-left px-3 py-2 font-medium">Label</th>
-                <th className="text-left px-3 py-2 font-medium">Type</th>
-                <th className="text-left px-3 py-2 font-medium">Hotkey</th>
-                <th className="text-left px-3 py-2 font-medium">Position</th>
-                <th className="text-right px-3 py-2 font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {buttons.map((button) => (
-                <tr
-                  key={button.code}
-                  className={`border-b border-border/50 hover:bg-muted/30 transition-colors cursor-pointer ${
-                    selectedButtons.includes(button.code) ? "bg-muted/50" : ""
-                  }`}
-                  onClick={(e) => {
-                    if (e.metaKey || e.ctrlKey) {
-                      if (selectedButtons.includes(button.code)) {
-                        setSelectedButtons(selectedButtons.filter((c) => c !== button.code));
-                      } else {
-                        setSelectedButtons([...selectedButtons, button.code]);
-                      }
-                    } else {
-                      setSelectedButtons([button.code]);
-                    }
-                  }}
-                >
-                  <td className="px-3 py-2 font-mono text-xs">{button.code}</td>
-                  <td className="px-3 py-2">{button.label}</td>
-                  <td className="px-3 py-2 capitalize">{button.type}</td>
-                  <td className="px-3 py-2">
-                    {button.hotkey ? (
-                      <span className="inline-block border border-border rounded px-1.5 py-0.5 text-xs font-mono">
-                        {formatHotkeyDisplay(button.hotkey)}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">None</span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2 text-xs text-muted-foreground">
-                    {button.position.x}, {button.position.y}
-                  </td>
-                  <td className="px-3 py-2 text-right">
-                    <div className="flex gap-1 justify-end">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEditButton(button);
-                        }}
-                        className="p-1 rounded hover:bg-muted transition-colors"
-                        title="Edit"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteButton(button.code);
-                        }}
-                        className="p-1 rounded hover:bg-destructive/20 text-destructive transition-colors"
-                        title="Delete"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      {/* Button Lists */}
+      <div className="w-full space-y-4">
+        <h3 className="text-sm font-semibold">Button Lists</h3>
+        {renderButtonTable(phaseButtons, "Phase Buttons", "phase")}
+        {renderButtonTable(contextButtons, "Context Buttons", "context")}
+        {renderButtonTable(terminationButtons, "Termination Buttons", "termination")}
+        {buttons.length === 0 && (
+          <div className="py-8 text-center text-muted-foreground text-sm">
+            No buttons configured
+          </div>
+        )}
       </div>
 
       {/* Button Editor Modal */}
@@ -630,6 +821,42 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
         onSave={handleSaveButton}
         existingCodes={existingCodes.filter((c) => c !== editingButton?.code)}
       />
+
+      {/* Reset Confirmation Dialog */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-card border border-border rounded-xl p-6 max-w-md mx-4 shadow-2xl">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="p-2 bg-destructive/10 rounded-lg">
+                <AlertCircle className="w-5 h-5 text-destructive" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold mb-1">Reset to Default Configuration?</h3>
+                <p className="text-sm text-muted-foreground">
+                  This will replace all current buttons with the default configuration. This action cannot be undone.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button 
+                onClick={() => setShowResetConfirm(false)} 
+                size="sm" 
+                variant="outline"
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleResetConfig} 
+                size="sm" 
+                variant="destructive"
+                disabled={saveStatus === "saving"}
+              >
+                {saveStatus === "saving" ? "Resetting..." : "Reset"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

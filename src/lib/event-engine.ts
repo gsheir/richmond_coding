@@ -110,9 +110,19 @@ export class EventEngine {
 
     switch (buttonType) {
       case ButtonType.PHASE:
+        // If there's a classified phase active, auto-terminate it first
+        if (this.activePhase !== null && this.activePhase.status === PhaseStatus.CLASSIFIED) {
+          const terminationCode = this.determineAutoTermination(this.activePhase, button);
+          this.terminateActivePhase(terminationCode);
+          // activePhase is now null
+        }
+        
+        // Start new undefined phase if needed
         if (this.activePhase === null) {
           this.startUndefinedPhase();
         }
+        
+        // Classify the phase (whether it was existing undefined or newly created)
         this.classifyActivePhase(code);
         break;
 
@@ -124,6 +134,58 @@ export class EventEngine {
         this.terminateActivePhase(code);
         break;
     }
+  }
+
+  private determineAutoTermination(currentPhase: Phase, newPhaseButton: ButtonConfig): string | null {
+    const currentButton = this.buttonConfig[currentPhase.phaseCode || ""];
+    if (!currentButton) return null;
+    
+    const currentPossession = currentButton.possessionState;
+    const currentHierarchy = currentButton.hierarchyLevel;
+    const newPossession = newPhaseButton.possessionState;
+    const newHierarchy = newPhaseButton.hierarchyLevel;
+    
+    // Determine transition type needed
+    let transitionType: string | null = null;
+    
+    if (currentPossession === newPossession) {
+      // Same possession state
+      if (newHierarchy !== undefined && currentHierarchy !== undefined) {
+        if (newHierarchy > currentHierarchy) {
+          transitionType = "upgrade";
+        } else if (newHierarchy < currentHierarchy) {
+          transitionType = "downgrade";
+        }
+      }
+    } else if (currentPossession === "in-possession" && newPossession === "out-of-possession") {
+      transitionType = "ball-lost";
+    } else if (currentPossession === "out-of-possession" && newPossession === "in-possession") {
+      transitionType = "ball-won";
+    }
+    
+    if (!transitionType) return null;
+    
+    // Find termination button with matching transition type and possession context
+    // Prefer buttons that match the current possession state, fall back to generic ones
+    const terminationButtons = Object.values(this.buttonConfig).filter(
+      btn => btn.type === ButtonType.TERMINATION && btn.transitionType === transitionType
+    );
+    
+    // First try to find a button specific to the current possession state
+    const specificButton = terminationButtons.find(
+      btn => btn.forPossessionState === currentPossession
+    );
+    
+    if (specificButton) {
+      return specificButton.code;
+    }
+    
+    // Fall back to a generic button (no forPossessionState specified)
+    const genericButton = terminationButtons.find(
+      btn => !btn.forPossessionState
+    );
+    
+    return genericButton?.code || terminationButtons[0]?.code || null;
   }
 
   getActivePhase(): Phase | null {
@@ -146,6 +208,23 @@ export class EventEngine {
     }
 
     this.nextPhaseId--;
+    return true;
+  }
+
+  updatePhase(phaseId: number, updates: Partial<Phase>): boolean {
+    const index = this.phases.findIndex((p) => p.id === phaseId);
+    if (index === -1) return false;
+
+    this.phases[index] = {
+      ...this.phases[index],
+      ...updates,
+    };
+
+    // If updating the active phase, update the reference
+    if (this.activePhase?.id === phaseId) {
+      this.activePhase = this.phases[index];
+    }
+
     return true;
   }
 

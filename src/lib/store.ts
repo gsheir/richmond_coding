@@ -4,6 +4,7 @@ import { GameClock } from "./clock";
 import { EventEngine } from "./event-engine";
 import {
   Match,
+  Phase,
   Tab,
   ButtonConfig,
   ClockMode,
@@ -65,6 +66,11 @@ interface AppState {
   startClock: () => void;
   pauseClock: () => void;
   stopClock: () => void;
+  skipToStart: () => void;
+  skipBack: (seconds?: number) => void;
+  skipForward: (seconds?: number) => void;
+  skipToEnd: () => void;
+  jumpToTime: (timeMs: number) => void;
   updateClockDisplays: () => void;
   
   // Match actions
@@ -84,6 +90,7 @@ interface AppState {
   handleButtonClick: (code: string, type: any) => void;
   undoLastPhase: () => void;
   clearAllPhases: () => void;
+  updatePhase: (phaseId: number, updates: Partial<Phase>) => void;
   
   // Export (operates on active tab)
   exportXML: () => Promise<void>;
@@ -91,7 +98,7 @@ interface AppState {
 
 export const useAppStore = create<AppState>((set, get) => {
   const createTabData = (match: Match): TabData => {
-    const clock = new GameClock(ClockMode.LIVE);
+    const clock = new GameClock(ClockMode.RETROSPECTIVE);
     const eventEngine = new EventEngine(clock);
     
     // Set button config if available
@@ -365,6 +372,38 @@ export const useAppStore = create<AppState>((set, get) => {
       activeTab.clock.stop();
     },
     
+    skipToStart: () => {
+      const activeTab = get().getActiveTab();
+      if (!activeTab) return;
+      activeTab.clock.skipToStart();
+    },
+    
+    skipBack: (seconds = 5) => {
+      const activeTab = get().getActiveTab();
+      if (!activeTab) return;
+      activeTab.clock.skipBack(seconds);
+    },
+    
+    skipForward: (seconds = 5) => {
+      const activeTab = get().getActiveTab();
+      if (!activeTab) return;
+      activeTab.clock.skipForward(seconds);
+    },
+    
+    skipToEnd: () => {
+      const activeTab = get().getActiveTab();
+      if (!activeTab) return;
+      activeTab.clock.skipToEnd();
+    },
+    
+    jumpToTime: (timeMs: number) => {
+      const activeTab = get().getActiveTab();
+      if (!activeTab) return;
+      // Clamp to minimum of 0, but allow jumping beyond latest time
+      const clampedTime = Math.max(0, timeMs);
+      activeTab.clock.setTimeMs(clampedTime);
+    },
+    
     updateClockDisplays: () => {
       const tabs = get().tabs;
       const updatedTabs = tabs.map(tabData => {
@@ -545,6 +584,12 @@ export const useAppStore = create<AppState>((set, get) => {
       }
     },
     
+    updatePhase: (phaseId: number, updates: Partial<Phase>) => {
+      const activeTab = get().getActiveTab();
+      if (!activeTab) return;
+      activeTab.eventEngine.updatePhase(phaseId, updates);
+    },
+    
     exportXML: async () => {
       const activeTab = get().getActiveTab();
       if (!activeTab) return;
@@ -555,7 +600,8 @@ export const useAppStore = create<AppState>((set, get) => {
         phases: activeTab.eventEngine.getAllPhases(),
       };
       
-      const xmlContent = exportToSportscodeXML(updatedMatch);
+      const buttonConfig = get().buttonConfig;
+      const xmlContent = exportToSportscodeXML(updatedMatch, buttonConfig);
       
       // Create default filename from match details
       const cleanName = (name: string) => name.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_-]/g, "");

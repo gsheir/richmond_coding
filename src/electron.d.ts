@@ -12,6 +12,7 @@ interface ElectronAPI {
   loadSettings: () => Promise<{ success: boolean; data?: string | null; error?: string }>;
   loadCodingWindowConfig: () => Promise<{ success: boolean; data?: string; error?: string }>;
   saveCodingWindowConfig: (configData: string) => Promise<{ success: boolean; error?: string }>;
+  resetCodingWindowConfig: () => Promise<{ success: boolean; data?: string; error?: string }>;
   getCodingWindowConfigPath: () => Promise<{ success: boolean; path?: string; error?: string }>;
   openConfigDirectory: () => Promise<{ success: boolean; error?: string }>;
   onNavigateToSettings: (callback: () => void) => void;

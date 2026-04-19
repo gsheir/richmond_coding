@@ -6,7 +6,14 @@ export async function loadButtonConfig(): Promise<ButtonConfig[]> {
   try {
     const config = await loadCodingWindowConfig();
     
-    return config.buttons.map((btn: any) => ({
+    // Combine phase, context, and termination buttons
+    const allButtons = [
+      ...(config.phase_buttons || []),
+      ...(config.context_buttons || []),
+      ...(config.termination_buttons || []),
+    ];
+    
+    return allButtons.map((btn: any) => ({
       code: btn.code,
       label: btn.label,
       type: btn.type as ButtonType,
@@ -21,6 +28,10 @@ export async function loadButtonConfig(): Promise<ButtonConfig[]> {
       },
       leadMs: btn.lead_ms ?? 3000,
       lagMs: btn.lag_ms ?? 5000,
+      possessionState: btn.possession_state,
+      hierarchyLevel: btn.hierarchy_level,
+      transitionType: btn.transition_type,
+      forPossessionState: btn.for_possession_state,
     }));
   } catch (error) {
     console.error("Failed to load button config:", error);

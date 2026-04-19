@@ -38,6 +38,9 @@ const electronAPI = {
   saveCodingWindowConfig: (configData) =>
     ipcRenderer.invoke('save-coding-window-config', configData),
   
+  resetCodingWindowConfig: () =>
+    ipcRenderer.invoke('reset-coding-window-config'),
+  
   getCodingWindowConfigPath: () =>
     ipcRenderer.invoke('get-coding-window-config-path'),
   

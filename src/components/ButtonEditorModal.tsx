@@ -35,6 +35,10 @@ export function ButtonEditorModal({
   const [fontWeight, setFontWeight] = useState("bold");
   const [leadMs, setLeadMs] = useState(3000);
   const [lagMs, setLagMs] = useState(5000);
+  const [possessionState, setPossessionState] = useState<"in-possession" | "out-of-possession" | "">("");
+  const [hierarchyLevel, setHierarchyLevel] = useState<number>(1);
+  const [transitionType, setTransitionType] = useState<"upgrade" | "downgrade" | "ball-lost" | "ball-won" | "">("");
+  const [forPossessionState, setForPossessionState] = useState<"in-possession" | "out-of-possession" | "">("");
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isInitialized, setIsInitialized] = useState(false);
@@ -60,6 +64,10 @@ export function ButtonEditorModal({
         setFontWeight(button.style.fontWeight);
         setLeadMs(button.leadMs);
         setLagMs(button.lagMs);
+        setPossessionState(button.possessionState || "");
+        setHierarchyLevel(button.hierarchyLevel || 1);
+        setTransitionType(button.transitionType || "");
+        setForPossessionState(button.forPossessionState || "");
       } else {
         // Reset for new button
         setCode("");
@@ -77,6 +85,10 @@ export function ButtonEditorModal({
         setFontWeight("bold");
         setLeadMs(3000);
         setLagMs(5000);
+        setPossessionState("");
+        setHierarchyLevel(1);
+        setTransitionType("");
+        setForPossessionState("");
       }
       setErrors({});
       setIsInitialized(true);
@@ -130,6 +142,14 @@ export function ButtonEditorModal({
       newErrors.category = "Category is required for termination buttons";
     }
 
+    if (type === ButtonType.PHASE && !possessionState) {
+      newErrors.possessionState = "Possession state is required for phase buttons";
+    }
+
+    if (type === ButtonType.PHASE && (hierarchyLevel < 1 || hierarchyLevel > 5)) {
+      newErrors.hierarchyLevel = "Hierarchy level must be between 1 and 5";
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -154,6 +174,10 @@ export function ButtonEditorModal({
       },
       leadMs,
       lagMs,
+      possessionState: type === ButtonType.PHASE && possessionState ? possessionState as "in-possession" | "out-of-possession" : undefined,
+      hierarchyLevel: type === ButtonType.PHASE ? hierarchyLevel : undefined,
+      transitionType: type === ButtonType.TERMINATION && transitionType ? transitionType as "upgrade" | "downgrade" | "ball-lost" | "ball-won" : undefined,
+      forPossessionState: type === ButtonType.TERMINATION && forPossessionState ? forPossessionState as "in-possession" | "out-of-possession" : undefined,
     };
 
     onSave(updatedButton);
@@ -429,13 +453,51 @@ export function ButtonEditorModal({
             </div>
           </div>
 
-          {/* Timing (for phase buttons) */}
+          {/* Phase Properties */}
           {type === ButtonType.PHASE && (
             <div>
-              <h3 className="text-sm font-semibold mb-3">Timing (milliseconds)</h3>
+              <h3 className="text-sm font-semibold mb-3">Phase Properties</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Lead Time</label>
+                  <label className="block text-sm font-medium mb-1">
+                    Possession State <span className="text-destructive">*</span>
+                  </label>
+                  <select
+                    value={possessionState}
+                    onChange={(e) => setPossessionState(e.target.value as "in-possession" | "out-of-possession" | "")}
+                    className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm"
+                  >
+                    <option value="">Select possession state</option>
+                    <option value="in-possession">In Possession</option>
+                    <option value="out-of-possession">Out of Possession</option>
+                  </select>
+                  {errors.possessionState && (
+                    <p className="text-xs text-destructive mt-1">{errors.possessionState}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Hierarchy Level (1-5) <span className="text-destructive">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="5"
+                    value={hierarchyLevel}
+                    onChange={(e) => setHierarchyLevel(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm"
+                  />
+                  {errors.hierarchyLevel && (
+                    <p className="text-xs text-destructive mt-1">{errors.hierarchyLevel}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">
+                    1 = lowest, 5 = highest in possession hierarchy
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Lead Time (ms)</label>
                   <input
                     type="number"
                     value={leadMs}
@@ -445,13 +507,58 @@ export function ButtonEditorModal({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">Lag Time</label>
+                  <label className="block text-sm font-medium mb-1">Lag Time (ms)</label>
                   <input
                     type="number"
                     value={lagMs}
                     onChange={(e) => setLagMs(Number(e.target.value))}
                     className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm"
                   />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Termination Properties */}
+          {type === ButtonType.TERMINATION && (
+            <div>
+              <h3 className="text-sm font-semibold mb-3">Termination Properties</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Transition Type
+                  </label>
+                  <select
+                    value={transitionType}
+                    onChange={(e) => setTransitionType(e.target.value as "upgrade" | "downgrade" | "ball-lost" | "ball-won" | "")}
+                    className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm"
+                  >
+                    <option value="">None (manual only)</option>
+                    <option value="upgrade">Upgrade</option>
+                    <option value="downgrade">Downgrade</option>
+                    <option value="ball-lost">Ball Lost</option>
+                    <option value="ball-won">Ball Won</option>
+                  </select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Used for automatic phase transitions
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    For Possession State
+                  </label>
+                  <select
+                    value={forPossessionState}
+                    onChange={(e) => setForPossessionState(e.target.value as "in-possession" | "out-of-possession" | "")}
+                    className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm"
+                  >
+                    <option value="">Any (generic)</option>
+                    <option value="in-possession">In Possession</option>
+                    <option value="out-of-possession">Out of Possession</option>
+                  </select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Which possession context this applies to
+                  </p>
                 </div>
               </div>
             </div>

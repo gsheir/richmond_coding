@@ -1,182 +1,133 @@
 {
-  "buttons": [
+  "phase_buttons": [
     {
       "code": "OUTLET",
       "label": "Outlet",
       "type": "phase",
       "hotkey": "O",
-      "position": {
-        "x": 10,
-        "y": 10,
-        "width": 120,
-        "height": 60
-      },
-      "style": {
-        "colour": "#004db3",
-        "opacity": 1,
-        "font_size": 12,
-        "font_weight": "bold"
-      },
+      "position": {"x": 10, "y": 10, "width": 120, "height": 60},
+      "style": {"colour": "#004db3", "opacity": 1, "font_size": 12, "font_weight": "bold"},
       "lead_ms": 3000,
-      "lag_ms": 5000
+      "lag_ms": 5000,
+      "possession_state": "in-possession",
+      "hierarchy_level": 1
     },
     {
       "code": "HIGH_TRANSFER",
       "label": "High Transfer",
       "type": "phase",
       "hotkey": "H",
-      "position": {
-        "x": 10,
-        "y": 80,
-        "width": 120,
-        "height": 60
-      },
-      "style": {
-        "colour": "#0064c2",
-        "opacity": 1,
-        "font_size": 12,
-        "font_weight": "bold"
-      },
+      "position": {"x": 10, "y": 80, "width": 120, "height": 60},
+      "style": {"colour": "#0064c2", "opacity": 1, "font_size": 12, "font_weight": "bold"},
       "lead_ms": 3000,
-      "lag_ms": 5000
-    },
-    {
-      "code": "CIRCLE_ATTACK",
-      "label": "Circle Attack",
-      "type": "phase",
-      "hotkey": "C",
-      "position": {
-        "x": 13,
-        "y": 227,
-        "width": 120,
-        "height": 60
-      },
-      "style": {
-        "colour": "#8260d2",
-        "opacity": 1,
-        "font_size": 12,
-        "font_weight": "bold"
-      },
-      "lead_ms": 3000,
-      "lag_ms": 5000
+      "lag_ms": 5000,
+      "possession_state": "in-possession",
+      "hierarchy_level": 2
     },
     {
       "code": "FAST_ATTACK",
       "label": "Fast Attack",
       "type": "phase",
       "hotkey": "F",
-      "position": {
-        "x": 11,
-        "y": 153,
-        "width": 120,
-        "height": 60
-      },
-      "style": {
-        "colour": "#3da1ff",
-        "opacity": 1,
-        "font_size": 12,
-        "font_weight": "bold"
-      },
+      "position": {"x": 11, "y": 153, "width": 120, "height": 60},
+      "style": {"colour": "#3da1ff", "opacity": 1, "font_size": 12, "font_weight": "bold"},
       "lead_ms": 3000,
-      "lag_ms": 5000
+      "lag_ms": 5000,
+      "possession_state": "in-possession",
+      "hierarchy_level": 3
+    },
+    {
+      "code": "CIRCLE_ATTACK",
+      "label": "Circle Attack",
+      "type": "phase",
+      "hotkey": "C",
+      "position": {"x": 13, "y": 227, "width": 120, "height": 60},
+      "style": {"colour": "#8260d2", "opacity": 1, "font_size": 12, "font_weight": "bold"},
+      "lead_ms": 3000,
+      "lag_ms": 5000,
+      "possession_state": "in-possession",
+      "hierarchy_level": 4
+    },
+    {
+      "code": "PCA",
+      "label": "PCA",
+      "type": "phase",
+      "hotkey": "A",
+      "position": {"x": 13, "y": 299, "width": 120, "height": 60},
+      "style": {"colour": "#ea6cd3", "opacity": 1, "font_size": 12, "font_weight": "bold"},
+      "lead_ms": 3000,
+      "lag_ms": 5000,
+      "possession_state": "in-possession",
+      "hierarchy_level": 5
     },
     {
       "code": "PRESS",
       "label": "Press",
       "type": "phase",
       "hotkey": "P",
-      "position": {
-        "x": 529,
-        "y": 11,
-        "width": 120,
-        "height": 60
-      },
-      "style": {
-        "colour": "#850000",
-        "opacity": 1,
-        "font_size": 12,
-        "font_weight": "bold"
-      },
+      "position": {"x": 529, "y": 11, "width": 120, "height": 60},
+      "style": {"colour": "#850000", "opacity": 1, "font_size": 12, "font_weight": "bold"},
       "lead_ms": 3000,
-      "lag_ms": 5000
+      "lag_ms": 5000,
+      "possession_state": "out-of-possession",
+      "hierarchy_level": 5
     },
     {
       "code": "DEEP_DEFENCE",
       "label": "Deep Defence",
       "type": "phase",
       "hotkey": "D",
-      "position": {
-        "x": 530,
-        "y": 83,
-        "width": 120,
-        "height": 60
-      },
-      "style": {
-        "colour": "#b80000",
-        "opacity": 1,
-        "font_size": 12,
-        "font_weight": "bold"
-      },
+      "position": {"x": 530, "y": 83, "width": 120, "height": 60},
+      "style": {"colour": "#b80000", "opacity": 1, "font_size": 12, "font_weight": "bold"},
       "lead_ms": 3000,
-      "lag_ms": 5000
-    },
-    {
-      "code": "CIRCLE_DEFENCE",
-      "label": "Circle Defence",
-      "type": "phase",
-      "hotkey": "X",
-      "position": {
-        "x": 534,
-        "y": 233,
-        "width": 120,
-        "height": 60
-      },
-      "style": {
-        "colour": "#ff4b1f",
-        "opacity": 1,
-        "font_size": 12,
-        "font_weight": "bold"
-      },
-      "lead_ms": 3000,
-      "lag_ms": 5000
+      "lag_ms": 5000,
+      "possession_state": "out-of-possession",
+      "hierarchy_level": 4
     },
     {
       "code": "SCRAMBLE",
       "label": "Scramble",
       "type": "phase",
       "hotkey": "S",
-      "position": {
-        "x": 532,
-        "y": 159,
-        "width": 120,
-        "height": 60
-      },
-      "style": {
-        "colour": "#ff4d4d",
-        "opacity": 1,
-        "font_size": 12,
-        "font_weight": "bold"
-      },
+      "position": {"x": 532, "y": 159, "width": 120, "height": 60},
+      "style": {"colour": "#ff4d4d", "opacity": 1, "font_size": 12, "font_weight": "bold"},
       "lead_ms": 3000,
-      "lag_ms": 5000
+      "lag_ms": 5000,
+      "possession_state": "out-of-possession",
+      "hierarchy_level": 3
     },
+    {
+      "code": "CIRCLE_DEFENCE",
+      "label": "Circle Defence",
+      "type": "phase",
+      "hotkey": "X",
+      "position": {"x": 534, "y": 233, "width": 120, "height": 60},
+      "style": {"colour": "#ff4b1f", "opacity": 1, "font_size": 12, "font_weight": "bold"},
+      "lead_ms": 3000,
+      "lag_ms": 5000,
+      "possession_state": "out-of-possession",
+      "hierarchy_level": 2
+    },
+    {
+      "code": "PCD",
+      "label": "PCD",
+      "type": "phase",
+      "position": {"x": 534, "y": 305, "width": 120, "height": 60},
+      "style": {"colour": "#e29250", "opacity": 1, "font_size": 12, "font_weight": "bold"},
+      "lead_ms": 3000,
+      "lag_ms": 5000,
+      "possession_state": "out-of-possession",
+      "hierarchy_level": 1
+    }
+  ],
+  "context_buttons": [
     {
       "code": "VS_MAN",
       "label": "vs Man",
       "type": "context",
       "hotkey": "M",
-      "position": {
-        "x": 150,
-        "y": 10,
-        "width": 60,
-        "height": 125
-      },
-      "style": {
-        "colour": "#696969",
-        "opacity": 1,
-        "font_size": 10,
-        "font_weight": "bold"
-      },
+      "position": {"x": 150, "y": 10, "width": 60, "height": 125},
+      "style": {"colour": "#696969", "opacity": 1, "font_size": 10, "font_weight": "bold"},
       "lead_ms": 3000,
       "lag_ms": 5000
     },
@@ -185,18 +136,8 @@
       "label": "vs Zone",
       "type": "context",
       "hotkey": "Z",
-      "position": {
-        "x": 220,
-        "y": 10,
-        "width": 60,
-        "height": 125
-      },
-      "style": {
-        "colour": "#696969",
-        "opacity": 1,
-        "font_size": 10,
-        "font_weight": "bold"
-      },
+      "position": {"x": 220, "y": 10, "width": 60, "height": 125},
+      "style": {"colour": "#696969", "opacity": 1, "font_size": 10, "font_weight": "bold"},
       "lead_ms": 3000,
       "lag_ms": 5000
     },
@@ -205,18 +146,8 @@
       "label": "1 Pressing",
       "type": "context",
       "hotkey": "1",
-      "position": {
-        "x": 294,
-        "y": 14,
-        "width": 60,
-        "height": 60
-      },
-      "style": {
-        "colour": "#4f4f4f",
-        "opacity": 1,
-        "font_size": 10,
-        "font_weight": "bold"
-      },
+      "position": {"x": 294, "y": 14, "width": 60, "height": 60},
+      "style": {"colour": "#4f4f4f", "opacity": 1, "font_size": 10, "font_weight": "bold"},
       "lead_ms": 3000,
       "lag_ms": 5000
     },
@@ -225,18 +156,8 @@
       "label": "2 Pressing",
       "type": "context",
       "hotkey": "2",
-      "position": {
-        "x": 366,
-        "y": 14,
-        "width": 60,
-        "height": 60
-      },
-      "style": {
-        "colour": "#4f4f4f",
-        "opacity": 1,
-        "font_size": 10,
-        "font_weight": "bold"
-      },
+      "position": {"x": 366, "y": 14, "width": 60, "height": 60},
+      "style": {"colour": "#4f4f4f", "opacity": 1, "font_size": 10, "font_weight": "bold"},
       "lead_ms": 3000,
       "lag_ms": 5000
     },
@@ -245,18 +166,44 @@
       "label": "3 Pressing",
       "type": "context",
       "hotkey": "3",
-      "position": {
-        "x": 437,
-        "y": 15,
-        "width": 60,
-        "height": 60
-      },
-      "style": {
-        "colour": "#4f4f4f",
-        "opacity": 1,
-        "font_size": 10,
-        "font_weight": "bold"
-      },
+      "position": {"x": 437, "y": 15, "width": 60, "height": 60},
+      "style": {"colour": "#4f4f4f", "opacity": 1, "font_size": 10, "font_weight": "bold"},
+      "lead_ms": 3000,
+      "lag_ms": 5000
+    },
+    {
+      "code": "0_25",
+      "label": "0-25",
+      "type": "context",
+      "position": {"x": 190, "y": 155, "width": 60, "height": 60},
+      "style": {"colour": "#395874", "opacity": 1, "font_size": 10, "font_weight": "bold"},
+      "lead_ms": 3000,
+      "lag_ms": 5000
+    },
+    {
+      "code": "25-50",
+      "label": "25-50",
+      "type": "context",
+      "position": {"x": 263, "y": 156, "width": 60, "height": 60},
+      "style": {"colour": "#395874", "opacity": 1, "font_size": 10, "font_weight": "bold"},
+      "lead_ms": 3000,
+      "lag_ms": 5000
+    },
+    {
+      "code": "50-75",
+      "label": "50-75",
+      "type": "context",
+      "position": {"x": 337, "y": 158, "width": 60, "height": 60},
+      "style": {"colour": "#395874", "opacity": 1, "font_size": 10, "font_weight": "bold"},
+      "lead_ms": 3000,
+      "lag_ms": 5000
+    },
+    {
+      "code": "75-100",
+      "label": "75-100",
+      "type": "context",
+      "position": {"x": 411, "y": 158, "width": 60, "height": 60},
+      "style": {"colour": "#395874", "opacity": 1, "font_size": 10, "font_weight": "bold"},
       "lead_ms": 3000,
       "lag_ms": 5000
     },
@@ -265,18 +212,8 @@
       "label": "Left Baseline",
       "type": "context",
       "hotkey": "6",
-      "position": {
-        "x": 154,
-        "y": 227,
-        "width": 60,
-        "height": 60
-      },
-      "style": {
-        "colour": "#4f4f4f",
-        "opacity": 1,
-        "font_size": 10,
-        "font_weight": "bold"
-      },
+      "position": {"x": 154, "y": 227, "width": 60, "height": 60},
+      "style": {"colour": "#4f4f4f", "opacity": 1, "font_size": 10, "font_weight": "bold"},
       "lead_ms": 3000,
       "lag_ms": 5000
     },
@@ -285,18 +222,8 @@
       "label": "Left 45",
       "type": "context",
       "hotkey": "7",
-      "position": {
-        "x": 226,
-        "y": 228,
-        "width": 60,
-        "height": 60
-      },
-      "style": {
-        "colour": "#4f4f4f",
-        "opacity": 1,
-        "font_size": 10,
-        "font_weight": "bold"
-      },
+      "position": {"x": 226, "y": 228, "width": 60, "height": 60},
+      "style": {"colour": "#4f4f4f", "opacity": 1, "font_size": 10, "font_weight": "bold"},
       "lead_ms": 3000,
       "lag_ms": 5000
     },
@@ -305,18 +232,8 @@
       "label": "Top D",
       "type": "context",
       "hotkey": "8",
-      "position": {
-        "x": 300,
-        "y": 230,
-        "width": 60,
-        "height": 60
-      },
-      "style": {
-        "colour": "#4f4f4f",
-        "opacity": 1,
-        "font_size": 10,
-        "font_weight": "bold"
-      },
+      "position": {"x": 300, "y": 230, "width": 60, "height": 60},
+      "style": {"colour": "#4f4f4f", "opacity": 1, "font_size": 10, "font_weight": "bold"},
       "lead_ms": 3000,
       "lag_ms": 5000
     },
@@ -325,18 +242,8 @@
       "label": "Right 45",
       "type": "context",
       "hotkey": "9",
-      "position": {
-        "x": 372,
-        "y": 231,
-        "width": 60,
-        "height": 60
-      },
-      "style": {
-        "colour": "#4f4f4f",
-        "opacity": 1,
-        "font_size": 10,
-        "font_weight": "bold"
-      },
+      "position": {"x": 372, "y": 231, "width": 60, "height": 60},
+      "style": {"colour": "#4f4f4f", "opacity": 1, "font_size": 10, "font_weight": "bold"},
       "lead_ms": 3000,
       "lag_ms": 5000
     },
@@ -345,18 +252,31 @@
       "label": "Right Baseline",
       "type": "context",
       "hotkey": "0",
-      "position": {
-        "x": 445,
-        "y": 232,
-        "width": 60,
-        "height": 60
-      },
-      "style": {
-        "colour": "#4f4f4f",
-        "opacity": 1,
-        "font_size": 10,
-        "font_weight": "bold"
-      },
+      "position": {"x": 445, "y": 232, "width": 60, "height": 60},
+      "style": {"colour": "#4f4f4f", "opacity": 1, "font_size": 10, "font_weight": "bold"},
+      "lead_ms": 3000,
+      "lag_ms": 5000
+    }
+  ],
+  "termination_buttons": [
+    {
+      "code": "GOAL",
+      "label": "Goal",
+      "type": "termination",
+      "category": "success",
+      "position": {"x": 16, "y": 378, "width": 60, "height": 60},
+      "style": {"colour": "#08630e", "opacity": 1, "font_size": 10, "font_weight": "bold"},
+      "lead_ms": 3000,
+      "lag_ms": 5000,
+      "transition_type": "upgrade"
+    },
+    {
+      "code": "CHANCE",
+      "label": "Chance",
+      "type": "termination",
+      "category": "success",
+      "position": {"x": 74, "y": 379, "width": 60, "height": 60},
+      "style": {"colour": "#027a00", "opacity": 1, "font_size": 10, "font_weight": "bold"},
       "lead_ms": 3000,
       "lag_ms": 5000
     },
@@ -365,293 +285,43 @@
       "label": "Upgrade",
       "type": "termination",
       "category": "success",
-      "position": {
-        "x": 132,
-        "y": 380,
-        "width": 60,
-        "height": 60
-      },
-      "style": {
-        "colour": "#189a51",
-        "opacity": 1,
-        "font_size": 10,
-        "font_weight": "bold"
-      },
+      "position": {"x": 132, "y": 380, "width": 60, "height": 60},
+      "style": {"colour": "#189a51", "opacity": 1, "font_size": 10, "font_weight": "bold"},
       "lead_ms": 3000,
-      "lag_ms": 5000
-    },
-    {
-      "code": "CHANCE",
-      "label": "Chance",
-      "type": "termination",
-      "category": "success",
-      "position": {
-        "x": 74,
-        "y": 379,
-        "width": 60,
-        "height": 60
-      },
-      "style": {
-        "colour": "#027a00",
-        "opacity": 1,
-        "font_size": 10,
-        "font_weight": "bold"
-      },
-      "lead_ms": 3000,
-      "lag_ms": 5000
-    },
-    {
-      "code": "GOAL",
-      "label": "Goal",
-      "type": "termination",
-      "category": "success",
-      "position": {
-        "x": 16,
-        "y": 378,
-        "width": 60,
-        "height": 60
-      },
-      "style": {
-        "colour": "#08630e",
-        "opacity": 1,
-        "font_size": 10,
-        "font_weight": "bold"
-      },
-      "lead_ms": 3000,
-      "lag_ms": 5000
+      "lag_ms": 5000,
+      "transition_type": "upgrade",
+      "for_possession_state": "in-possession"
     },
     {
       "code": "DOWNGRADE",
       "label": "Downgrade",
       "type": "termination",
       "category": "failure",
-      "position": {
-        "x": 191,
-        "y": 380,
-        "width": 60,
-        "height": 60
-      },
-      "style": {
-        "colour": "#c27b00",
-        "opacity": 1,
-        "font_size": 10,
-        "font_weight": "bold"
-      },
+      "position": {"x": 191, "y": 380, "width": 60, "height": 60},
+      "style": {"colour": "#c27b00", "opacity": 1, "font_size": 10, "font_weight": "bold"},
       "lead_ms": 3000,
-      "lag_ms": 5000
+      "lag_ms": 5000,
+      "transition_type": "downgrade",
+      "for_possession_state": "in-possession"
     },
     {
       "code": "BALL_LOST",
       "label": "Ball lost",
       "type": "termination",
       "category": "failure",
-      "position": {
-        "x": 251,
-        "y": 382,
-        "width": 60,
-        "height": 60
-      },
-      "style": {
-        "colour": "#8c2c2c",
-        "opacity": 1,
-        "font_size": 10,
-        "font_weight": "bold"
-      },
+      "position": {"x": 251, "y": 382, "width": 60, "height": 60},
+      "style": {"colour": "#8c2c2c", "opacity": 1, "font_size": 10, "font_weight": "bold"},
       "lead_ms": 3000,
-      "lag_ms": 5000
+      "lag_ms": 5000,
+      "transition_type": "ball-lost"
     },
     {
       "code": "SAME_PHASE",
       "label": "Same Phase",
       "type": "termination",
       "category": "failure",
-      "position": {
-        "x": 306,
-        "y": 312,
-        "width": 60,
-        "height": 60
-      },
-      "style": {
-        "colour": "#a38d00",
-        "opacity": 1,
-        "font_size": 10,
-        "font_weight": "bold"
-      },
-      "lead_ms": 3000,
-      "lag_ms": 5000
-    },
-    {
-      "code": "PCA",
-      "label": "PCA",
-      "type": "phase",
-      "hotkey": "A",
-      "position": {
-        "x": 13,
-        "y": 299,
-        "width": 120,
-        "height": 60
-      },
-      "style": {
-        "colour": "#ea6cd3",
-        "opacity": 1,
-        "font_size": 12,
-        "font_weight": "bold"
-      },
-      "lead_ms": 3000,
-      "lag_ms": 5000
-    },
-    {
-      "code": "PCD",
-      "label": "PCD",
-      "type": "phase",
-      "position": {
-        "x": 534,
-        "y": 305,
-        "width": 120,
-        "height": 60
-      },
-      "style": {
-        "colour": "#e29250",
-        "opacity": 1,
-        "font_size": 12,
-        "font_weight": "bold"
-      },
-      "lead_ms": 3000,
-      "lag_ms": 5000
-    },
-    {
-      "code": "0_25",
-      "label": "0-25",
-      "type": "context",
-      "position": {
-        "x": 190,
-        "y": 155,
-        "width": 60,
-        "height": 60
-      },
-      "style": {
-        "colour": "#395874",
-        "opacity": 1,
-        "font_size": 10,
-        "font_weight": "bold"
-      },
-      "lead_ms": 3000,
-      "lag_ms": 5000
-    },
-    {
-      "code": "25-50",
-      "label": "25-50",
-      "type": "context",
-      "position": {
-        "x": 263,
-        "y": 156,
-        "width": 60,
-        "height": 60
-      },
-      "style": {
-        "colour": "#395874",
-        "opacity": 1,
-        "font_size": 10,
-        "font_weight": "bold"
-      },
-      "lead_ms": 3000,
-      "lag_ms": 5000
-    },
-    {
-      "code": "50-75",
-      "label": "50-75",
-      "type": "context",
-      "position": {
-        "x": 337,
-        "y": 158,
-        "width": 60,
-        "height": 60
-      },
-      "style": {
-        "colour": "#395874",
-        "opacity": 1,
-        "font_size": 10,
-        "font_weight": "bold"
-      },
-      "lead_ms": 3000,
-      "lag_ms": 5000
-    },
-    {
-      "code": "75-100",
-      "label": "75-100",
-      "type": "context",
-      "position": {
-        "x": 411,
-        "y": 158,
-        "width": 60,
-        "height": 60
-      },
-      "style": {
-        "colour": "#395874",
-        "opacity": 1,
-        "font_size": 10,
-        "font_weight": "bold"
-      },
-      "lead_ms": 3000,
-      "lag_ms": 5000
-    },
-    {
-      "code": "CHANCE_CONCEDED",
-      "label": "Chance Conceded",
-      "type": "termination",
-      "category": "failure",
-      "position": {
-        "x": 536,
-        "y": 384,
-        "width": 60,
-        "height": 60
-      },
-      "style": {
-        "colour": "#a04f0e",
-        "opacity": 1,
-        "font_size": 10,
-        "font_weight": "bold"
-      },
-      "lead_ms": 3000,
-      "lag_ms": 5000
-    },
-    {
-      "code": "GOAL_CONCEDED",
-      "label": "Goal Conceded",
-      "type": "termination",
-      "category": "failure",
-      "position": {
-        "x": 596,
-        "y": 385,
-        "width": 60,
-        "height": 60
-      },
-      "style": {
-        "colour": "#780808",
-        "opacity": 1,
-        "font_size": 10,
-        "font_weight": "bold"
-      },
-      "lead_ms": 3000,
-      "lag_ms": 5000
-    },
-    {
-      "code": "DROP",
-      "label": "Drop Down",
-      "type": "termination",
-      "category": "failure",
-      "position": {
-        "x": 477,
-        "y": 384,
-        "width": 60,
-        "height": 60
-      },
-      "style": {
-        "colour": "#8c5f2c",
-        "opacity": 1,
-        "font_size": 10,
-        "font_weight": "bold"
-      },
+      "position": {"x": 306, "y": 312, "width": 60, "height": 60},
+      "style": {"colour": "#a38d00", "opacity": 1, "font_size": 10, "font_weight": "bold"},
       "lead_ms": 3000,
       "lag_ms": 5000
     },
@@ -660,38 +330,64 @@
       "label": "Ball Won",
       "type": "termination",
       "category": "success",
-      "position": {
-        "x": 359,
-        "y": 384,
-        "width": 60,
-        "height": 60
-      },
-      "style": {
-        "colour": "#015119",
-        "opacity": 1,
-        "font_size": 10,
-        "font_weight": "bold"
-      },
+      "position": {"x": 359, "y": 384, "width": 60, "height": 60},
+      "style": {"colour": "#015119", "opacity": 1, "font_size": 10, "font_weight": "bold"},
       "lead_ms": 3000,
-      "lag_ms": 5000
+      "lag_ms": 5000,
+      "transition_type": "ball-won"
     },
     {
       "code": "PUSH_UP",
       "label": "Push Up",
       "type": "termination",
       "category": "success",
-      "position": {
-        "x": 418,
-        "y": 384,
-        "width": 60,
-        "height": 60
-      },
-      "style": {
-        "colour": "#4d8c2c",
-        "opacity": 0.9,
-        "font_size": 10,
-        "font_weight": "bold"
-      },
+      "position": {"x": 418, "y": 384, "width": 60, "height": 60},
+      "style": {"colour": "#4d8c2c", "opacity": 0.9, "font_size": 10, "font_weight": "bold"},
+      "lead_ms": 3000,
+      "lag_ms": 5000,
+      "transition_type": "upgrade",
+      "for_possession_state": "out-of-possession"
+    },
+    {
+      "code": "DROP",
+      "label": "Drop Down",
+      "type": "termination",
+      "category": "failure",
+      "position": {"x": 477, "y": 384, "width": 60, "height": 60},
+      "style": {"colour": "#8c5f2c", "opacity": 1, "font_size": 10, "font_weight": "bold"},
+      "lead_ms": 3000,
+      "lag_ms": 5000,
+      "transition_type": "ball-lost"
+    },
+    {
+      "code": "DROP_DOWN",
+      "label": "Drop Down",
+      "type": "termination",
+      "category": "failure",
+      "position": {"x": 478, "y": 384, "width": 60, "height": 60},
+      "style": {"colour": "#cc7700", "opacity": 0.9, "font_size": 10, "font_weight": "bold"},
+      "lead_ms": 3000,
+      "lag_ms": 5000,
+      "transition_type": "downgrade",
+      "for_possession_state": "out-of-possession"
+    },
+    {
+      "code": "CHANCE_CONCEDED",
+      "label": "Chance Conceded",
+      "type": "termination",
+      "category": "failure",
+      "position": {"x": 536, "y": 384, "width": 60, "height": 60},
+      "style": {"colour": "#a04f0e", "opacity": 1, "font_size": 10, "font_weight": "bold"},
+      "lead_ms": 3000,
+      "lag_ms": 5000
+    },
+    {
+      "code": "GOAL_CONCEDED",
+      "label": "Goal Conceded",
+      "type": "termination",
+      "category": "failure",
+      "position": {"x": 596, "y": 385, "width": 60, "height": 60},
+      "style": {"colour": "#780808", "opacity": 1, "font_size": 10, "font_weight": "bold"},
       "lead_ms": 3000,
       "lag_ms": 5000
     }

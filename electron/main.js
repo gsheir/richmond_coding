@@ -442,6 +442,31 @@ ipcMain.handle('save-coding-window-config', async (_event, configData) => {
   }
 });
 
+ipcMain.handle('reset-coding-window-config', async () => {
+  try {
+    const userConfigPath = path.join(app.getPath('userData'), 'coding_window.json');
+    const defaultConfigPath = app.isPackaged
+      ? path.join(process.resourcesPath, 'default_coding_window.json')
+      : path.join(__dirname, '../public/default_coding_window.json');
+    
+    // Read default config
+    if (!fs.existsSync(defaultConfigPath)) {
+      return { success: false, error: 'Default configuration file not found' };
+    }
+    
+    const defaultData = fs.readFileSync(defaultConfigPath, 'utf8');
+    const defaultConfig = JSON.parse(defaultData);
+    
+    // Overwrite user config with default
+    fs.writeFileSync(userConfigPath, JSON.stringify(defaultConfig, null, 2), 'utf8');
+    
+    return { success: true, data: JSON.stringify(defaultConfig) };
+  } catch (error) {
+    console.error('Error resetting coding window config:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
 ipcMain.handle('get-coding-window-config-path', async () => {
   try {
     const userConfigPath = path.join(app.getPath('userData'), 'coding_window.json');

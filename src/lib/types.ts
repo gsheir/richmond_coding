@@ -77,6 +77,14 @@ export interface ButtonConfig {
   };
   leadMs: number;
   lagMs: number;
+  
+  // For phase buttons: possession and hierarchy
+  possessionState?: "in-possession" | "out-of-possession";
+  hierarchyLevel?: number; // 1 (lowest) to 5 (highest)
+  
+  // For termination buttons: transition type for auto-transitions
+  transitionType?: "upgrade" | "downgrade" | "ball-lost" | "ball-won";
+  forPossessionState?: "in-possession" | "out-of-possession"; // Which possession context this termination applies to
 }
 
 export interface ButtonsConfig {

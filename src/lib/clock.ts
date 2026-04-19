@@ -7,6 +7,7 @@ export class GameClock {
   private startTime: number;
   private elapsedMs: number;
   private pausedElapsedMs: number;
+  private latestTimeMs: number;
   private currentPeriod: string;
   private offsetMs: number;
   private stateChangeListeners: ((state: ClockState) => void)[];
@@ -18,6 +19,7 @@ export class GameClock {
     this.startTime = 0;
     this.elapsedMs = 0;
     this.pausedElapsedMs = 0;
+    this.latestTimeMs = 0;
     this.currentPeriod = "Q1";
     this.offsetMs = 0;
     this.stateChangeListeners = [];
@@ -71,6 +73,10 @@ export class GameClock {
     // Restore clock time when loading a saved match
     // Set to PAUSED state so the time is visible
     this.pausedElapsedMs = timeMs;
+    // Also restore latest time
+    if (timeMs > this.latestTimeMs) {
+      this.latestTimeMs = timeMs;
+    }
     if (timeMs > 0 && this.state === ClockState.STOPPED) {
       this.state = ClockState.PAUSED;
       this.notifyStateChange();
@@ -78,13 +84,26 @@ export class GameClock {
   }
 
   currentTimeMs(): number {
+    let currentTime: number;
+    
     if (this.state === ClockState.STOPPED) {
-      return 0;
+      currentTime = 0;
     } else if (this.state === ClockState.PAUSED) {
-      return this.pausedElapsedMs;
+      currentTime = this.pausedElapsedMs;
     } else {
-      return this.elapsedMs + (Date.now() - this.startTime);
+      currentTime = this.elapsedMs + (Date.now() - this.startTime);
     }
+    
+    // Track the latest time reached
+    if (currentTime > this.latestTimeMs) {
+      this.latestTimeMs = currentTime;
+    }
+    
+    return currentTime;
+  }
+
+  getLatestTimeMs(): number {
+    return this.latestTimeMs;
   }
 
   setTimeMs(timeMs: number): void {
@@ -97,6 +116,26 @@ export class GameClock {
       }
       this.notifyTimeChange(timeMs);
     }
+  }
+
+  skipToStart(): void {
+    this.setTimeMs(0);
+  }
+
+  skipBack(seconds: number = 5): void {
+    const currentTime = this.currentTimeMs();
+    const newTime = Math.max(0, currentTime - (seconds * 1000));
+    this.setTimeMs(newTime);
+  }
+
+  skipForward(seconds: number = 5): void {
+    const currentTime = this.currentTimeMs();
+    const newTime = Math.min(this.latestTimeMs, currentTime + (seconds * 1000));
+    this.setTimeMs(newTime);
+  }
+
+  skipToEnd(): void {
+    this.setTimeMs(this.latestTimeMs);
   }
 
   setOffsetMs(offsetMs: number): void {
