@@ -146,8 +146,8 @@ export function ButtonEditorModal({
       newErrors.possessionState = "Possession state is required for phase buttons";
     }
 
-    if (type === ButtonType.PHASE && (hierarchyLevel < 1 || hierarchyLevel > 5)) {
-      newErrors.hierarchyLevel = "Hierarchy level must be between 1 and 5";
+    if (type === ButtonType.PHASE && hierarchyLevel < 1) {
+      newErrors.hierarchyLevel = "Hierarchy level must be at least 1";
     }
 
     setErrors(newErrors);
@@ -479,12 +479,11 @@ export function ButtonEditorModal({
 
                 <div>
                   <label className="block text-sm font-medium mb-1">
-                    Hierarchy Level (1-5) <span className="text-destructive">*</span>
+                    Hierarchy Level <span className="text-destructive">*</span>
                   </label>
                   <input
                     type="number"
                     min="1"
-                    max="5"
                     value={hierarchyLevel}
                     onChange={(e) => setHierarchyLevel(Number(e.target.value))}
                     className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm"
@@ -493,7 +492,7 @@ export function ButtonEditorModal({
                     <p className="text-xs text-destructive mt-1">{errors.hierarchyLevel}</p>
                   )}
                   <p className="text-xs text-muted-foreground mt-1">
-                    1 = lowest, 5 = highest in possession hierarchy
+                    Higher numbers = higher hierarchy (minimum 1)
                   </p>
                 </div>
 

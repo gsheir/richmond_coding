@@ -140,10 +140,10 @@ export function validateButtonConfig(buttons: ButtonConfig[]): ValidationResult 
           message: 'Hierarchy level not set (required for auto-transitions)',
           buttonCode: button.code,
         });
-      } else if (button.hierarchyLevel < 1 || button.hierarchyLevel > 5) {
+      } else if (button.hierarchyLevel < 1) {
         errors.push({
           field: 'hierarchyLevel',
-          message: 'Hierarchy level must be between 1 and 5',
+          message: 'Hierarchy level must be at least 1',
           buttonCode: button.code,
         });
       }

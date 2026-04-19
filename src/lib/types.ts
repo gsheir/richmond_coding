@@ -80,7 +80,7 @@ export interface ButtonConfig {
   
   // For phase buttons: possession and hierarchy
   possessionState?: "in-possession" | "out-of-possession";
-  hierarchyLevel?: number; // 1 (lowest) to 5 (highest)
+  hierarchyLevel?: number; // Minimum 1 (higher numbers = higher hierarchy)
   
   // For termination buttons: transition type for auto-transitions
   transitionType?: "upgrade" | "downgrade" | "ball-lost" | "ball-won";
