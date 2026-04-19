@@ -4,10 +4,10 @@
       "code": "KEEP_THE_BALL",
       "label": "Keep The Ball",
       "type": "phase",
-      "hotkey": "R",
+      "hotkey": "K",
       "position": {
-        "x": 15,
-        "y": 15,
+        "x": 9,
+        "y": 0,
         "width": 120,
         "height": 60
       },
@@ -28,8 +28,8 @@
       "type": "phase",
       "hotkey": "O",
       "position": {
-        "x": 13,
-        "y": 84,
+        "x": 9,
+        "y": 62,
         "width": 120,
         "height": 60
       },
@@ -50,8 +50,8 @@
       "type": "phase",
       "hotkey": "H",
       "position": {
-        "x": 13,
-        "y": 154,
+        "x": 9,
+        "y": 124,
         "width": 120,
         "height": 60
       },
@@ -67,13 +67,13 @@
       "hierarchy_level": 3
     },
     {
-      "code": "LINE_BREAK",
-      "label": "Line Break",
+      "code": "FAST_ATTACK",
+      "label": "Fast Attack",
       "type": "phase",
-      "hotkey": "L",
+      "hotkey": "F",
       "position": {
-        "x": 14,
-        "y": 227,
+        "x": 9,
+        "y": 186,
         "width": 120,
         "height": 60
       },
@@ -86,7 +86,7 @@
       "lead_ms": 3000,
       "lag_ms": 5000,
       "possession_state": "in-possession",
-      "hierarchy_level": 2
+      "hierarchy_level": 4
     },
     {
       "code": "CIRCLE_ATTACK",
@@ -94,8 +94,8 @@
       "type": "phase",
       "hotkey": "C",
       "position": {
-        "x": 16,
-        "y": 301,
+        "x": 9,
+        "y": 248,
         "width": 120,
         "height": 60
       },
@@ -115,8 +115,8 @@
       "label": "PCA",
       "type": "phase",
       "position": {
-        "x": 16,
-        "y": 373,
+        "x": 9,
+        "y": 310,
         "width": 120,
         "height": 60
       },
@@ -135,10 +135,10 @@
       "code": "WIN_THE_BALL",
       "label": "Win The Ball",
       "type": "phase",
-      "hotkey": "U",
+      "hotkey": "W",
       "position": {
-        "x": 532,
-        "y": 17,
+        "x": 538,
+        "y": 0,
         "width": 120,
         "height": 60
       },
@@ -154,13 +154,13 @@
       "hierarchy_level": 6
     },
     {
-      "code": "FRONTAL_PRESS",
-      "label": "Frontal Press",
+      "code": "PRESS",
+      "label": "Press",
       "type": "phase",
-      "hotkey": "F",
+      "hotkey": "P",
       "position": {
-        "x": 532,
-        "y": 85,
+        "x": 538,
+        "y": 62,
         "width": 120,
         "height": 60
       },
@@ -181,8 +181,8 @@
       "type": "phase",
       "hotkey": "D",
       "position": {
-        "x": 533,
-        "y": 157,
+        "x": 538,
+        "y": 124,
         "width": 120,
         "height": 60
       },
@@ -203,8 +203,8 @@
       "type": "phase",
       "hotkey": "S",
       "position": {
-        "x": 535,
-        "y": 233,
+        "x": 538,
+        "y": 186,
         "width": 120,
         "height": 60
       },
@@ -225,8 +225,8 @@
       "type": "phase",
       "hotkey": "X",
       "position": {
-        "x": 537,
-        "y": 307,
+        "x": 538,
+        "y": 248,
         "width": 120,
         "height": 60
       },
@@ -246,8 +246,8 @@
       "label": "PCD",
       "type": "phase",
       "position": {
-        "x": 537,
-        "y": 379,
+        "x": 538,
+        "y": 310,
         "width": 120,
         "height": 60
       },
@@ -270,8 +270,8 @@
       "type": "context",
       "hotkey": "M",
       "position": {
-        "x": 153,
-        "y": 84,
+        "x": 178,
+        "y": 63,
         "width": 60,
         "height": 125
       },
@@ -290,8 +290,8 @@
       "type": "context",
       "hotkey": "Z",
       "position": {
-        "x": 223,
-        "y": 84,
+        "x": 240,
+        "y": 63,
         "width": 60,
         "height": 125
       },
@@ -310,8 +310,8 @@
       "type": "context",
       "hotkey": "1",
       "position": {
-        "x": 297,
-        "y": 88,
+        "x": 302,
+        "y": 63,
         "width": 60,
         "height": 60
       },
@@ -330,8 +330,8 @@
       "type": "context",
       "hotkey": "2",
       "position": {
-        "x": 369,
-        "y": 88,
+        "x": 364,
+        "y": 63,
         "width": 60,
         "height": 60
       },
@@ -350,8 +350,8 @@
       "type": "context",
       "hotkey": "3",
       "position": {
-        "x": 440,
-        "y": 89,
+        "x": 426,
+        "y": 63,
         "width": 60,
         "height": 60
       },
@@ -372,8 +372,8 @@
       "type": "termination",
       "category": "success",
       "position": {
-        "x": 19,
-        "y": 452,
+        "x": 9,
+        "y": 372,
         "width": 60,
         "height": 60
       },
@@ -385,7 +385,7 @@
       },
       "lead_ms": 3000,
       "lag_ms": 5000,
-      "transition_type": "upgrade"
+      "for_possession_state": "in-possession"
     },
     {
       "code": "CHANCE",
@@ -393,8 +393,8 @@
       "type": "termination",
       "category": "success",
       "position": {
-        "x": 77,
-        "y": 453,
+        "x": 71,
+        "y": 372,
         "width": 60,
         "height": 60
       },
@@ -405,16 +405,18 @@
         "font_weight": "bold"
       },
       "lead_ms": 3000,
-      "lag_ms": 5000
+      "lag_ms": 5000,
+      "for_possession_state": "in-possession"
     },
     {
       "code": "UPGRADE",
       "label": "Upgrade",
       "type": "termination",
       "category": "success",
+      "hotkey": "ArrowUp",
       "position": {
-        "x": 135,
-        "y": 454,
+        "x": 133,
+        "y": 372,
         "width": 60,
         "height": 60
       },
@@ -434,9 +436,10 @@
       "label": "Downgrade",
       "type": "termination",
       "category": "failure",
+      "hotkey": "ArrowDown",
       "position": {
-        "x": 194,
-        "y": 454,
+        "x": 195,
+        "y": 372,
         "width": 60,
         "height": 60
       },
@@ -457,8 +460,8 @@
       "type": "termination",
       "category": "failure",
       "position": {
-        "x": 254,
-        "y": 456,
+        "x": 257,
+        "y": 372,
         "width": 60,
         "height": 60
       },
@@ -470,7 +473,8 @@
       },
       "lead_ms": 3000,
       "lag_ms": 5000,
-      "transition_type": "ball-lost"
+      "transition_type": "ball-lost",
+      "for_possession_state": "in-possession"
     },
     {
       "code": "SAME_PHASE",
@@ -478,8 +482,8 @@
       "type": "termination",
       "category": "hold",
       "position": {
-        "x": 309,
-        "y": 386,
+        "x": 307,
+        "y": 312,
         "width": 60,
         "height": 60
       },
@@ -493,13 +497,34 @@
       "lag_ms": 5000
     },
     {
+      "code": "END_PHASE",
+      "label": "End Phase",
+      "type": "termination",
+      "category": "hold",
+      "hotkey": " ",
+      "position": {
+        "x": 246,
+        "y": 436,
+        "width": 180,
+        "height": 60
+      },
+      "style": {
+        "colour": "#454545",
+        "opacity": 1,
+        "font_size": 10,
+        "font_weight": "bold"
+      },
+      "lead_ms": 3000,
+      "lag_ms": 5000
+    },
+    {
       "code": "BALL_WON",
       "label": "Ball Won",
       "type": "termination",
       "category": "success",
       "position": {
-        "x": 362,
-        "y": 458,
+        "x": 358,
+        "y": 372,
         "width": 60,
         "height": 60
       },
@@ -511,22 +536,24 @@
       },
       "lead_ms": 3000,
       "lag_ms": 5000,
-      "transition_type": "ball-won"
+      "transition_type": "ball-won",
+      "for_possession_state": "out-of-possession"
     },
     {
       "code": "PUSH_UP",
       "label": "Push Up",
       "type": "termination",
       "category": "success",
+      "hotkey": "ArrowUp",
       "position": {
-        "x": 421,
-        "y": 458,
+        "x": 418,
+        "y": 372,
         "width": 60,
         "height": 60
       },
       "style": {
-        "colour": "#4d8c2c",
-        "opacity": 0.9,
+        "colour": "#189a51",
+        "opacity": 1,
         "font_size": 10,
         "font_weight": "bold"
       },
@@ -536,40 +563,20 @@
       "for_possession_state": "out-of-possession"
     },
     {
-      "code": "DROP",
-      "label": "Drop Down",
-      "type": "termination",
-      "category": "failure",
-      "position": {
-        "x": 480,
-        "y": 458,
-        "width": 60,
-        "height": 60
-      },
-      "style": {
-        "colour": "#8c5f2c",
-        "opacity": 1,
-        "font_size": 10,
-        "font_weight": "bold"
-      },
-      "lead_ms": 3000,
-      "lag_ms": 5000,
-      "transition_type": "ball-lost"
-    },
-    {
       "code": "DROP_DOWN",
       "label": "Drop Down",
       "type": "termination",
       "category": "failure",
+      "hotkey": "ArrowDown",
       "position": {
-        "x": 481,
-        "y": 458,
+        "x": 478,
+        "y": 372,
         "width": 60,
         "height": 60
       },
       "style": {
-        "colour": "#cc7700",
-        "opacity": 0.9,
+        "colour": "#c27b00",
+        "opacity": 1,
         "font_size": 10,
         "font_weight": "bold"
       },
@@ -584,8 +591,8 @@
       "type": "termination",
       "category": "failure",
       "position": {
-        "x": 539,
-        "y": 458,
+        "x": 538,
+        "y": 372,
         "width": 60,
         "height": 60
       },
@@ -596,7 +603,8 @@
         "font_weight": "bold"
       },
       "lead_ms": 3000,
-      "lag_ms": 5000
+      "lag_ms": 5000,
+      "for_possession_state": "out-of-possession"
     },
     {
       "code": "GOAL_CONCEDED",
@@ -604,8 +612,8 @@
       "type": "termination",
       "category": "failure",
       "position": {
-        "x": 599,
-        "y": 459,
+        "x": 598,
+        "y": 372,
         "width": 60,
         "height": 60
       },
@@ -616,7 +624,8 @@
         "font_weight": "bold"
       },
       "lead_ms": 3000,
-      "lag_ms": 5000
+      "lag_ms": 5000,
+      "for_possession_state": "out-of-possession"
     }
   ]
 }

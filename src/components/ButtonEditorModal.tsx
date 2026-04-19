@@ -114,7 +114,7 @@ export function ButtonEditorModal({
     }
 
     // Hotkey is optional, but if provided, validate it
-    if (hotkey.trim()) {
+    if (hotkey) {
       // Allow single characters or arrow keys
       const isArrowKey = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(hotkey);
       if (!isArrowKey && hotkey.length > 1) {
@@ -164,7 +164,7 @@ export function ButtonEditorModal({
       label,
       type,
       category: type === ButtonType.TERMINATION ? category : undefined,
-      hotkey: hotkey.trim() || undefined,
+      hotkey: hotkey || undefined,
       position: { x, y, width, height },
       style: {
         colour,
@@ -328,7 +328,7 @@ export function ButtonEditorModal({
                   <p className="text-xs text-destructive mt-1">{errors.hotkey}</p>
                 )}
                 <p className="text-xs text-muted-foreground mt-1">
-                  Supports letters, numbers, symbols, and arrow keys
+                  Supports letters, numbers, symbols, space bar, and arrow keys
                 </p>
               </div>
             </div>

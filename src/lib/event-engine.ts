@@ -20,6 +20,7 @@ export class EventEngine {
   private phaseStartedListeners: ((phase: Phase) => void)[];
   private phaseClassifiedListeners: ((phase: Phase) => void)[];
   private phaseTerminatedListeners: ((phase: Phase) => void)[];
+  private lastPhaseWithUndefinedTermination: Phase | null;
 
   constructor(clock: GameClock) {
     this.clock = clock;
@@ -30,6 +31,7 @@ export class EventEngine {
     this.phaseStartedListeners = [];
     this.phaseClassifiedListeners = [];
     this.phaseTerminatedListeners = [];
+    this.lastPhaseWithUndefinedTermination = null;
   }
 
   setButtonConfig(buttons: ButtonConfig[]): void {
@@ -110,17 +112,23 @@ export class EventEngine {
 
     switch (buttonType) {
       case ButtonType.PHASE:
+        // Retroactively assign termination to last phase with undefined termination
+        if (this.lastPhaseWithUndefinedTermination) {
+          const terminationCode = this.determineAutoTermination(this.lastPhaseWithUndefinedTermination, button);
+          this.updatePhaseTermination(this.lastPhaseWithUndefinedTermination.id, terminationCode);
+          this.lastPhaseWithUndefinedTermination = null;
+        }
+
         // Check if clicking the same phase button again
         if (this.activePhase !== null && 
             this.activePhase.status === PhaseStatus.CLASSIFIED &&
             this.activePhase.phaseCode === code) {
           // Same phase clicked - use SAME_PHASE termination
           this.terminateActivePhase("SAME_PHASE");
-          return; // Don't start a new phase
+          // Continue to start a new phase
         }
-        
         // If there's a different classified phase active, auto-terminate it first
-        if (this.activePhase !== null && this.activePhase.status === PhaseStatus.CLASSIFIED) {
+        else if (this.activePhase !== null && this.activePhase.status === PhaseStatus.CLASSIFIED) {
           const terminationCode = this.determineAutoTermination(this.activePhase, button);
           this.terminateActivePhase(terminationCode);
           // activePhase is now null
@@ -140,7 +148,20 @@ export class EventEngine {
         break;
 
       case ButtonType.TERMINATION:
-        this.terminateActivePhase(code);
+        // Special handling for END_PHASE button
+        if (code === "END_PHASE") {
+          if (this.activePhase && this.activePhase.status === PhaseStatus.CLASSIFIED) {
+            // Terminate with undefined termination event
+            this.terminateActivePhase(null);
+            // Store reference to this phase for retroactive termination assignment
+            const lastPhase = this.phases[this.phases.length - 1];
+            if (lastPhase) {
+              this.lastPhaseWithUndefinedTermination = lastPhase;
+            }
+          }
+        } else {
+          this.terminateActivePhase(code);
+        }
         break;
     }
   }
@@ -237,16 +258,38 @@ export class EventEngine {
     return true;
   }
 
+  private updatePhaseTermination(phaseId: number, terminationCode: string | null): boolean {
+    const index = this.phases.findIndex((p) => p.id === phaseId);
+    if (index === -1) return false;
+
+    const phase = this.phases[index];
+    const button = terminationCode ? this.buttonConfig[terminationCode] : null;
+    const terminationCategory = button?.category || null;
+
+    this.phases[index] = {
+      ...phase,
+      terminationEvent: terminationCode,
+      terminationCategory: terminationCategory,
+    };
+
+    // Notify listeners about the update
+    this.notifyPhaseTerminated(this.phases[index]);
+
+    return true;
+  }
+
   clearAll(): void {
     this.phases = [];
     this.activePhase = null;
     this.nextPhaseId = 0;
+    this.lastPhaseWithUndefinedTermination = null;
   }
 
   loadPhases(phases: Phase[]): void {
     this.phases = [...phases];
     this.nextPhaseId = phases.length > 0 ? Math.max(...phases.map((p) => p.id)) + 1 : 0;
     this.activePhase = null;
+    this.lastPhaseWithUndefinedTermination = null;
   }
 
   onPhaseStarted(listener: (phase: Phase) => void): () => void {

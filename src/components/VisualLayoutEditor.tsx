@@ -1,7 +1,7 @@
 // Visual Layout Editor - drag-and-drop interface for button configuration
 import { useState, useRef, useEffect, DragEvent, MouseEvent } from "react";
 import { ButtonConfig } from "@/lib/types";
-import { Plus, Edit2, Trash2, AlertCircle, RotateCcw, GripVertical } from "lucide-react";
+import { Plus, Edit2, Trash2, AlertCircle, RotateCcw, GripVertical, AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, ChevronDown } from "lucide-react";
 import { Button } from "./ui/Button";
 import { ButtonEditorModal } from "./ButtonEditorModal";
 import { validateButtonConfig, ValidationResult } from "@/lib/config-validation";
@@ -21,13 +21,20 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [dragStartPositions, setDragStartPositions] = useState<Map<string, { x: number; y: number }>>(new Map());
+  const [dragCurrentPosition, setDragCurrentPosition] = useState<{ x: number; y: number } | null>(null);
+  const [shiftPressed, setShiftPressed] = useState(false);
+  const [dragDirection, setDragDirection] = useState<'horizontal' | 'vertical' | null>(null);
   const [validation, setValidation] = useState<ValidationResult | null>(null);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [isDirty, setIsDirty] = useState(false);
   const [savedButtonsSnapshot, setSavedButtonsSnapshot] = useState<string>(JSON.stringify(buttons));
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [draggedListButton, setDraggedListButton] = useState<string | null>(null);
+  const [showAlignDropdown, setShowAlignDropdown] = useState(false);
+  const [showDistributeDropdown, setShowDistributeDropdown] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
+  const alignDropdownRef = useRef<HTMLDivElement>(null);
+  const distributeDropdownRef = useRef<HTMLDivElement>(null);
   
   // Rectangular selection state
   const [isSelecting, setIsSelecting] = useState(false);
@@ -49,9 +56,29 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
     setIsDirty(currentSnapshot !== savedButtonsSnapshot);
   }, [buttons, savedButtonsSnapshot]);
 
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: Event) => {
+      if (alignDropdownRef.current && !alignDropdownRef.current.contains(e.target as Node)) {
+        setShowAlignDropdown(false);
+      }
+      if (distributeDropdownRef.current && !distributeDropdownRef.current.contains(e.target as Node)) {
+        setShowDistributeDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Track shift key for snap-to-axis dragging
+      if (e.key === 'Shift') {
+        setShiftPressed(true);
+      }
+      
       // Delete selected buttons with Delete or Backspace
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedButtons.length > 0) {
         // Don't delete if user is typing in an input field
@@ -74,8 +101,18 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
       }
     };
 
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') {
+        setShiftPressed(false);
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
   }, [selectedButtons, buttons]);
 
   const handleDragStart = (e: DragEvent<HTMLDivElement>, buttonCode: string) => {
@@ -108,12 +145,49 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
 
     setDragOffset({ x: offsetX, y: offsetY });
     setDraggingButton(buttonCode);
+    setDragDirection(null); // Reset drag direction
+    
+    // Hide default drag ghost
+    const dragGhost = document.createElement('div');
+    dragGhost.style.position = 'absolute';
+    dragGhost.style.top = '-9999px';
+    document.body.appendChild(dragGhost);
+    e.dataTransfer.setDragImage(dragGhost, 0, 0);
+    setTimeout(() => document.body.removeChild(dragGhost), 0);
+    
     e.dataTransfer.effectAllowed = "move";
   };
 
   const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
+    
+    if (!draggingButton || !canvasRef.current) return;
+
+    const rect = canvasRef.current.getBoundingClientRect();
+    let newX = e.clientX - rect.left - dragOffset.x;
+    let newY = e.clientY - rect.top - dragOffset.y;
+    
+    // Calculate delta from original position
+    const originalPos = dragStartPositions.get(draggingButton);
+    if (originalPos && shiftPressed) {
+      const deltaX = Math.abs(newX - originalPos.x);
+      const deltaY = Math.abs(newY - originalPos.y);
+      
+      // Determine drag direction on first significant movement
+      if (!dragDirection && (deltaX > 5 || deltaY > 5)) {
+        setDragDirection(deltaX > deltaY ? 'horizontal' : 'vertical');
+      }
+      
+      // Constrain to the determined direction
+      if (dragDirection === 'horizontal') {
+        newY = originalPos.y;
+      } else if (dragDirection === 'vertical') {
+        newX = originalPos.x;
+      }
+    }
+    
+    setDragCurrentPosition({ x: newX, y: newY });
   };
 
   const handleDrop = (e: DragEvent<HTMLDivElement>) => {
@@ -127,12 +201,21 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
     const rect = canvasRef.current.getBoundingClientRect();
     
     // Calculate new position for the dragged button
-    const newX = e.clientX - rect.left - dragOffset.x;
-    const newY = e.clientY - rect.top - dragOffset.y;
+    let newX = e.clientX - rect.left - dragOffset.x;
+    let newY = e.clientY - rect.top - dragOffset.y;
     
     // Calculate the delta from the original position
     const originalPos = dragStartPositions.get(draggingButton);
     if (!originalPos) return;
+    
+    // Apply shift-snap constraints
+    if (shiftPressed && dragDirection) {
+      if (dragDirection === 'horizontal') {
+        newY = originalPos.y;
+      } else if (dragDirection === 'vertical') {
+        newX = originalPos.x;
+      }
+    }
     
     const deltaX = newX - originalPos.x;
     const deltaY = newY - originalPos.y;
@@ -163,6 +246,8 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
     onButtonsChange(updatedButtons);
     setDraggingButton(null);
     setDragStartPositions(new Map());
+    setDragCurrentPosition(null);
+    setDragDirection(null);
   };
 
   const handleAddButton = () => {
@@ -289,6 +374,222 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
       width: x2 - x1,
       height: y2 - y1,
     };
+  };
+
+  // Align selected buttons
+  const handleAlign = (alignment: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom') => {
+    if (selectedButtons.length < 2) return;
+    setShowAlignDropdown(false);
+
+    const selectedButtonsData = buttons.filter(b => selectedButtons.includes(b.code));
+    
+    let referenceValue: number;
+    
+    switch (alignment) {
+      case 'left':
+        referenceValue = Math.min(...selectedButtonsData.map(b => b.position.x));
+        break;
+      case 'center':
+        const minX = Math.min(...selectedButtonsData.map(b => b.position.x));
+        const maxX = Math.max(...selectedButtonsData.map(b => b.position.x + b.position.width));
+        referenceValue = (minX + maxX) / 2;
+        break;
+      case 'right':
+        referenceValue = Math.max(...selectedButtonsData.map(b => b.position.x + b.position.width));
+        break;
+      case 'top':
+        referenceValue = Math.min(...selectedButtonsData.map(b => b.position.y));
+        break;
+      case 'middle':
+        const minY = Math.min(...selectedButtonsData.map(b => b.position.y));
+        const maxY = Math.max(...selectedButtonsData.map(b => b.position.y + b.position.height));
+        referenceValue = (minY + maxY) / 2;
+        break;
+      case 'bottom':
+        referenceValue = Math.max(...selectedButtonsData.map(b => b.position.y + b.position.height));
+        break;
+    }
+
+    const updatedButtons = buttons.map(btn => {
+      if (!selectedButtons.includes(btn.code)) return btn;
+
+      let newX = btn.position.x;
+      let newY = btn.position.y;
+
+      switch (alignment) {
+        case 'left':
+          newX = referenceValue;
+          break;
+        case 'center':
+          newX = referenceValue - btn.position.width / 2;
+          break;
+        case 'right':
+          newX = referenceValue - btn.position.width;
+          break;
+        case 'top':
+          newY = referenceValue;
+          break;
+        case 'middle':
+          newY = referenceValue - btn.position.height / 2;
+          break;
+        case 'bottom':
+          newY = referenceValue - btn.position.height;
+          break;
+      }
+
+      return {
+        ...btn,
+        position: {
+          ...btn.position,
+          x: Math.round(Math.max(0, Math.min(CANVAS_WIDTH - btn.position.width, newX))),
+          y: Math.round(Math.max(0, Math.min(CANVAS_HEIGHT - btn.position.height, newY))),
+        },
+      };
+    });
+
+    onButtonsChange(updatedButtons);
+  };
+
+  // Distribute selected buttons
+  const handleDistribute = (direction: 'horizontal' | 'vertical', gap?: number) => {
+    if (selectedButtons.length < 3) return;
+    setShowDistributeDropdown(false);
+
+    const selectedButtonsData = buttons.filter(b => selectedButtons.includes(b.code));
+    
+    if (gap !== undefined) {
+      // Distribute with specific gap
+      if (direction === 'horizontal') {
+        const sorted = [...selectedButtonsData].sort((a, b) => a.position.x - b.position.x);
+        
+        // Pre-calculate positions for all sorted buttons
+        const newPositions = new Map<string, number>();
+        let currentX = sorted[0].position.x;
+        newPositions.set(sorted[0].code, currentX);
+        
+        for (let i = 1; i < sorted.length; i++) {
+          currentX += sorted[i - 1].position.width + gap;
+          newPositions.set(sorted[i].code, currentX);
+        }
+        
+        const updatedButtons = buttons.map(btn => {
+          const newX = newPositions.get(btn.code);
+          if (newX === undefined) return btn;
+          
+          return {
+            ...btn,
+            position: {
+              ...btn.position,
+              x: Math.round(newX),
+            },
+          };
+        });
+        
+        onButtonsChange(updatedButtons);
+      } else {
+        const sorted = [...selectedButtonsData].sort((a, b) => a.position.y - b.position.y);
+        
+        // Pre-calculate positions for all sorted buttons
+        const newPositions = new Map<string, number>();
+        let currentY = sorted[0].position.y;
+        newPositions.set(sorted[0].code, currentY);
+        
+        for (let i = 1; i < sorted.length; i++) {
+          currentY += sorted[i - 1].position.height + gap;
+          newPositions.set(sorted[i].code, currentY);
+        }
+        
+        const updatedButtons = buttons.map(btn => {
+          const newY = newPositions.get(btn.code);
+          if (newY === undefined) return btn;
+          
+          return {
+            ...btn,
+            position: {
+              ...btn.position,
+              y: Math.round(newY),
+            },
+          };
+        });
+        
+        onButtonsChange(updatedButtons);
+      }
+    } else {
+      // Distribute evenly across available space
+      if (direction === 'horizontal') {
+        const sorted = [...selectedButtonsData].sort((a, b) => a.position.x - b.position.x);
+        const leftmost = sorted[0].position.x;
+        const rightmost = sorted[sorted.length - 1].position.x + sorted[sorted.length - 1].position.width;
+        const totalWidth = sorted.reduce((sum, btn) => sum + btn.position.width, 0);
+        const totalGap = (rightmost - leftmost - totalWidth) / (sorted.length - 1);
+        
+        let currentX = leftmost;
+        const updatedButtons = buttons.map(btn => {
+          const index = sorted.findIndex(s => s.code === btn.code);
+          if (index === -1) return btn;
+          
+          if (index > 0) {
+            currentX += sorted[index - 1].position.width + totalGap;
+          }
+          
+          return {
+            ...btn,
+            position: {
+              ...btn.position,
+              x: Math.round(currentX),
+            },
+          };
+        });
+        
+        onButtonsChange(updatedButtons);
+      } else {
+        const sorted = [...selectedButtonsData].sort((a, b) => a.position.y - b.position.y);
+        const topmost = sorted[0].position.y;
+        const bottommost = sorted[sorted.length - 1].position.y + sorted[sorted.length - 1].position.height;
+        const totalHeight = sorted.reduce((sum, btn) => sum + btn.position.height, 0);
+        const totalGap = (bottommost - topmost - totalHeight) / (sorted.length - 1);
+        
+        let currentY = topmost;
+        const updatedButtons = buttons.map(btn => {
+          const index = sorted.findIndex(s => s.code === btn.code);
+          if (index === -1) return btn;
+          
+          if (index > 0) {
+            currentY += sorted[index - 1].position.height + totalGap;
+          }
+          
+          return {
+            ...btn,
+            position: {
+              ...btn.position,
+              y: Math.round(currentY),
+            },
+          };
+        });
+        
+        onButtonsChange(updatedButtons);
+      }
+    }
+  };
+
+  // Update position from input fields
+  const handlePositionUpdate = (code: string, axis: 'x' | 'y', value: number) => {
+    const updatedButtons = buttons.map(btn => {
+      if (btn.code !== code) return btn;
+      
+      return {
+        ...btn,
+        position: {
+          ...btn.position,
+          [axis]: Math.round(Math.max(0, Math.min(
+            axis === 'x' ? CANVAS_WIDTH - btn.position.width : CANVAS_HEIGHT - btn.position.height,
+            value
+          ))),
+        },
+      };
+    });
+    
+    onButtonsChange(updatedButtons);
   };
 
   const handleSaveButton = (button: ButtonConfig) => {
@@ -636,6 +937,197 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
             <RotateCcw className="w-4 h-4" />
             Reset to Default
           </Button>
+
+          {/* Align Dropdown */}
+          <div className="relative" ref={alignDropdownRef}>
+            <Button
+              onClick={() => setShowAlignDropdown(!showAlignDropdown)}
+              size="sm"
+              variant="outline"
+              disabled={selectedButtons.length < 2}
+              className="gap-1"
+            >
+              Align
+              <ChevronDown className="w-3 h-3" />
+            </Button>
+            {showAlignDropdown && selectedButtons.length >= 2 && (
+              <div className="absolute top-full left-0 mt-1 bg-popover border border-border rounded-lg shadow-lg z-50 min-w-[160px]">
+                <div className="p-1">
+                  <button
+                    onClick={() => handleAlign('left')}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-accent rounded flex items-center gap-2"
+                  >
+                    <AlignHorizontalJustifyStart className="w-4 h-4" />
+                    Align Left
+                  </button>
+                  <button
+                    onClick={() => handleAlign('center')}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-accent rounded flex items-center gap-2"
+                  >
+                    <AlignHorizontalJustifyCenter className="w-4 h-4" />
+                    Align Centre
+                  </button>
+                  <button
+                    onClick={() => handleAlign('right')}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-accent rounded flex items-center gap-2"
+                  >
+                    <AlignHorizontalJustifyEnd className="w-4 h-4" />
+                    Align Right
+                  </button>
+                  <div className="h-px bg-border my-1" />
+                  <button
+                    onClick={() => handleAlign('top')}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-accent rounded flex items-center gap-2"
+                  >
+                    <AlignVerticalJustifyStart className="w-4 h-4" />
+                    Align Top
+                  </button>
+                  <button
+                    onClick={() => handleAlign('middle')}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-accent rounded flex items-center gap-2"
+                  >
+                    <AlignVerticalJustifyCenter className="w-4 h-4" />
+                    Align Middle
+                  </button>
+                  <button
+                    onClick={() => handleAlign('bottom')}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-accent rounded flex items-center gap-2"
+                  >
+                    <AlignVerticalJustifyEnd className="w-4 h-4" />
+                    Align Bottom
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Distribute Dropdown */}
+          <div className="relative" ref={distributeDropdownRef}>
+            <Button
+              onClick={() => setShowDistributeDropdown(!showDistributeDropdown)}
+              size="sm"
+              variant="outline"
+              disabled={selectedButtons.length < 3}
+              className="gap-1"
+            >
+              Distribute
+              <ChevronDown className="w-3 h-3" />
+            </Button>
+            {showDistributeDropdown && selectedButtons.length >= 3 && (
+              <div className="absolute top-full left-0 mt-1 bg-popover border border-border rounded-lg shadow-lg z-50 min-w-[200px]">
+                <div className="p-1">
+                  <button
+                    onClick={() => handleDistribute('horizontal')}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-accent rounded flex items-center gap-2"
+                  >
+                    <AlignHorizontalDistributeCenter className="w-4 h-4" />
+                    Distribute Horizontally
+                  </button>
+                  <button
+                    onClick={() => handleDistribute('vertical')}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-accent rounded flex items-center gap-2"
+                  >
+                    <AlignVerticalDistributeCenter className="w-4 h-4" />
+                    Distribute Vertically
+                  </button>
+                  <div className="h-px bg-border my-1" />
+                  <div className="px-3 py-2">
+                    <label className="text-xs font-medium text-muted-foreground block mb-2">Set Horizontal Spacing</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        placeholder="Gap (px)"
+                        min="0"
+                        className="flex-1 h-8 px-2 text-xs bg-background border border-input rounded"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            const gap = parseInt(e.currentTarget.value) || 0;
+                            handleDistribute('horizontal', gap);
+                            e.currentTarget.value = '';
+                          }
+                        }}
+                      />
+                      <button
+                        onClick={(e) => {
+                          const input = e.currentTarget.previousElementSibling as HTMLInputElement;
+                          const gap = parseInt(input.value) || 0;
+                          handleDistribute('horizontal', gap);
+                          input.value = '';
+                        }}
+                        className="px-2 h-8 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90"
+                      >
+                        Apply
+                      </button>
+                    </div>
+                  </div>
+                  <div className="px-3 py-2">
+                    <label className="text-xs font-medium text-muted-foreground block mb-2">Set Vertical Spacing</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        placeholder="Gap (px)"
+                        min="0"
+                        className="flex-1 h-8 px-2 text-xs bg-background border border-input rounded"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            const gap = parseInt(e.currentTarget.value) || 0;
+                            handleDistribute('vertical', gap);
+                            e.currentTarget.value = '';
+                          }
+                        }}
+                      />
+                      <button
+                        onClick={(e) => {
+                          const input = e.currentTarget.previousElementSibling as HTMLInputElement;
+                          const gap = parseInt(input.value) || 0;
+                          handleDistribute('vertical', gap);
+                          input.value = '';
+                        }}
+                        className="px-2 h-8 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90"
+                      >
+                        Apply
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Position Fields */}
+          <div className="flex items-center gap-2 ml-auto">
+            <span className="text-xs font-medium text-muted-foreground">Position:</span>
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-muted-foreground">X:</span>
+              <input
+                type="number"
+                value={selectedButtons.length === 1 ? buttons.find(b => b.code === selectedButtons[0])?.position.x ?? '' : ''}
+                onChange={(e) => {
+                  if (selectedButtons.length === 1) {
+                    handlePositionUpdate(selectedButtons[0], 'x', parseInt(e.target.value) || 0);
+                  }
+                }}
+                disabled={selectedButtons.length !== 1}
+                placeholder="–"
+                className="w-16 h-8 px-2 text-xs bg-background border border-input rounded disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-muted-foreground">Y:</span>
+              <input
+                type="number"
+                value={selectedButtons.length === 1 ? buttons.find(b => b.code === selectedButtons[0])?.position.y ?? '' : ''}
+                onChange={(e) => {
+                  if (selectedButtons.length === 1) {
+                    handlePositionUpdate(selectedButtons[0], 'y', parseInt(e.target.value) || 0);
+                  }
+                }}
+                disabled={selectedButtons.length !== 1}
+                placeholder="–"
+                className="w-16 h-8 px-2 text-xs bg-background border border-input rounded disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+            </div>
+          </div>
         </div>
         <div className="text-sm text-muted-foreground">
           {buttons.length} button{buttons.length !== 1 ? "s" : ""}
@@ -786,6 +1278,55 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
             );
           })()}
 
+          {/* Drag Preview - show buttons being dragged */}
+          {draggingButton && dragCurrentPosition && dragStartPositions.size > 0 && (() => {
+            const originalPos = dragStartPositions.get(draggingButton);
+            if (!originalPos) return null;
+
+            const deltaX = dragCurrentPosition.x - originalPos.x;
+            const deltaY = dragCurrentPosition.y - originalPos.y;
+
+            return Array.from(dragStartPositions.keys()).map((buttonCode) => {
+              const button = buttons.find(b => b.code === buttonCode);
+              const startPos = dragStartPositions.get(buttonCode);
+              if (!button || !startPos) return null;
+
+              const previewX = startPos.x + deltaX;
+              const previewY = startPos.y + deltaY;
+              const borderRadius = button.position.height < 24 ? "9999px" : "0.75rem";
+
+              return (
+                <div
+                  key={`preview-${button.code}`}
+                  className="absolute overflow-hidden shadow-xl pointer-events-none border-2 border-primary"
+                  style={{
+                    left: previewX,
+                    top: previewY,
+                    width: button.position.width,
+                    height: button.position.height,
+                    backgroundColor: button.style.colour,
+                    opacity: 0.8,
+                    borderRadius: borderRadius,
+                  }}
+                >
+                  <div className="relative w-full h-full flex flex-col items-center justify-center text-white">
+                    <span
+                      className="text-center"
+                      style={{ fontSize: `${button.style.fontSize}px`, fontWeight: button.style.fontWeight }}
+                    >
+                      {button.label}
+                    </span>
+                    {button.hotkey && (
+                      <span className="text-[10px] opacity-70 border border-white/30 rounded px-1.5 py-0.5 mt-1">
+                        {formatHotkeyDisplay(button.hotkey)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            });
+          })()}
+
           {buttons.length === 0 && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="text-center text-muted-foreground">
@@ -803,18 +1344,47 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
         <div className="bg-muted/20 rounded-xl p-4 border border-border">
           {/* Create hotkey map */}
           {(() => {
-            const hotkeyMap = new Map<string, ButtonConfig>();
+            const hotkeyMap = new Map<string, ButtonConfig[]>();
             buttons.forEach((btn) => {
               if (btn.hotkey) {
-                hotkeyMap.set(btn.hotkey.toUpperCase(), btn);
+                // Normalize space character to 'SPACE' for matching
+                const normalizedHotkey = btn.hotkey === ' ' ? 'SPACE' : btn.hotkey.toUpperCase();
+                const existing = hotkeyMap.get(normalizedHotkey) || [];
+                hotkeyMap.set(normalizedHotkey, [...existing, btn]);
               }
             });
 
             const renderKey = (key: string, label?: string, width: string = "w-10", extraClasses: string = "") => {
               const normalizedKey = key.toUpperCase();
-              const button = hotkeyMap.get(normalizedKey);
+              const buttonList = hotkeyMap.get(normalizedKey) || [];
               const displayLabel = label || key;
               
+              // Handle multiple buttons with diagonal split
+              if (buttonList.length > 1) {
+                const buttonTitles = buttonList.map(b => `${b.label} (${b.code})`).join(', ');
+                return (
+                  <div
+                    key={key}
+                    className={`${width} h-10 rounded border-2 flex items-center justify-center text-xs font-medium transition-all overflow-hidden relative ${extraClasses}`}
+                    style={{
+                      borderColor: buttonList[0].style.colour,
+                    }}
+                    title={buttonTitles}
+                  >
+                    {/* Diagonal split background */}
+                    <div 
+                      className="absolute inset-0"
+                      style={{
+                        background: `linear-gradient(to bottom right, ${buttonList[0].style.colour} 0%, ${buttonList[0].style.colour} 50%, ${buttonList[1].style.colour} 50%, ${buttonList[1].style.colour} 100%)`,
+                      }}
+                    />
+                    <span className="relative z-10 text-white font-bold">{displayLabel}</span>
+                  </div>
+                );
+              }
+              
+              // Single button or no button
+              const button = buttonList[0];
               return (
                 <div
                   key={key}
@@ -834,8 +1404,34 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
 
             const renderArrowKey = (key: string, label: string) => {
               const normalizedKey = key.toUpperCase();
-              const button = hotkeyMap.get(normalizedKey);
+              const buttonList = hotkeyMap.get(normalizedKey) || [];
               
+              // Handle multiple buttons with diagonal split
+              if (buttonList.length > 1) {
+                const buttonTitles = buttonList.map(b => `${b.label} (${b.code})`).join(', ');
+                return (
+                  <div
+                    key={key}
+                    className="w-10 h-[18px] rounded border-2 flex items-center justify-center text-xs font-medium transition-all overflow-hidden relative"
+                    style={{
+                      borderColor: buttonList[0].style.colour,
+                    }}
+                    title={buttonTitles}
+                  >
+                    {/* Diagonal split background */}
+                    <div 
+                      className="absolute inset-0"
+                      style={{
+                        background: `linear-gradient(to bottom right, ${buttonList[0].style.colour} 0%, ${buttonList[0].style.colour} 50%, ${buttonList[1].style.colour} 50%, ${buttonList[1].style.colour} 100%)`,
+                      }}
+                    />
+                    <span className="relative z-10 text-white font-bold">{label}</span>
+                  </div>
+                );
+              }
+              
+              // Single button or no button
+              const button = buttonList[0];
               return (
                 <div
                   key={key}

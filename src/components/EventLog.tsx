@@ -77,6 +77,11 @@ export function EventLog({ phases }: EventLogProps) {
   };
 
   const getDotColor = (phase: Phase) => {
+    // If terminated with null termination (END_PHASE button), use yellow
+    if (phase.status === PhaseStatus.TERMINATED && !phase.terminationEvent) {
+      return "bg-yellow-500";
+    }
+    
     // If terminated, colour based on category
     if (phase.status === PhaseStatus.TERMINATED) {
       if (phase.terminationCategory === "success") {
@@ -137,7 +142,8 @@ export function EventLog({ phases }: EventLogProps) {
                   className={cn(
                     "border-b border-border/50 hover:bg-accent/50 transition-colors",
                     phase.status === PhaseStatus.UNDEFINED && "bg-yellow-500/10",
-                    phase.status === PhaseStatus.CLASSIFIED && "bg-blue-500/10"
+                    phase.status === PhaseStatus.CLASSIFIED && "bg-blue-500/10",
+                    phase.status === PhaseStatus.TERMINATED && !phase.terminationEvent && "bg-yellow-500/20"
                   )}
                 >
                   <td className="px-3 py-1.5">
@@ -231,7 +237,7 @@ export function EventLog({ phases }: EventLogProps) {
                       </select>
                     ) : (
                       <>
-                        {phase.terminationEvent || "–"}
+                        {phase.status === PhaseStatus.TERMINATED && !phase.terminationEvent ? "?" : (phase.terminationEvent || "–")}
                         <Pencil className="w-3 h-3 absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-50" />
                       </>
                     )}

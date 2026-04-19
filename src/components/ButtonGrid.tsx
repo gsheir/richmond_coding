@@ -9,10 +9,19 @@ import { formatHotkeyDisplay } from "@/lib/utils";
 interface ButtonGridProps {
   buttons: ButtonConfig[];
   disabled?: boolean;
+  activePhasePossession?: "in-possession" | "out-of-possession";
 }
 
-export function ButtonGrid({ buttons, disabled = false }: ButtonGridProps) {
+export function ButtonGrid({ buttons, disabled = false, activePhasePossession }: ButtonGridProps) {
   const { handleButtonClick } = useAppStore();
+
+  // Check if a termination button should be disabled based on possession context
+  const isTerminationButtonDisabled = (button: ButtonConfig): boolean => {
+    if (button.type !== "termination") return false;
+    if (!button.forPossessionState) return false; // Generic terminations are always enabled
+    if (!activePhasePossession) return true; // No active phase = disable possession-specific terminations
+    return button.forPossessionState !== activePhasePossession;
+  };
 
   // Set up hotkeys
   useEffect(() => {
@@ -21,16 +30,20 @@ export function ButtonGrid({ buttons, disabled = false }: ButtonGridProps) {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
 
+      // Find first button matching hotkey that is not disabled
       const button = buttons.find((btn) => {
         if (!btn.hotkey) return false;
         
-        // For arrow keys, match exactly
+        // Check if hotkey matches
+        let hotkeyMatches = false;
         if (btn.hotkey.startsWith('Arrow')) {
-          return btn.hotkey === e.key;
+          hotkeyMatches = btn.hotkey === e.key;
+        } else {
+          hotkeyMatches = btn.hotkey.toLowerCase() === e.key.toLowerCase();
         }
         
-        // For other keys, case-insensitive match
-        return btn.hotkey.toLowerCase() === e.key.toLowerCase();
+        // Return true only if hotkey matches AND button is not disabled
+        return hotkeyMatches && !isTerminationButtonDisabled(btn);
       });
 
       if (button) {
@@ -41,10 +54,10 @@ export function ButtonGrid({ buttons, disabled = false }: ButtonGridProps) {
 
     window.addEventListener("keydown", handleKeyPress);
     return () => window.removeEventListener("keydown", handleKeyPress);
-  }, [buttons, disabled, handleButtonClick]);
+  }, [buttons, disabled, handleButtonClick, activePhasePossession]);
 
   const handleClick = (button: ButtonConfig) => {
-    if (!disabled) {
+    if (!disabled && !isTerminationButtonDisabled(button)) {
       handleButtonClick(button.code, button.type);
     }
   };
@@ -52,13 +65,14 @@ export function ButtonGrid({ buttons, disabled = false }: ButtonGridProps) {
   return (
     <div className="relative w-full h-full">
       {buttons.map((button) => {
+        const isButtonDisabled = disabled || isTerminationButtonDisabled(button);
         return (
           <motion.button
             key={button.code}
             onClick={() => handleClick(button)}
-            disabled={disabled}
-            whileHover={{ scale: disabled ? 1 : 1.02 }}
-            whileTap={{ scale: disabled ? 1 : 0.98 }}
+            disabled={isButtonDisabled}
+            whileHover={{ scale: isButtonDisabled ? 1 : 1.02 }}
+            whileTap={{ scale: isButtonDisabled ? 1 : 0.98 }}
             style={{
               position: "absolute",
               left: button.position.x,
@@ -66,12 +80,12 @@ export function ButtonGrid({ buttons, disabled = false }: ButtonGridProps) {
               width: button.position.width,
               height: button.position.height,
               backgroundColor: button.style.colour,
-              opacity: disabled ? 0.5 : button.style.opacity,
+              opacity: isButtonDisabled ? 0.5 : button.style.opacity,
             }}
             className={cn(
               "rounded-xl text-white shadow-lg transition-all",
               "hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-white/50",
-              disabled && "cursor-not-allowed"
+              isButtonDisabled && "cursor-not-allowed"
             )}
           >
             <div className="flex flex-col items-center justify-center h-full gap-1">

@@ -53,18 +53,11 @@ export function CodePage({
   const phases = eventEngine.getAllPhases();
   const isRunning = clockState === ClockState.RUNNING;
 
-  // Set up space bar for starting phases
-  useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.code === "Space" && !e.repeat && isRunning) {
-        e.preventDefault();
-        useAppStore.getState().startPhase();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyPress);
-    return () => window.removeEventListener("keydown", handleKeyPress);
-  }, [isRunning]);
+  // Get active phase possession state for button filtering
+  const activePhase = eventEngine.getActivePhase();
+  const activePhasePossession = activePhase?.phaseCode 
+    ? buttonConfig.find(btn => btn.code === activePhase.phaseCode)?.possessionState
+    : undefined;
 
   // Detect narrow viewport
   useEffect(() => {
@@ -214,7 +207,11 @@ export function CodePage({
           <div className="h-full bg-card/70 backdrop-blur-sm rounded-xl border border-border/50 p-3 flex flex-col overflow-hidden">
             <h3 className="font-semibold text-xs mb-3 text-muted-foreground">Code Window</h3>
             <div className="relative flex-1 min-h-0">
-              <ButtonGrid buttons={buttonConfig} disabled={!isRunning} />
+              <ButtonGrid 
+                buttons={buttonConfig} 
+                disabled={!isRunning}
+                activePhasePossession={activePhasePossession}
+              />
             </div>
           </div>
         </div>
@@ -490,6 +487,11 @@ function EventLogRows({ phases }: { phases: any[] }) {
   };
 
   const getDotColor = (phase: any) => {
+    // If terminated with null termination (END_PHASE button), use yellow
+    if (phase.status === "terminated" && !phase.terminationEvent) {
+      return "bg-yellow-500";
+    }
+    
     if (phase.status === "terminated") {
       if (phase.terminationCategory === "success") {
         return "bg-green-500";
@@ -529,7 +531,8 @@ function EventLogRows({ phases }: { phases: any[] }) {
           className={cn(
             "border-b border-border/50 hover:bg-accent/50 transition-colors",
             phase.status === "undefined" && "bg-yellow-500/10",
-            phase.status === "classified" && "bg-blue-500/10"
+            phase.status === "classified" && "bg-blue-500/10",
+            phase.status === "terminated" && !phase.terminationEvent && "bg-yellow-500/20"
           )}
         >
           <td className="px-3 py-1.5">
@@ -621,7 +624,7 @@ function EventLogRows({ phases }: { phases: any[] }) {
               </select>
             ) : (
               <>
-                {phase.terminationEvent || "–"}
+                {phase.status === "terminated" && !phase.terminationEvent ? "?" : (phase.terminationEvent || "–")}
               </>
             )}
           </td>

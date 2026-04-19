@@ -19,6 +19,11 @@ export function formatHotkeyDisplay(hotkey: string | undefined): string {
     'ArrowRight': '→',
   };
   
+  // Display "Space" for the space character
+  if (hotkey === ' ') {
+    return 'Space';
+  }
+  
   return arrowMap[hotkey] || hotkey;
 }
 

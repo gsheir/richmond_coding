@@ -19,7 +19,7 @@ export function MatchDetailsCard({ tabId, match, clockState }: MatchDetailsCardP
   const [editHomeTeam, setEditHomeTeam] = useState(match.homeTeam);
   const [editAwayTeam, setEditAwayTeam] = useState(match.awayTeam);
   
-  const canEdit = clockState === ClockState.STOPPED;
+  const canEdit = clockState !== ClockState.RUNNING;
 
   const handleStartEdit = () => {
     if (!canEdit) return;
@@ -48,19 +48,19 @@ export function MatchDetailsCard({ tabId, match, clockState }: MatchDetailsCardP
 
   return (
     <div className="relative bg-card/80 backdrop-blur-xl rounded-xl px-4 py-3 border border-border/50 shadow-sm">
-      <h3 className="text-xs font-semibold text-muted-foreground mb-2.5">Match Details</h3>
-      
       {/* Edit button */}
       {!isEditing && (
         <button
           onClick={handleStartEdit}
           disabled={!canEdit}
-          className="absolute top-3 right-3 p-1.5 rounded-full hover:bg-muted transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          className="absolute top-3 right-3 p-1.5 rounded-full hover:bg-muted transition-colors disabled:opacity-30 disabled:cursor-not-allowed z-10"
           title={canEdit ? "Edit match details" : "Cannot edit while clock is running"}
         >
           <Edit2 className="w-3.5 h-3.5" />
         </button>
       )}
+      
+      <h3 className="text-xs font-semibold text-muted-foreground mb-2.5">Match Details</h3>
       
       <div className="flex gap-3">
         {/* Date */}
