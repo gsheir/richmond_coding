@@ -40,14 +40,6 @@ export function validateButtonConfig(buttons: ButtonConfig[]): ValidationResult 
       });
     }
 
-    if (!button.hotkey || button.hotkey.trim() === '') {
-      errors.push({
-        field: 'hotkey',
-        message: 'Hotkey is required',
-        buttonCode: button.code,
-      });
-    }
-
     // Check for duplicate codes
     if (button.code && codes.has(button.code)) {
       errors.push({

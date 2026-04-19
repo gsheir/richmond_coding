@@ -16,11 +16,11 @@ export async function loadButtonConfig(): Promise<ButtonConfig[]> {
       style: {
         colour: btn.style.colour,
         opacity: btn.style.opacity,
-        fontSize: btn.style.font_size,
-        fontWeight: btn.style.font_weight,
+        fontSize: btn.style.font_size ?? 12,
+        fontWeight: btn.style.font_weight ?? "bold",
       },
-      leadMs: btn.lead_ms,
-      lagMs: btn.lag_ms,
+      leadMs: btn.lead_ms ?? 3000,
+      lagMs: btn.lag_ms ?? 5000,
     }));
   } catch (error) {
     console.error("Failed to load button config:", error);

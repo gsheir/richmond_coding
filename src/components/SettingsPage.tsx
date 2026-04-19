@@ -4,10 +4,10 @@ import { useState, useEffect } from "react";
 import { ButtonConfig } from "@/lib/types";
 import { VisualLayoutEditor } from "./VisualLayoutEditor";
 import { 
-  loadCodingWindowConfig, 
   getCodingWindowConfigPath,
   openConfigDirectory,
 } from "@/lib/electron-api";
+import { loadButtonConfig } from "@/lib/config-loader";
 import { ExternalLink, FolderOpen } from "lucide-react";
 import { Button } from "./ui/Button";
 
@@ -33,11 +33,11 @@ export function SettingsPage() {
     const loadConfig = async () => {
       try {
         setIsLoadingConfig(true);
-        const config = await loadCodingWindowConfig();
-        setButtons(config.buttons);
+        const buttons = await loadButtonConfig();
+        setButtons(buttons);
         // Also update global store on initial load
-        if (config.buttons.length > 0) {
-          setButtonConfig(config.buttons);
+        if (buttons.length > 0) {
+          setButtonConfig(buttons);
         }
         const path = await getCodingWindowConfigPath();
         setConfigPath(path);

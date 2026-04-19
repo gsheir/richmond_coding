@@ -95,7 +95,7 @@ export function Sidebar({ currentPage, onNavigate, onSwitchToTab, isOpen, isOver
         />
         <div>
           <h1 className="text-base font-bold text-foreground">Richmond Hockey Club</h1>
-          <p className="text-xs text-muted-foreground">Field Hockey Coding</p>
+          <p className="text-xs text-muted-foreground">Geoffrey Sheir</p>
         </div>
       </div>
 

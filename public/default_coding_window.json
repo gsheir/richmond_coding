@@ -12,9 +12,9 @@
         "height": 60
       },
       "style": {
-        "colour": "#2D5F8D",
-        "opacity": 0.9,
-        "font_size": 10,
+        "colour": "#004db3",
+        "opacity": 1,
+        "font_size": 12,
         "font_weight": "bold"
       },
       "lead_ms": 3000,
@@ -26,38 +26,38 @@
       "type": "phase",
       "hotkey": "H",
       "position": {
-        "x": 140,
-        "y": 10,
+        "x": 10,
+        "y": 80,
         "width": 120,
         "height": 60
       },
       "style": {
-        "colour": "#2D5F8D",
-        "opacity": 0.9,
-        "font_size": 10,
+        "colour": "#0064c2",
+        "opacity": 1,
+        "font_size": 12,
         "font_weight": "bold"
       },
       "lead_ms": 3000,
       "lag_ms": 5000
     },
     {
-      "code": "CIRCLE",
-      "label": "Circle",
+      "code": "CIRCLE_ATTACK",
+      "label": "Circle Attack",
       "type": "phase",
       "hotkey": "C",
       "position": {
-        "x": 270,
-        "y": 10,
+        "x": 13,
+        "y": 227,
         "width": 120,
         "height": 60
       },
       "style": {
-        "colour": "#2D5F8D",
-        "opacity": 0.9,
-        "font_size": 10,
+        "colour": "#8260d2",
+        "opacity": 1,
+        "font_size": 12,
         "font_weight": "bold"
       },
-      "lead_ms": 2000,
+      "lead_ms": 3000,
       "lag_ms": 5000
     },
     {
@@ -66,55 +66,35 @@
       "type": "phase",
       "hotkey": "F",
       "position": {
-        "x": 400,
-        "y": 10,
+        "x": 11,
+        "y": 153,
         "width": 120,
         "height": 60
       },
       "style": {
-        "colour": "#2D5F8D",
-        "opacity": 0.9,
-        "font_size": 10,
+        "colour": "#3da1ff",
+        "opacity": 1,
+        "font_size": 12,
         "font_weight": "bold"
       },
       "lead_ms": 3000,
       "lag_ms": 5000
     },
     {
-      "code": "COUNTER",
-      "label": "Counter",
-      "type": "phase",
-      "hotkey": "N",
-      "position": {
-        "x": 530,
-        "y": 10,
-        "width": 120,
-        "height": 60
-      },
-      "style": {
-        "colour": "#2D5F8D",
-        "opacity": 0.9,
-        "font_size": 10,
-        "font_weight": "bold"
-      },
-      "lead_ms": 2000,
-      "lag_ms": 5000
-    },
-    {
-      "code": "HIGH_PRESS",
-      "label": "High Press",
+      "code": "PRESS",
+      "label": "Press",
       "type": "phase",
       "hotkey": "P",
       "position": {
-        "x": 10,
-        "y": 80,
+        "x": 529,
+        "y": 11,
         "width": 120,
         "height": 60
       },
       "style": {
-        "colour": "#8D2D5F",
-        "opacity": 0.9,
-        "font_size": 10,
+        "colour": "#850000",
+        "opacity": 1,
+        "font_size": 12,
         "font_weight": "bold"
       },
       "lead_ms": 3000,
@@ -126,15 +106,15 @@
       "type": "phase",
       "hotkey": "D",
       "position": {
-        "x": 140,
-        "y": 80,
+        "x": 530,
+        "y": 83,
         "width": 120,
         "height": 60
       },
       "style": {
-        "colour": "#8D2D5F",
-        "opacity": 0.9,
-        "font_size": 10,
+        "colour": "#b80000",
+        "opacity": 1,
+        "font_size": 12,
         "font_weight": "bold"
       },
       "lead_ms": 3000,
@@ -146,101 +126,39 @@
       "type": "phase",
       "hotkey": "X",
       "position": {
-        "x": 270,
-        "y": 80,
+        "x": 534,
+        "y": 233,
         "width": 120,
         "height": 60
       },
       "style": {
-        "colour": "#8D2D5F",
-        "opacity": 0.9,
-        "font_size": 10,
-        "font_weight": "bold"
-      },
-      "lead_ms": 2000,
-      "lag_ms": 5000
-    },
-    {
-      "code": "SCRAMBLE_DEFENCE",
-      "label": "Scramble Defence",
-      "type": "phase",
-      "hotkey": "S",
-      "position": {
-        "x": 400,
-        "y": 80,
-        "width": 120,
-        "height": 60
-      },
-      "style": {
-        "colour": "#8D2D5F",
-        "opacity": 0.9,
-        "font_size": 10,
+        "colour": "#ff4b1f",
+        "opacity": 1,
+        "font_size": 12,
         "font_weight": "bold"
       },
       "lead_ms": 3000,
       "lag_ms": 5000
     },
     {
-      "code": "COUNTER_DEFENCE",
-      "label": "Counter Defence",
+      "code": "SCRAMBLE",
+      "label": "Scramble",
       "type": "phase",
-      "hotkey": "V",
+      "hotkey": "S",
       "position": {
-        "x": 530,
-        "y": 80,
+        "x": 532,
+        "y": 159,
         "width": 120,
         "height": 60
       },
       "style": {
-        "colour": "#8D2D5F",
-        "opacity": 0.9,
-        "font_size": 10,
+        "colour": "#ff4d4d",
+        "opacity": 1,
+        "font_size": 12,
         "font_weight": "bold"
       },
-      "lead_ms": 2000,
+      "lead_ms": 3000,
       "lag_ms": 5000
-    },
-    {
-      "code": "SUCCESS",
-      "label": "Success",
-      "type": "termination",
-      "category": "success",
-      "hotkey": "-",
-      "position": {
-        "x": 10,
-        "y": 150,
-        "width": 100,
-        "height": 50
-      },
-      "style": {
-        "colour": "#27AE60",
-        "opacity": 0.9,
-        "font_size": 10,
-        "font_weight": "bold"
-      },
-      "lead_ms": 0,
-      "lag_ms": 0
-    },
-    {
-      "code": "FAIL",
-      "label": "Fail",
-      "type": "termination",
-      "category": "failure",
-      "hotkey": "=",
-      "position": {
-        "x": 120,
-        "y": 150,
-        "width": 100,
-        "height": 50
-      },
-      "style": {
-        "colour": "#E74C3C",
-        "opacity": 0.9,
-        "font_size": 10,
-        "font_weight": "bold"
-      },
-      "lead_ms": 0,
-      "lag_ms": 0
     },
     {
       "code": "VS_MAN",
@@ -248,19 +166,19 @@
       "type": "context",
       "hotkey": "M",
       "position": {
-        "x": 10,
-        "y": 210,
-        "width": 100,
-        "height": 50
+        "x": 150,
+        "y": 10,
+        "width": 60,
+        "height": 125
       },
       "style": {
-        "colour": "#7F8C8D",
-        "opacity": 0.8,
-        "font_size": 12,
-        "font_weight": "normal"
+        "colour": "#696969",
+        "opacity": 1,
+        "font_size": 10,
+        "font_weight": "bold"
       },
-      "lead_ms": 0,
-      "lag_ms": 0
+      "lead_ms": 3000,
+      "lag_ms": 5000
     },
     {
       "code": "VS_ZONE",
@@ -268,99 +186,514 @@
       "type": "context",
       "hotkey": "Z",
       "position": {
-        "x": 120,
-        "y": 210,
-        "width": 100,
-        "height": 50
+        "x": 220,
+        "y": 10,
+        "width": 60,
+        "height": 125
       },
       "style": {
-        "colour": "#7F8C8D",
-        "opacity": 0.8,
-        "font_size": 12,
-        "font_weight": "normal"
+        "colour": "#696969",
+        "opacity": 1,
+        "font_size": 10,
+        "font_weight": "bold"
       },
-      "lead_ms": 0,
-      "lag_ms": 0
+      "lead_ms": 3000,
+      "lag_ms": 5000
     },
     {
-      "code": "1_IN_LINE",
-      "label": "1 in Line",
+      "code": "1_PRESSING",
+      "label": "1 Pressing",
       "type": "context",
       "hotkey": "1",
       "position": {
-        "x": 10,
-        "y": 270,
-        "width": 100,
-        "height": 50
+        "x": 294,
+        "y": 14,
+        "width": 60,
+        "height": 60
       },
       "style": {
-        "colour": "#7F8C8D",
-        "opacity": 0.8,
-        "font_size": 12,
-        "font_weight": "normal"
+        "colour": "#4f4f4f",
+        "opacity": 1,
+        "font_size": 10,
+        "font_weight": "bold"
       },
-      "lead_ms": 0,
-      "lag_ms": 0
+      "lead_ms": 3000,
+      "lag_ms": 5000
     },
     {
-      "code": "2_IN_LINE",
-      "label": "2 in Line",
+      "code": "2_PRESSING",
+      "label": "2 Pressing",
       "type": "context",
       "hotkey": "2",
       "position": {
-        "x": 120,
-        "y": 270,
-        "width": 100,
-        "height": 50
+        "x": 366,
+        "y": 14,
+        "width": 60,
+        "height": 60
       },
       "style": {
-        "colour": "#7F8C8D",
-        "opacity": 0.8,
-        "font_size": 12,
-        "font_weight": "normal"
+        "colour": "#4f4f4f",
+        "opacity": 1,
+        "font_size": 10,
+        "font_weight": "bold"
       },
-      "lead_ms": 0,
-      "lag_ms": 0
+      "lead_ms": 3000,
+      "lag_ms": 5000
     },
     {
-      "code": "3_IN_LINE",
-      "label": "3 in Line",
+      "code": "3_PRESSING",
+      "label": "3 Pressing",
       "type": "context",
       "hotkey": "3",
       "position": {
-        "x": 230,
-        "y": 270,
-        "width": 100,
-        "height": 50
+        "x": 437,
+        "y": 15,
+        "width": 60,
+        "height": 60
       },
       "style": {
-        "colour": "#7F8C8D",
-        "opacity": 0.8,
-        "font_size": 12,
-        "font_weight": "normal"
+        "colour": "#4f4f4f",
+        "opacity": 1,
+        "font_size": 10,
+        "font_weight": "bold"
       },
-      "lead_ms": 0,
-      "lag_ms": 0
+      "lead_ms": 3000,
+      "lag_ms": 5000
     },
     {
-      "code": "4_IN_LINE",
-      "label": "4 in Line",
+      "code": "LEFT_BASELINE",
+      "label": "Left Baseline",
       "type": "context",
-      "hotkey": "4",
+      "hotkey": "6",
       "position": {
-        "x": 340,
-        "y": 270,
-        "width": 100,
-        "height": 50
+        "x": 154,
+        "y": 227,
+        "width": 60,
+        "height": 60
       },
       "style": {
-        "colour": "#7F8C8D",
-        "opacity": 0.8,
-        "font_size": 12,
-        "font_weight": "normal"
+        "colour": "#4f4f4f",
+        "opacity": 1,
+        "font_size": 10,
+        "font_weight": "bold"
       },
-      "lead_ms": 0,
-      "lag_ms": 0
+      "lead_ms": 3000,
+      "lag_ms": 5000
+    },
+    {
+      "code": "LEFT_45",
+      "label": "Left 45",
+      "type": "context",
+      "hotkey": "7",
+      "position": {
+        "x": 226,
+        "y": 228,
+        "width": 60,
+        "height": 60
+      },
+      "style": {
+        "colour": "#4f4f4f",
+        "opacity": 1,
+        "font_size": 10,
+        "font_weight": "bold"
+      },
+      "lead_ms": 3000,
+      "lag_ms": 5000
+    },
+    {
+      "code": "TOP_D",
+      "label": "Top D",
+      "type": "context",
+      "hotkey": "8",
+      "position": {
+        "x": 300,
+        "y": 230,
+        "width": 60,
+        "height": 60
+      },
+      "style": {
+        "colour": "#4f4f4f",
+        "opacity": 1,
+        "font_size": 10,
+        "font_weight": "bold"
+      },
+      "lead_ms": 3000,
+      "lag_ms": 5000
+    },
+    {
+      "code": "RIGHT_45",
+      "label": "Right 45",
+      "type": "context",
+      "hotkey": "9",
+      "position": {
+        "x": 372,
+        "y": 231,
+        "width": 60,
+        "height": 60
+      },
+      "style": {
+        "colour": "#4f4f4f",
+        "opacity": 1,
+        "font_size": 10,
+        "font_weight": "bold"
+      },
+      "lead_ms": 3000,
+      "lag_ms": 5000
+    },
+    {
+      "code": "RIGHT_BASELINE",
+      "label": "Right Baseline",
+      "type": "context",
+      "hotkey": "0",
+      "position": {
+        "x": 445,
+        "y": 232,
+        "width": 60,
+        "height": 60
+      },
+      "style": {
+        "colour": "#4f4f4f",
+        "opacity": 1,
+        "font_size": 10,
+        "font_weight": "bold"
+      },
+      "lead_ms": 3000,
+      "lag_ms": 5000
+    },
+    {
+      "code": "UPGRADE",
+      "label": "Upgrade",
+      "type": "termination",
+      "category": "success",
+      "position": {
+        "x": 132,
+        "y": 380,
+        "width": 60,
+        "height": 60
+      },
+      "style": {
+        "colour": "#189a51",
+        "opacity": 1,
+        "font_size": 10,
+        "font_weight": "bold"
+      },
+      "lead_ms": 3000,
+      "lag_ms": 5000
+    },
+    {
+      "code": "CHANCE",
+      "label": "Chance",
+      "type": "termination",
+      "category": "success",
+      "position": {
+        "x": 74,
+        "y": 379,
+        "width": 60,
+        "height": 60
+      },
+      "style": {
+        "colour": "#027a00",
+        "opacity": 1,
+        "font_size": 10,
+        "font_weight": "bold"
+      },
+      "lead_ms": 3000,
+      "lag_ms": 5000
+    },
+    {
+      "code": "GOAL",
+      "label": "Goal",
+      "type": "termination",
+      "category": "success",
+      "position": {
+        "x": 16,
+        "y": 378,
+        "width": 60,
+        "height": 60
+      },
+      "style": {
+        "colour": "#08630e",
+        "opacity": 1,
+        "font_size": 10,
+        "font_weight": "bold"
+      },
+      "lead_ms": 3000,
+      "lag_ms": 5000
+    },
+    {
+      "code": "DOWNGRADE",
+      "label": "Downgrade",
+      "type": "termination",
+      "category": "failure",
+      "position": {
+        "x": 191,
+        "y": 380,
+        "width": 60,
+        "height": 60
+      },
+      "style": {
+        "colour": "#c27b00",
+        "opacity": 1,
+        "font_size": 10,
+        "font_weight": "bold"
+      },
+      "lead_ms": 3000,
+      "lag_ms": 5000
+    },
+    {
+      "code": "BALL_LOST",
+      "label": "Ball lost",
+      "type": "termination",
+      "category": "failure",
+      "position": {
+        "x": 251,
+        "y": 382,
+        "width": 60,
+        "height": 60
+      },
+      "style": {
+        "colour": "#8c2c2c",
+        "opacity": 1,
+        "font_size": 10,
+        "font_weight": "bold"
+      },
+      "lead_ms": 3000,
+      "lag_ms": 5000
+    },
+    {
+      "code": "SAME_PHASE",
+      "label": "Same Phase",
+      "type": "termination",
+      "category": "failure",
+      "position": {
+        "x": 306,
+        "y": 312,
+        "width": 60,
+        "height": 60
+      },
+      "style": {
+        "colour": "#a38d00",
+        "opacity": 1,
+        "font_size": 10,
+        "font_weight": "bold"
+      },
+      "lead_ms": 3000,
+      "lag_ms": 5000
+    },
+    {
+      "code": "PCA",
+      "label": "PCA",
+      "type": "phase",
+      "hotkey": "A",
+      "position": {
+        "x": 13,
+        "y": 299,
+        "width": 120,
+        "height": 60
+      },
+      "style": {
+        "colour": "#ea6cd3",
+        "opacity": 1,
+        "font_size": 12,
+        "font_weight": "bold"
+      },
+      "lead_ms": 3000,
+      "lag_ms": 5000
+    },
+    {
+      "code": "PCD",
+      "label": "PCD",
+      "type": "phase",
+      "position": {
+        "x": 534,
+        "y": 305,
+        "width": 120,
+        "height": 60
+      },
+      "style": {
+        "colour": "#e29250",
+        "opacity": 1,
+        "font_size": 12,
+        "font_weight": "bold"
+      },
+      "lead_ms": 3000,
+      "lag_ms": 5000
+    },
+    {
+      "code": "0_25",
+      "label": "0-25",
+      "type": "context",
+      "position": {
+        "x": 190,
+        "y": 155,
+        "width": 60,
+        "height": 60
+      },
+      "style": {
+        "colour": "#395874",
+        "opacity": 1,
+        "font_size": 10,
+        "font_weight": "bold"
+      },
+      "lead_ms": 3000,
+      "lag_ms": 5000
+    },
+    {
+      "code": "25-50",
+      "label": "25-50",
+      "type": "context",
+      "position": {
+        "x": 263,
+        "y": 156,
+        "width": 60,
+        "height": 60
+      },
+      "style": {
+        "colour": "#395874",
+        "opacity": 1,
+        "font_size": 10,
+        "font_weight": "bold"
+      },
+      "lead_ms": 3000,
+      "lag_ms": 5000
+    },
+    {
+      "code": "50-75",
+      "label": "50-75",
+      "type": "context",
+      "position": {
+        "x": 337,
+        "y": 158,
+        "width": 60,
+        "height": 60
+      },
+      "style": {
+        "colour": "#395874",
+        "opacity": 1,
+        "font_size": 10,
+        "font_weight": "bold"
+      },
+      "lead_ms": 3000,
+      "lag_ms": 5000
+    },
+    {
+      "code": "75-100",
+      "label": "75-100",
+      "type": "context",
+      "position": {
+        "x": 411,
+        "y": 158,
+        "width": 60,
+        "height": 60
+      },
+      "style": {
+        "colour": "#395874",
+        "opacity": 1,
+        "font_size": 10,
+        "font_weight": "bold"
+      },
+      "lead_ms": 3000,
+      "lag_ms": 5000
+    },
+    {
+      "code": "CHANCE_CONCEDED",
+      "label": "Chance Conceded",
+      "type": "termination",
+      "category": "failure",
+      "position": {
+        "x": 536,
+        "y": 384,
+        "width": 60,
+        "height": 60
+      },
+      "style": {
+        "colour": "#a04f0e",
+        "opacity": 1,
+        "font_size": 10,
+        "font_weight": "bold"
+      },
+      "lead_ms": 3000,
+      "lag_ms": 5000
+    },
+    {
+      "code": "GOAL_CONCEDED",
+      "label": "Goal Conceded",
+      "type": "termination",
+      "category": "failure",
+      "position": {
+        "x": 596,
+        "y": 385,
+        "width": 60,
+        "height": 60
+      },
+      "style": {
+        "colour": "#780808",
+        "opacity": 1,
+        "font_size": 10,
+        "font_weight": "bold"
+      },
+      "lead_ms": 3000,
+      "lag_ms": 5000
+    },
+    {
+      "code": "DROP",
+      "label": "Drop Down",
+      "type": "termination",
+      "category": "failure",
+      "position": {
+        "x": 477,
+        "y": 384,
+        "width": 60,
+        "height": 60
+      },
+      "style": {
+        "colour": "#8c5f2c",
+        "opacity": 1,
+        "font_size": 10,
+        "font_weight": "bold"
+      },
+      "lead_ms": 3000,
+      "lag_ms": 5000
+    },
+    {
+      "code": "BALL_WON",
+      "label": "Ball Won",
+      "type": "termination",
+      "category": "success",
+      "position": {
+        "x": 359,
+        "y": 384,
+        "width": 60,
+        "height": 60
+      },
+      "style": {
+        "colour": "#015119",
+        "opacity": 1,
+        "font_size": 10,
+        "font_weight": "bold"
+      },
+      "lead_ms": 3000,
+      "lag_ms": 5000
+    },
+    {
+      "code": "PUSH_UP",
+      "label": "Push Up",
+      "type": "termination",
+      "category": "success",
+      "position": {
+        "x": 418,
+        "y": 384,
+        "width": 60,
+        "height": 60
+      },
+      "style": {
+        "colour": "#4d8c2c",
+        "opacity": 0.9,
+        "font_size": 10,
+        "font_weight": "bold"
+      },
+      "lead_ms": 3000,
+      "lag_ms": 5000
     }
   ]
 }

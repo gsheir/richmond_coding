@@ -62,7 +62,7 @@ export interface ButtonConfig {
   label: string;
   type: ButtonType;
   category?: string; // For termination buttons: "success" or "failure"
-  hotkey: string;
+  hotkey?: string;
   position: {
     x: number;
     y: number;

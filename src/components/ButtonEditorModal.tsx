@@ -48,7 +48,7 @@ export function ButtonEditorModal({
         setLabel(button.label);
         setType(button.type);
         setCategory(button.category || "");
-        setHotkey(button.hotkey);
+        setHotkey(button.hotkey || "");
         setX(button.position.x);
         setY(button.position.y);
         setWidth(button.position.width);
@@ -100,12 +100,13 @@ export function ButtonEditorModal({
       newErrors.label = "Label is required";
     }
 
-    if (!hotkey.trim()) {
-      newErrors.hotkey = "Hotkey is required";
-    } else if (hotkey.length > 1) {
-      newErrors.hotkey = "Hotkey must be a single character";
-    } else if (existingHotkeys.includes(hotkey) && button?.hotkey !== hotkey) {
-      newErrors.hotkey = `Hotkey "${hotkey}" is already in use`;
+    // Hotkey is optional, but if provided, validate it
+    if (hotkey.trim()) {
+      if (hotkey.length > 1) {
+        newErrors.hotkey = "Hotkey must be a single character";
+      } else if (existingHotkeys.includes(hotkey) && button?.hotkey !== hotkey) {
+        newErrors.hotkey = `Hotkey "${hotkey}" is already in use`;
+      }
     }
 
     if (width <= 0) {
@@ -142,7 +143,7 @@ export function ButtonEditorModal({
       label,
       type,
       category: type === ButtonType.TERMINATION ? category : undefined,
-      hotkey,
+      hotkey: hotkey.trim() || undefined,
       position: { x, y, width, height },
       style: {
         colour,
@@ -257,14 +258,14 @@ export function ButtonEditorModal({
 
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  Hotkey <span className="text-destructive">*</span>
+                  Hotkey
                 </label>
                 <input
                   type="text"
                   value={hotkey}
                   onChange={(e) => setHotkey(e.target.value.slice(0, 1).toUpperCase())}
                   className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm"
-                  placeholder="K"
+                  placeholder="K (optional)"
                   maxLength={1}
                 />
                 {errors.hotkey && (

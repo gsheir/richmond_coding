@@ -21,7 +21,7 @@ export function ButtonGrid({ buttons, disabled = false }: ButtonGridProps) {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
 
       const button = buttons.find(
-        (btn) => btn.hotkey.toLowerCase() === e.key.toLowerCase()
+        (btn) => btn.hotkey?.toLowerCase() === e.key.toLowerCase()
       );
 
       if (button) {
@@ -66,12 +66,14 @@ export function ButtonGrid({ buttons, disabled = false }: ButtonGridProps) {
             )}
           >
             <div className="flex flex-col items-center justify-center h-full gap-1">
-              <span style={{ fontSize: `${button.style.fontSize}px`, fontWeight: button.style.fontWeight }}>
+              <span className="text-center" style={{ fontSize: `${button.style.fontSize}px`, fontWeight: button.style.fontWeight }}>
                 {button.label}
               </span>
-              <span className="text-[10px] opacity-70 border border-white/30 rounded px-1.5 py-0.5">
-                {button.hotkey}
-              </span>
+              {button.hotkey && (
+                <span className="text-[10px] opacity-70 border border-white/30 rounded px-1.5 py-0.5">
+                  {button.hotkey}
+                </span>
+              )}
             </div>
           </motion.button>
         );
