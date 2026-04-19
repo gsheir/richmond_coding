@@ -110,7 +110,16 @@ export class EventEngine {
 
     switch (buttonType) {
       case ButtonType.PHASE:
-        // If there's a classified phase active, auto-terminate it first
+        // Check if clicking the same phase button again
+        if (this.activePhase !== null && 
+            this.activePhase.status === PhaseStatus.CLASSIFIED &&
+            this.activePhase.phaseCode === code) {
+          // Same phase clicked - use SAME_PHASE termination
+          this.terminateActivePhase("SAME_PHASE");
+          return; // Don't start a new phase
+        }
+        
+        // If there's a different classified phase active, auto-terminate it first
         if (this.activePhase !== null && this.activePhase.status === PhaseStatus.CLASSIFIED) {
           const terminationCode = this.determineAutoTermination(this.activePhase, button);
           this.terminateActivePhase(terminationCode);

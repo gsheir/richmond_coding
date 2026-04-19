@@ -44,6 +44,10 @@ export function CodePage({
   const [menuOpen, setMenuOpen] = useState(false);
   const [eventLogCollapsed, setEventLogCollapsed] = useState(false);
   const [phaseEfficiencyCollapsed, setPhaseEfficiencyCollapsed] = useState(false);
+  const [eventLogHeight, setEventLogHeight] = useState(240);
+  const [isResizingEventLog, setIsResizingEventLog] = useState(false);
+  const [resizeStartY, setResizeStartY] = useState(0);
+  const [resizeStartHeight, setResizeStartHeight] = useState(0);
 
   const phases = eventEngine.getAllPhases();
   const isRunning = clockState === ClockState.RUNNING;
@@ -76,6 +80,47 @@ export function CodePage({
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Handle event log resize
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizingEventLog) return;
+      
+      // Calculate delta from initial mouse position (negative because dragging up = larger panel)
+      const deltaY = resizeStartY - e.clientY;
+      const newHeight = resizeStartHeight + deltaY;
+      
+      // Constrain height between 100px and 600px
+      const constrainedHeight = Math.max(100, Math.min(600, newHeight));
+      setEventLogHeight(constrainedHeight);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizingEventLog(false);
+    };
+
+    if (isResizingEventLog) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'ns-resize';
+      document.body.style.userSelect = 'none';
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isResizingEventLog, resizeStartY, resizeStartHeight]);
+
+  const handleResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setResizeStartY(e.clientY);
+    setResizeStartHeight(eventLogHeight);
+    setIsResizingEventLog(true);
+  };
 
   return (
     <div className="flex flex-col h-full p-4 gap-4">
@@ -227,6 +272,17 @@ export function CodePage({
       {/* Collapsible Event Log Panel at bottom */}
       <div className="shrink-0">
         <div className="bg-card/80 backdrop-blur-sm rounded-xl border border-border/50 overflow-hidden">
+          {/* Resize handle */}
+          {!eventLogCollapsed && (
+            <div
+              className="h-1 bg-border/30 hover:bg-primary/50 cursor-ns-resize transition-colors relative group"
+              onMouseDown={handleResizeStart}
+            >
+              {/* Visual indicator */}
+              <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-1 bg-primary/0 group-hover:bg-primary/30 transition-colors" />
+            </div>
+          )}
+          
           {/* Header with collapse toggle */}
           <div 
             className="px-3 py-2 border-b border-border/40 flex items-center justify-between cursor-pointer hover:bg-accent/30 transition-colors"
@@ -247,9 +303,9 @@ export function CodePage({
             </button>
           </div>
 
-          {/* Event log content - constrained height for ~6-8 rows */}
+          {/* Event log content - resizable height */}
           {!eventLogCollapsed && (
-            <div className="overflow-auto" style={{ maxHeight: '240px' }}>
+            <div className="overflow-auto" style={{ maxHeight: `${eventLogHeight}px` }}>
               <table className="w-full text-xs">
                 <thead className="sticky top-0 bg-card/90 backdrop-blur-sm border-b border-border/30">
                   <tr>

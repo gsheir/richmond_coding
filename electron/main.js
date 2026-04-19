@@ -425,8 +425,27 @@ ipcMain.handle('save-coding-window-config', async (_event, configData) => {
     
     // Validate JSON before writing
     const config = JSON.parse(configData);
-    if (!config.buttons || !Array.isArray(config.buttons)) {
-      throw new Error('Invalid config: buttons array required');
+    
+    // Accept new format with separate arrays or old format with single buttons array
+    const hasNewFormat = config.phase_buttons || config.context_buttons || config.termination_buttons;
+    const hasOldFormat = config.buttons;
+    
+    if (!hasNewFormat && !hasOldFormat) {
+      throw new Error('Invalid config: button configuration arrays required');
+    }
+    
+    // Validate arrays are actually arrays if they exist
+    if (config.phase_buttons && !Array.isArray(config.phase_buttons)) {
+      throw new Error('Invalid config: phase_buttons must be an array');
+    }
+    if (config.context_buttons && !Array.isArray(config.context_buttons)) {
+      throw new Error('Invalid config: context_buttons must be an array');
+    }
+    if (config.termination_buttons && !Array.isArray(config.termination_buttons)) {
+      throw new Error('Invalid config: termination_buttons must be an array');
+    }
+    if (config.buttons && !Array.isArray(config.buttons)) {
+      throw new Error('Invalid config: buttons must be an array');
     }
     
     // Atomic write: write to temp file first

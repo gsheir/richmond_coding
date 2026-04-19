@@ -319,7 +319,7 @@
       "code": "SAME_PHASE",
       "label": "Same Phase",
       "type": "termination",
-      "category": "failure",
+      "category": "hold",
       "position": {"x": 306, "y": 312, "width": 60, "height": 60},
       "style": {"colour": "#a38d00", "opacity": 1, "font_size": 10, "font_weight": "bold"},
       "lead_ms": 3000,

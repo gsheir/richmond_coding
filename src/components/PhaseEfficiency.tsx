@@ -10,6 +10,7 @@ interface PhaseStats {
   code: string;
   label: string;
   successCount: number;
+  holdCount: number;
   failureCount: number;
   total: number;
   successRate: number;
@@ -33,8 +34,9 @@ export function PhaseEfficiency({ phases }: PhaseEfficiencyProps) {
     if (phaseCodes.length === 0) return null;
 
     const successCount = phaseCodes.filter(p => p.terminationCategory === 'success').length;
+    const holdCount = phaseCodes.filter(p => p.terminationCategory === 'hold').length;
     const failureCount = phaseCodes.filter(p => p.terminationCategory === 'failure').length;
-    const total = successCount + failureCount;
+    const total = successCount + holdCount + failureCount;
 
     if (total === 0) return null;
 
@@ -42,6 +44,7 @@ export function PhaseEfficiency({ phases }: PhaseEfficiencyProps) {
       code: phaseCode,
       label: phaseLabel,
       successCount,
+      holdCount,
       failureCount,
       total,
       successRate: (successCount / total) * 100,
@@ -61,6 +64,7 @@ export function PhaseEfficiency({ phases }: PhaseEfficiencyProps) {
 
   const renderPhaseBar = (stat: PhaseStats) => {
     const successPercent = (stat.successCount / stat.total) * 100;
+    const holdPercent = (stat.holdCount / stat.total) * 100;
     const failurePercent = (stat.failureCount / stat.total) * 100;
 
     return (
@@ -84,6 +88,20 @@ export function PhaseEfficiency({ phases }: PhaseEfficiencyProps) {
                 {successPercent > 15 && (
                   <span className="text-xs font-semibold text-white">
                     {stat.successCount}
+                  </span>
+                )}
+              </div>
+            )}
+            {/* Hold section */}
+            {stat.holdCount > 0 && (
+              <div
+                className="bg-amber-500 hover:bg-amber-600 transition-colors flex items-center justify-center"
+                style={{ width: `${holdPercent}%` }}
+                title={`${stat.holdCount} hold (${holdPercent.toFixed(1)}%)`}
+              >
+                {holdPercent > 15 && (
+                  <span className="text-xs font-semibold text-white">
+                    {stat.holdCount}
                   </span>
                 )}
               </div>
@@ -142,6 +160,10 @@ export function PhaseEfficiency({ phases }: PhaseEfficiencyProps) {
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 bg-green-500 rounded"></div>
           <span className="text-xs text-muted-foreground">Success</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 bg-amber-500 rounded"></div>
+          <span className="text-xs text-muted-foreground">Hold</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 bg-red-500 rounded"></div>

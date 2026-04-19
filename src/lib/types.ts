@@ -33,7 +33,7 @@ export interface Phase {
   period: string;
   contextLabels: string[];
   terminationEvent: string | null;
-  terminationCategory: string | null; // "success" or "failure"
+  terminationCategory: string | null; // "success", "failure", or "hold"
   leadMs: number;
   lagMs: number;
 }
@@ -61,7 +61,7 @@ export interface ButtonConfig {
   code: string;
   label: string;
   type: ButtonType;
-  category?: string; // For termination buttons: "success" or "failure"
+  category?: string; // For termination buttons: "success", "failure", or "hold"
   hotkey?: string;
   position: {
     x: number;

@@ -150,14 +150,29 @@ export function validateButtonConfig(buttons: ButtonConfig[]): ValidationResult 
     }
 
     // Validate transition type for termination buttons
-    if (button.type === 'termination' && button.transitionType) {
-      const validTypes = ['upgrade', 'downgrade', 'ball-lost', 'ball-won'];
-      if (!validTypes.includes(button.transitionType)) {
-        errors.push({
-          field: 'transitionType',
-          message: `Invalid transition type (must be one of: ${validTypes.join(', ')})`,
-          buttonCode: button.code,
-        });
+    if (button.type === 'termination') {
+      // Validate category
+      if (button.category) {
+        const validCategories = ['success', 'failure', 'hold'];
+        if (!validCategories.includes(button.category)) {
+          errors.push({
+            field: 'category',
+            message: `Invalid category (must be one of: ${validCategories.join(', ')})`,
+            buttonCode: button.code,
+          });
+        }
+      }
+      
+      // Validate transition type
+      if (button.transitionType) {
+        const validTypes = ['upgrade', 'downgrade', 'ball-lost', 'ball-won'];
+        if (!validTypes.includes(button.transitionType)) {
+          errors.push({
+            field: 'transitionType',
+            message: `Invalid transition type (must be one of: ${validTypes.join(', ')})`,
+            buttonCode: button.code,
+          });
+        }
       }
     }
 

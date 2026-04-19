@@ -35,7 +35,7 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
   const [selectionEnd, setSelectionEnd] = useState({ x: 0, y: 0 });
 
   const CANVAS_WIDTH = 680;
-  const CANVAS_HEIGHT = 480;
+  const CANVAS_HEIGHT = 720;
 
   // Run validation whenever buttons change
   useEffect(() => {

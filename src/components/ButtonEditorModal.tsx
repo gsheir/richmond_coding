@@ -139,7 +139,7 @@ export function ButtonEditorModal({
     }
 
     if (type === ButtonType.TERMINATION && !category) {
-      newErrors.category = "Category is required for termination buttons";
+      newErrors.category = "Outcome is required for termination buttons";
     }
 
     if (type === ButtonType.PHASE && !possessionState) {
@@ -264,15 +264,16 @@ export function ButtonEditorModal({
               {type === ButtonType.TERMINATION && (
                 <div>
                   <label className="block text-sm font-medium mb-1">
-                    Category <span className="text-destructive">*</span>
+                    Outcome <span className="text-destructive">*</span>
                   </label>
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm"
                   >
-                    <option value="">Select category</option>
+                    <option value="">Select outcome</option>
                     <option value="success">Success</option>
+                    <option value="hold">Hold</option>
                     <option value="failure">Failure</option>
                   </select>
                   {errors.category && (
