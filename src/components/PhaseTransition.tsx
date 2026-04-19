@@ -36,7 +36,7 @@ function TransitionFlow({
   if (transitions.length === 0) {
     return (
       <div className="space-y-2">
-        <div>
+        <div className="text-center">
           <h5 className="text-xs font-semibold text-muted-foreground">{title}</h5>
           <p className="text-xs text-muted-foreground/70">{description}</p>
         </div>

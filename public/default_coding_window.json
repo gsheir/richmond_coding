@@ -78,7 +78,7 @@
         "height": 60
       },
       "style": {
-        "colour": "#3da1ff",
+        "colour": "#368eec",
         "opacity": 1,
         "font_size": 12,
         "font_weight": "bold"
@@ -100,7 +100,7 @@
         "height": 60
       },
       "style": {
-        "colour": "#8260d2",
+        "colour": "#926de8",
         "opacity": 1,
         "font_size": 12,
         "font_weight": "bold"
@@ -121,7 +121,7 @@
         "height": 60
       },
       "style": {
-        "colour": "#ea6cd3",
+        "colour": "#ca6bd6",
         "opacity": 1,
         "font_size": 12,
         "font_weight": "bold"
@@ -209,7 +209,7 @@
         "height": 60
       },
       "style": {
-        "colour": "#ff4d4d",
+        "colour": "#bf3608",
         "opacity": 1,
         "font_size": 12,
         "font_weight": "bold"
@@ -231,7 +231,7 @@
         "height": 60
       },
       "style": {
-        "colour": "#ff4b1f",
+        "colour": "#f46a1f",
         "opacity": 1,
         "font_size": 12,
         "font_weight": "bold"
