@@ -797,6 +797,129 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
         </div>
       </div>
 
+      {/* Keyboard Layout Visualization */}
+      <div className="space-y-2" style={{ width: CANVAS_WIDTH }}>
+        <h3 className="text-sm font-semibold">Keyboard Hotkey Map</h3>
+        <div className="bg-muted/20 rounded-xl p-4 border border-border">
+          {/* Create hotkey map */}
+          {(() => {
+            const hotkeyMap = new Map<string, ButtonConfig>();
+            buttons.forEach((btn) => {
+              if (btn.hotkey) {
+                hotkeyMap.set(btn.hotkey.toUpperCase(), btn);
+              }
+            });
+
+            const renderKey = (key: string, label?: string, width: string = "w-10", extraClasses: string = "") => {
+              const normalizedKey = key.toUpperCase();
+              const button = hotkeyMap.get(normalizedKey);
+              const displayLabel = label || key;
+              
+              return (
+                <div
+                  key={key}
+                  className={`${width} h-10 rounded border-2 flex items-center justify-center text-xs font-medium transition-all ${extraClasses}`}
+                  style={{
+                    backgroundColor: button ? button.style.colour : 'transparent',
+                    borderColor: button ? button.style.colour : 'hsl(var(--border))',
+                    color: button ? 'white' : 'hsl(var(--muted-foreground))',
+                    fontWeight: button ? 'bold' : 'normal',
+                  }}
+                  title={button ? `${button.label} (${button.code})` : undefined}
+                >
+                  {displayLabel}
+                </div>
+              );
+            };
+
+            const renderArrowKey = (key: string, label: string) => {
+              const normalizedKey = key.toUpperCase();
+              const button = hotkeyMap.get(normalizedKey);
+              
+              return (
+                <div
+                  key={key}
+                  className="w-10 h-[18px] rounded border-2 flex items-center justify-center text-xs font-medium transition-all"
+                  style={{
+                    backgroundColor: button ? button.style.colour : 'transparent',
+                    borderColor: button ? button.style.colour : 'hsl(var(--border))',
+                    color: button ? 'white' : 'hsl(var(--muted-foreground))',
+                    fontWeight: button ? 'bold' : 'normal',
+                  }}
+                  title={button ? `${button.label} (${button.code})` : undefined}
+                >
+                  {label}
+                </div>
+              );
+            };
+
+            return (
+              <div className="space-y-1.5 font-mono">
+                {/* Number row */}
+                <div className="flex gap-1">
+                  {renderKey('`', '`')}
+                  {['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'].map(k => renderKey(k))}
+                  {renderKey('-', '-')}
+                  {renderKey('=', '=')}
+                  {renderKey('Backspace', 'delete', 'w-20', 'text-[10px]')}
+                </div>
+
+                {/* QWERTY row */}
+                <div className="flex gap-1">
+                  {renderKey('Tab', 'tab', 'w-16', 'text-[10px]')}
+                  {['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'].map(k => renderKey(k))}
+                  {renderKey('[', '[')}
+                  {renderKey(']', ']')}
+                  {renderKey('\\', '\\')}
+                </div>
+
+                {/* ASDF row */}
+                <div className="flex gap-1">
+                  {renderKey('CapsLock', 'caps lock', 'w-20', 'text-[10px]')}
+                  {['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'].map(k => renderKey(k))}
+                  {renderKey(';', ';')}
+                  {renderKey("'", "'")}
+                  {renderKey('Enter', 'return', 'w-20', 'text-[10px]')}
+                </div>
+
+                {/* ZXCV row */}
+                <div className="flex gap-1">
+                  {renderKey('Shift', 'shift', 'w-24', 'text-[10px]')}
+                  {['Z', 'X', 'C', 'V', 'B', 'N', 'M'].map(k => renderKey(k))}
+                  {renderKey(',', ',')}
+                  {renderKey('.', '.')}
+                  {renderKey('/', '/')}
+                  {renderKey('Shift', 'shift', 'w-24', 'text-[10px]')}
+                </div>
+
+                {/* Space row */}
+                <div className="flex gap-1 items-center">
+                  {renderKey('Fn', 'fn', 'w-10', 'text-[10px]')}
+                  {renderKey('Ctrl', '⌃', 'w-10')}
+                  {renderKey('Alt', '⌥', 'w-10')}
+                  {renderKey('Cmd', '⌘', 'w-10')}
+                  {renderKey('Space', '', 'w-[216px]')}
+                  {renderKey('Cmd', '⌘', 'w-10')}
+                  {renderKey('Alt', '⌥', 'w-10')}
+                  
+                  {/* Arrow keys */}
+                  <div className="flex flex-col gap-1 ml-2">
+                    <div className="flex justify-center">
+                      {renderArrowKey('ArrowUp', '↑')}
+                    </div>
+                    <div className="flex gap-1">
+                      {renderArrowKey('ArrowLeft', '←')}
+                      {renderArrowKey('ArrowDown', '↓')}
+                      {renderArrowKey('ArrowRight', '→')}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      </div>
+
       {/* Button Lists */}
       <div className="w-full space-y-4">
         <h3 className="text-sm font-semibold">Button Lists</h3>

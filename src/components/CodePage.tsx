@@ -4,7 +4,7 @@ import { ClockWidget } from "./ClockWidget";
 import { MatchDetailsCard } from "./MatchDetailsCard";
 import { ButtonGrid } from "./ButtonGrid";
 import { PhaseEfficiency } from "./PhaseEfficiency";
-import PhaseContextBreakdown from "./PhaseContextBreakdown";
+import { PhaseTransition } from "./PhaseTransition";
 import { AutosaveIndicator } from "./AutosaveIndicator";
 import { Button } from "./ui/Button";
 import { Download, Trash2, Undo, Save, MoreVertical, ChevronDown, ChevronUp } from "lucide-react";
@@ -48,6 +48,7 @@ export function CodePage({
   const [isResizingEventLog, setIsResizingEventLog] = useState(false);
   const [resizeStartY, setResizeStartY] = useState(0);
   const [resizeStartHeight, setResizeStartHeight] = useState(0);
+  const [analyticsTab, setAnalyticsTab] = useState<'efficiency' | 'transition'>('efficiency');
 
   const phases = eventEngine.getAllPhases();
   const isRunning = clockState === ClockState.RUNNING;
@@ -238,30 +239,95 @@ export function CodePage({
                   </button>
                 </div>
                 {!phaseEfficiencyCollapsed && (
-                  <div className="flex-1 min-h-0 p-3 overflow-y-auto space-y-6">
-                    <div>
-                      <h4 className="text-xs font-semibold mb-2 text-muted-foreground">Phase Efficiency</h4>
-                      <PhaseEfficiency phases={phases} />
+                  <div className="flex-1 min-h-0 p-3 overflow-y-auto">
+                    {/* Tab buttons */}
+                    <div className="flex gap-2 mb-3 border-b border-border/40">
+                      <button
+                        onClick={() => setAnalyticsTab('efficiency')}
+                        className={`px-3 py-1.5 text-xs font-medium transition-colors relative ${
+                          analyticsTab === 'efficiency'
+                            ? 'text-foreground'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        Phase Efficiency
+                        {analyticsTab === 'efficiency' && (
+                          <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+                        )}
+                      </button>
+                      <button
+                        onClick={() => setAnalyticsTab('transition')}
+                        className={`px-3 py-1.5 text-xs font-medium transition-colors relative ${
+                          analyticsTab === 'transition'
+                            ? 'text-foreground'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        Phase Transition
+                        {analyticsTab === 'transition' && (
+                          <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+                        )}
+                      </button>
                     </div>
-                    <div className="border-t border-border/40 pt-4">
-                      <h4 className="text-xs font-semibold mb-2 text-muted-foreground">Context Breakdown</h4>
-                      <PhaseContextBreakdown phases={phases} />
-                    </div>
+                    
+                    {/* Tab content */}
+                    {analyticsTab === 'efficiency' ? (
+                      <div>
+                        <PhaseEfficiency phases={phases} />
+                      </div>
+                    ) : (
+                      <div>
+                        <PhaseTransition phases={phases} />
+                      </div>
+                    )}
                   </div>
                 )}
               </>
             ) : (
               <>
                 <h3 className="font-semibold text-xs mb-3 text-muted-foreground">Analytics</h3>
-                <div className="flex-1 min-h-0 overflow-y-auto space-y-6">
-                  <div>
-                    <h4 className="text-xs font-semibold mb-2 text-muted-foreground">Phase Efficiency</h4>
-                    <PhaseEfficiency phases={phases} />
-                  </div>
-                  <div className="border-t border-border/40 pt-4">
-                    <h4 className="text-xs font-semibold mb-2 text-muted-foreground">Context Breakdown</h4>
-                    <PhaseContextBreakdown phases={phases} />
-                  </div>
+                
+                {/* Tab buttons */}
+                <div className="flex gap-2 mb-3 border-b border-border/40">
+                  <button
+                    onClick={() => setAnalyticsTab('efficiency')}
+                    className={`px-3 py-1.5 text-xs font-medium transition-colors relative ${
+                      analyticsTab === 'efficiency'
+                        ? 'text-foreground'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    Phase Efficiency
+                    {analyticsTab === 'efficiency' && (
+                      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setAnalyticsTab('transition')}
+                    className={`px-3 py-1.5 text-xs font-medium transition-colors relative ${
+                      analyticsTab === 'transition'
+                        ? 'text-foreground'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    Phase Transition
+                    {analyticsTab === 'transition' && (
+                      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+                    )}
+                  </button>
+                </div>
+                
+                {/* Tab content */}
+                <div className="flex-1 min-h-0 overflow-y-auto">
+                  {analyticsTab === 'efficiency' ? (
+                    <div>
+                      <PhaseEfficiency phases={phases} />
+                    </div>
+                  ) : (
+                    <div>
+                      <PhaseTransition phases={phases} />
+                    </div>
+                  )}
                 </div>
               </>
             )}
