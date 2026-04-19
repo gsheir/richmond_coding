@@ -1,8 +1,9 @@
 // Button Editor Modal - comprehensive form for editing button configuration
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ButtonConfig, ButtonType } from "@/lib/types";
 import { Button } from "./ui/Button";
 import { X } from "lucide-react";
+import { formatHotkeyDisplay, normaliseHotkey, isValidHotkeyKey } from "@/lib/utils";
 
 interface ButtonEditorModalProps {
   button: ButtonConfig | null;
@@ -10,7 +11,6 @@ interface ButtonEditorModalProps {
   onClose: () => void;
   onSave: (button: ButtonConfig) => void;
   existingCodes: string[];
-  existingHotkeys: string[];
 }
 
 export function ButtonEditorModal({
@@ -19,7 +19,6 @@ export function ButtonEditorModal({
   onClose,
   onSave,
   existingCodes,
-  existingHotkeys,
 }: ButtonEditorModalProps) {
   const [code, setCode] = useState("");
   const [label, setLabel] = useState("");
@@ -39,6 +38,8 @@ export function ButtonEditorModal({
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isCapturingHotkey, setIsCapturingHotkey] = useState(false);
+  const hotkeyInputRef = useRef<HTMLInputElement>(null);
 
   // Load button data ONLY when modal opens (not when button prop changes)
   useEffect(() => {
@@ -102,10 +103,10 @@ export function ButtonEditorModal({
 
     // Hotkey is optional, but if provided, validate it
     if (hotkey.trim()) {
-      if (hotkey.length > 1) {
-        newErrors.hotkey = "Hotkey must be a single character";
-      } else if (existingHotkeys.includes(hotkey) && button?.hotkey !== hotkey) {
-        newErrors.hotkey = `Hotkey "${hotkey}" is already in use`;
+      // Allow single characters or arrow keys
+      const isArrowKey = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(hotkey);
+      if (!isArrowKey && hotkey.length > 1) {
+        newErrors.hotkey = "Hotkey must be a single character or arrow key";
       }
     }
 
@@ -260,17 +261,50 @@ export function ButtonEditorModal({
                 <label className="block text-sm font-medium mb-1">
                   Hotkey
                 </label>
-                <input
-                  type="text"
-                  value={hotkey}
-                  onChange={(e) => setHotkey(e.target.value.slice(0, 1).toUpperCase())}
-                  className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm"
-                  placeholder="K (optional)"
-                  maxLength={1}
-                />
+                <div className="relative">
+                  <input
+                    ref={hotkeyInputRef}
+                    type="text"
+                    value={hotkey ? formatHotkeyDisplay(hotkey) : ''}
+                    onFocus={() => setIsCapturingHotkey(true)}
+                    onBlur={() => setIsCapturingHotkey(false)}
+                    onKeyDown={(e) => {
+                      e.preventDefault();
+                      
+                      // Allow clearing with Backspace or Delete
+                      if (e.key === 'Backspace' || e.key === 'Delete') {
+                        setHotkey('');
+                        return;
+                      }
+                      
+                      // Check if it's a valid hotkey
+                      if (isValidHotkeyKey(e.key)) {
+                        setHotkey(normaliseHotkey(e.key));
+                      }
+                    }}
+                    readOnly
+                    className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm cursor-pointer"
+                    placeholder={isCapturingHotkey ? "Press a key..." : "Click to set (optional)"}
+                  />
+                  {hotkey && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setHotkey('');
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
                 {errors.hotkey && (
                   <p className="text-xs text-destructive mt-1">{errors.hotkey}</p>
                 )}
+                <p className="text-xs text-muted-foreground mt-1">
+                  Supports letters, numbers, symbols, and arrow keys
+                </p>
               </div>
             </div>
           </div>
@@ -440,9 +474,11 @@ export function ButtonEditorModal({
                   <span style={{ fontSize: `${fontSize}px`, fontWeight }}>
                     {label || "Label"}
                   </span>
-                  <span className="text-[10px] opacity-70 border border-white/30 rounded px-1.5 py-0.5">
-                    {hotkey || "K"}
-                  </span>
+                  {(hotkey || "K") && (
+                    <span className="text-[10px] opacity-70 border border-white/30 rounded px-1.5 py-0.5">
+                      {formatHotkeyDisplay(hotkey) || "K"}
+                    </span>
+                  )}
                 </div>
               </button>
             </div>

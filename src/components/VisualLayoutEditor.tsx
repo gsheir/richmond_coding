@@ -6,6 +6,7 @@ import { Button } from "./ui/Button";
 import { ButtonEditorModal } from "./ButtonEditorModal";
 import { validateButtonConfig, ValidationResult } from "@/lib/config-validation";
 import { saveCodingWindowConfig } from "@/lib/electron-api";
+import { formatHotkeyDisplay } from "@/lib/utils";
 
 interface VisualLayoutEditorProps {
   buttons: ButtonConfig[];
@@ -346,7 +347,6 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
   };
 
   const existingCodes = buttons.map((b) => b.code);
-  const existingHotkeys = buttons.map((b) => b.hotkey).filter((h): h is string => h !== undefined);
 
   return (
     <div className="space-y-4">
@@ -478,7 +478,7 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
                 </span>
                 {button.hotkey && (
                   <span className="text-[10px] opacity-70 border border-white/30 rounded px-1.5 py-0.5 mt-1">
-                    {button.hotkey}
+                    {formatHotkeyDisplay(button.hotkey)}
                   </span>
                 )}
 
@@ -579,7 +579,7 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
                   <td className="px-3 py-2">
                     {button.hotkey ? (
                       <span className="inline-block border border-border rounded px-1.5 py-0.5 text-xs font-mono">
-                        {button.hotkey}
+                        {formatHotkeyDisplay(button.hotkey)}
                       </span>
                     ) : (
                       <span className="text-xs text-muted-foreground">None</span>
@@ -629,7 +629,6 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
         }}
         onSave={handleSaveButton}
         existingCodes={existingCodes.filter((c) => c !== editingButton?.code)}
-        existingHotkeys={existingHotkeys.filter((h) => h !== editingButton?.hotkey)}
       />
     </div>
   );

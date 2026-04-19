@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { ButtonConfig } from "@/lib/types";
 import { useAppStore } from "@/lib/store";
 import { motion } from "framer-motion";
+import { formatHotkeyDisplay } from "@/lib/utils";
 
 interface ButtonGridProps {
   buttons: ButtonConfig[];
@@ -20,9 +21,17 @@ export function ButtonGrid({ buttons, disabled = false }: ButtonGridProps) {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
 
-      const button = buttons.find(
-        (btn) => btn.hotkey?.toLowerCase() === e.key.toLowerCase()
-      );
+      const button = buttons.find((btn) => {
+        if (!btn.hotkey) return false;
+        
+        // For arrow keys, match exactly
+        if (btn.hotkey.startsWith('Arrow')) {
+          return btn.hotkey === e.key;
+        }
+        
+        // For other keys, case-insensitive match
+        return btn.hotkey.toLowerCase() === e.key.toLowerCase();
+      });
 
       if (button) {
         e.preventDefault();
@@ -71,7 +80,7 @@ export function ButtonGrid({ buttons, disabled = false }: ButtonGridProps) {
               </span>
               {button.hotkey && (
                 <span className="text-[10px] opacity-70 border border-white/30 rounded px-1.5 py-0.5">
-                  {button.hotkey}
+                  {formatHotkeyDisplay(button.hotkey)}
                 </span>
               )}
             </div>

@@ -18,8 +18,7 @@ export function validateButtonConfig(buttons: ButtonConfig[]): ValidationResult 
   const errors: ValidationError[] = [];
   const warnings: ValidationError[] = [];
 
-  // Track hotkeys and codes for duplicate detection
-  const hotkeys = new Map<string, string[]>();
+  // Track codes for duplicate detection
   const codes = new Set<string>();
 
   buttons.forEach((button) => {
@@ -49,15 +48,6 @@ export function validateButtonConfig(buttons: ButtonConfig[]): ValidationResult 
       });
     } else if (button.code) {
       codes.add(button.code);
-    }
-
-    // Track hotkeys for duplicate detection
-    if (button.hotkey) {
-      const key = button.hotkey.toLowerCase();
-      if (!hotkeys.has(key)) {
-        hotkeys.set(key, []);
-      }
-      hotkeys.get(key)!.push(button.code);
     }
 
     // Validate position values
@@ -139,25 +129,6 @@ export function validateButtonConfig(buttons: ButtonConfig[]): ValidationResult 
     }
   });
 
-  // Check for duplicate hotkeys
-  hotkeys.forEach((codes, hotkey) => {
-    if (codes.length > 1) {
-      warnings.push({
-        field: 'hotkey',
-        message: `Hotkey "${hotkey}" is used by multiple buttons: ${codes.join(', ')}`,
-      });
-    }
-  });
-
-  // Check for overlapping positions
-  const overlaps = findOverlappingButtons(buttons);
-  overlaps.forEach(({ button1, button2 }) => {
-    warnings.push({
-      field: 'position',
-      message: `Buttons "${button1.code}" and "${button2.code}" overlap`,
-    });
-  });
-
   return {
     isValid: errors.length === 0,
     errors,
@@ -168,37 +139,6 @@ export function validateButtonConfig(buttons: ButtonConfig[]): ValidationResult 
 function isValidColor(colour: string): boolean {
   // Check for hex colour format #RRGGBB or #RGB
   return /^#([0-9A-F]{3}){1,2}$/i.test(colour);
-}
-
-interface OverlapInfo {
-  button1: ButtonConfig;
-  button2: ButtonConfig;
-}
-
-function findOverlappingButtons(buttons: ButtonConfig[]): OverlapInfo[] {
-  const overlaps: OverlapInfo[] = [];
-
-  for (let i = 0; i < buttons.length; i++) {
-    for (let j = i + 1; j < buttons.length; j++) {
-      const b1 = buttons[i];
-      const b2 = buttons[j];
-
-      // Check if rectangles overlap
-      const b1Right = b1.position.x + b1.position.width;
-      const b1Bottom = b1.position.y + b1.position.height;
-      const b2Right = b2.position.x + b2.position.width;
-      const b2Bottom = b2.position.y + b2.position.height;
-
-      const overlapsX = b1.position.x < b2Right && b1Right > b2.position.x;
-      const overlapsY = b1.position.y < b2Bottom && b1Bottom > b2.position.y;
-
-      if (overlapsX && overlapsY) {
-        overlaps.push({ button1: b1, button2: b2 });
-      }
-    }
-  }
-
-  return overlaps;
 }
 
 export function generateUniqueCode(existingCodes: string[], prefix: string = 'BTN'): string {
