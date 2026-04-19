@@ -1,6 +1,6 @@
 # Richmond Hockey Coding App
 
-This is a bespoke sports coding app for live or retrospective event data collection. 
+This is a bespoke sports coding app for live or retrospective event data collection. I can't pay for Sportscode so I'm building my own. 
 
 ## Running the App
 
