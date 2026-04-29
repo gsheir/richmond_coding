@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { ButtonConfig } from "@/lib/types";
 import { VisualLayoutEditor } from "./VisualLayoutEditor";
 import { 
-  getCodingWindowConfigPath,
+  getDatabasePath,
   openConfigDirectory,
 } from "@/lib/electron-api";
 import { loadButtonConfig } from "@/lib/config-loader";
@@ -14,18 +14,16 @@ import { Button } from "./ui/Button";
 export function SettingsPage() {
   const { 
     defaultHomeTeam, 
-    autosaveDirectory, 
     defaultLeadMs,
     defaultLagMs,
     setDefaultHomeTeam, 
-    setAutosaveDirectory,
     setDefaultLeadMs,
     setDefaultLagMs,
     setButtonConfig,
   } = useAppStore();
 
   const [buttons, setButtons] = useState<ButtonConfig[]>([]);
-  const [configPath, setConfigPath] = useState<string>("");
+  const [databasePath, setDatabasePath] = useState<string>("");
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
 
   // Load button configuration on mount
@@ -39,8 +37,8 @@ export function SettingsPage() {
         if (buttons.length > 0) {
           setButtonConfig(buttons);
         }
-        const path = await getCodingWindowConfigPath();
-        setConfigPath(path);
+        const path = await getDatabasePath();
+        setDatabasePath(path);
       } catch (error) {
         console.error("Failed to load button configuration:", error);
       } finally {
@@ -67,19 +65,19 @@ export function SettingsPage() {
         </p>
       </div>
 
-      {/* Config Files Link */}
+      {/* Database Location */}
       <div className="bg-card/80 backdrop-blur-sm rounded-xl border border-border/50 p-3 flex items-start justify-between gap-4">
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <FolderOpen className="w-4 h-4 text-muted-foreground" />
-            <h3 className="text-sm font-semibold">Configuration Files</h3>
+            <h3 className="text-sm font-semibold">Database Location</h3>
           </div>
           <p className="text-xs text-muted-foreground mt-1">
-            Configuration is stored in JSON format. You can edit the file manually if preferred.
+            All match data, settings, and configuration are stored in an SQLite database.
           </p>
-          {configPath && (
+          {databasePath && (
             <p className="text-xs text-muted-foreground/70 font-mono mt-1">
-              {configPath}
+              {databasePath}
             </p>
           )}
         </div>
@@ -106,27 +104,6 @@ export function SettingsPage() {
             placeholder="e.g., Richmond"
             className="w-full max-w-md px-3 py-2 text-sm bg-background/50 border border-border/50 rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
           />
-        </div>
-
-        {/* Autosave directory */}
-        <div>
-          <label htmlFor="autosave-directory" className="block text-sm font-semibold mb-1.5">
-            Autosave Directory
-          </label>
-          <p className="text-xs text-muted-foreground mb-2">
-            Directory where match files will be automatically saved.
-          </p>
-          <input
-            id="autosave-directory"
-            type="text"
-            value={autosaveDirectory}
-            onChange={(e) => setAutosaveDirectory(e.target.value)}
-            placeholder="~/Documents/Richmond Hockey Club/matches"
-            className="w-full max-w-2xl px-3 py-2 text-sm bg-background/50 border border-border/50 rounded-md focus:outline-none focus:ring-2 focus:ring-ring font-mono"
-          />
-          <p className="text-xs text-muted-foreground mt-1.5">
-            Use ~ for your home directory. Changes take effect on next save.
-          </p>
         </div>
 
         {/* Video timing section */}

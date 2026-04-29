@@ -41,6 +41,8 @@ If you need to run the app:
 
 The user will start/restart the app themselves when ready.
 
+If you have run the app in the background (e.g. if the user has explicitly asked for it), please stop it after the changes have been made rather than leaving it running in the background. 
+
 ## TypeScript / React
 
 This is an Electron + React + TypeScript project.
@@ -83,15 +85,6 @@ The React application runs in the renderer process and communicates with the mai
 ### Backend API
 
 The `src/lib/electron-api.ts` file contains the Electron IPC bindings for match operations, settings persistence, and file exports.
-
-## Native macOS Features
-
-This app uses native macOS features:
-- Hidden title bar with traffic light controls
-- Native menu bar with keyboard shortcuts
-- Native file dialogs
-- Vibrancy effects
-- Draggable title bar region
 
 ## Formatting
 

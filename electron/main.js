@@ -3,11 +3,15 @@ import * as path from 'path';
 import { fileURLToPath } from 'url';
 import * as fs from 'fs';
 import * as os from 'os';
+import { MatchDatabase } from './database.js';
+import { DatabaseMigration } from './migration.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 let mainWindow = null;
+let database = null;
+let migration = null;
 
 // Get settings file path
 function getSettingsPath() {
@@ -28,10 +32,11 @@ function loadSettings() {
   return null;
 }
 
-// Get matches directory (reads from settings)
+// Get matches directory for migration (legacy)
 function getMatchesDir() {
   const settings = loadSettings();
   
+  // Check for legacy autosaveDirectory setting
   if (settings && settings.autosaveDirectory) {
     // Expand ~ to home directory
     let dirPath = settings.autosaveDirectory;
@@ -46,14 +51,6 @@ function getMatchesDir() {
   // Default fallback
   const homeDir = os.homedir();
   return path.join(homeDir, 'Documents', 'Richmond Hockey Club', 'matches');
-}
-
-// Ensure matches directory exists
-function ensureMatchesDir() {
-  const matchesDir = getMatchesDir();
-  if (!fs.existsSync(matchesDir)) {
-    fs.mkdirSync(matchesDir, { recursive: true });
-  }
 }
 
 function createWindow() {
@@ -183,21 +180,18 @@ function createMenu() {
   Menu.setApplicationMenu(menu);
 }
 
-// IPC Handlers for file operations
+// IPC Handlers for file operations (DUAL-WRITE MODE)
 ipcMain.handle('save-match', async (_event, matchId, matchData) => {
   try {
-    ensureMatchesDir();
-    const filePath = path.join(getMatchesDir(), `${matchId}.json`);
-    const tempPath = `${filePath}.tmp`;
+    const match = JSON.parse(matchData);
     
-    // Validate JSON before writing
-    JSON.parse(matchData);
+    // Validate required fields
+    if (!match.id || !match.date || !match.homeTeam || !match.awayTeam) {
+      throw new Error('Invalid match: missing required fields');
+    }
     
-    // Atomic write: write to temp file first
-    fs.writeFileSync(tempPath, matchData, 'utf8');
-    
-    // Rename temp file to actual file (atomic operation)
-    fs.renameSync(tempPath, filePath);
+    // Write to database only
+    database.saveMatch(match);
     
     return { success: true };
   } catch (error) {
@@ -208,16 +202,14 @@ ipcMain.handle('save-match', async (_event, matchId, matchData) => {
 
 ipcMain.handle('load-match', async (_event, matchId) => {
   try {
-    const filePath = path.join(getMatchesDir(), `${matchId}.json`);
-    const data = fs.readFileSync(filePath, 'utf8');
+    // Load from database only
+    const match = database.loadMatch(matchId);
     
-    // Validate JSON structure
-    const match = JSON.parse(data);
-    if (!match.id || !match.date || !match.homeTeam || !match.awayTeam) {
-      throw new Error('Invalid match file: missing required fields');
+    if (!match) {
+      throw new Error('Match not found');
     }
     
-    return { success: true, data };
+    return { success: true, data: JSON.stringify(match) };
   } catch (error) {
     console.error('Error loading match:', error);
     return { success: false, error: String(error) };
@@ -226,32 +218,10 @@ ipcMain.handle('load-match', async (_event, matchId) => {
 
 ipcMain.handle('list-matches', async () => {
   try {
-    ensureMatchesDir();
-    const matchesDir = getMatchesDir();
-    const files = fs.readdirSync(matchesDir);
-    
-    const matches = files
-      .filter(file => file.endsWith('.json') && !file.startsWith('.'))
-      .map(file => {
-        try {
-          const content = fs.readFileSync(path.join(matchesDir, file), 'utf8');
-          const match = JSON.parse(content);
-          
-          // Validate required fields
-          if (!match.id || !match.date || !match.homeTeam || !match.awayTeam) {
-            console.warn(`Skipping invalid match file: ${file}`);
-            return null;
-          }
-          
-          return content;
-        } catch (error) {
-          console.warn(`Failed to read match file ${file}:`, error);
-          return null;
-        }
-      })
-      .filter(content => content !== null);
-    
-    return { success: true, data: matches };
+    // Load from database only
+    const matches = database.listMatches();
+    const data = matches.map(match => JSON.stringify(match));
+    return { success: true, data };
   } catch (error) {
     console.error('Error listing matches:', error);
     return { success: false, error: String(error) };
@@ -260,8 +230,9 @@ ipcMain.handle('list-matches', async () => {
 
 ipcMain.handle('delete-match', async (_event, matchId) => {
   try {
-    const filePath = path.join(getMatchesDir(), `${matchId}.json`);
-    fs.unlinkSync(filePath);
+    // Delete from database
+    database.deleteMatch(matchId);
+    
     return { success: true };
   } catch (error) {
     console.error('Error deleting match:', error);
@@ -271,18 +242,10 @@ ipcMain.handle('delete-match', async (_event, matchId) => {
 
 ipcMain.handle('autosave-match', async (_event, matchData) => {
   try {
-    ensureMatchesDir();
-    const filePath = path.join(getMatchesDir(), '.autosave.json');
-    const tempPath = `${filePath}.tmp`;
+    const match = JSON.parse(matchData);
     
-    // Validate JSON before writing
-    JSON.parse(matchData);
-    
-    // Atomic write: write to temp file first
-    fs.writeFileSync(tempPath, matchData, 'utf8');
-    
-    // Rename temp file to actual file (atomic operation)
-    fs.renameSync(tempPath, filePath);
+    // Save to database only
+    database.saveAutosave('autosave', match);
     
     return { success: true };
   } catch (error) {
@@ -293,20 +256,9 @@ ipcMain.handle('autosave-match', async (_event, matchData) => {
 
 ipcMain.handle('load-autosave', async () => {
   try {
-    const filePath = path.join(getMatchesDir(), '.autosave.json');
-    if (fs.existsSync(filePath)) {
-      const data = fs.readFileSync(filePath, 'utf8');
-      
-      // Validate JSON structure
-      const match = JSON.parse(data);
-      if (!match.id || !match.date || !match.homeTeam || !match.awayTeam) {
-        console.warn('Invalid autosave file found, ignoring');
-        return { success: true, data: null };
-      }
-      
-      return { success: true, data };
-    }
-    return { success: true, data: null };
+    // Load from database only
+    const match = database.loadAutosave('autosave');
+    return { success: true, data: match ? JSON.stringify(match) : null };
   } catch (error) {
     console.error('Error loading autosave:', error);
     return { success: false, error: String(error) };
@@ -315,21 +267,16 @@ ipcMain.handle('load-autosave', async () => {
 
 ipcMain.handle('save-settings', async (_event, settingsData) => {
   try {
-    const settingsPath = getSettingsPath();
-    const tempPath = `${settingsPath}.tmp`;
-    
-    // Validate JSON before writing
     const settings = JSON.parse(settingsData);
-    if (!settings.defaultHomeTeam || !settings.autosaveDirectory || 
+    
+    // Validate settings
+    if (!settings.defaultHomeTeam || 
         settings.defaultLeadMs === undefined || settings.defaultLagMs === undefined) {
       throw new Error('Invalid settings: missing required fields');
     }
     
-    // Atomic write: write to temp file first
-    fs.writeFileSync(tempPath, settingsData, 'utf8');
-    
-    // Rename temp file to actual file (atomic operation)
-    fs.renameSync(tempPath, settingsPath);
+    // Save to database only
+    database.saveSettings(settings);
     
     return { success: true };
   } catch (error) {
@@ -340,21 +287,9 @@ ipcMain.handle('save-settings', async (_event, settingsData) => {
 
 ipcMain.handle('load-settings', async () => {
   try {
-    const settingsPath = getSettingsPath();
-    if (fs.existsSync(settingsPath)) {
-      const data = fs.readFileSync(settingsPath, 'utf8');
-      
-      // Validate JSON structure
-      const settings = JSON.parse(data);
-      if (!settings.defaultHomeTeam || !settings.autosaveDirectory || 
-          settings.defaultLeadMs === undefined || settings.defaultLagMs === undefined) {
-        console.warn('Invalid settings file found, using defaults');
-        return { success: true, data: null };
-      }
-      
-      return { success: true, data };
-    }
-    return { success: true, data: null };
+    // Load from database only
+    const settings = database.loadSettings();
+    return { success: true, data: settings ? JSON.stringify(settings) : null };
   } catch (error) {
     console.error('Error loading settings:', error);
     return { success: false, error: String(error) };
@@ -387,31 +322,57 @@ ipcMain.handle('export-xml', async (_event, matchData, defaultFilename) => {
 // Coding window configuration handlers
 ipcMain.handle('load-coding-window-config', async () => {
   try {
-    const userConfigPath = path.join(app.getPath('userData'), 'coding_window.json');
     const defaultConfigPath = app.isPackaged
       ? path.join(process.resourcesPath, 'default_coding_window.json')
       : path.join(__dirname, '../public/default_coding_window.json');
     
-    // Try user config first
-    if (fs.existsSync(userConfigPath)) {
-      const data = fs.readFileSync(userConfigPath, 'utf8');
-      const config = JSON.parse(data);
-      return { success: true, data: JSON.stringify(config) };
+    // Load from database (normalized schema is single source of truth)
+    let config = database.loadButtonConfig();
+    
+    // If not in database, load default and save to database
+    if (!config) {
+      if (fs.existsSync(defaultConfigPath)) {
+        const defaultData = fs.readFileSync(defaultConfigPath, 'utf8');
+        const defaultConfig = JSON.parse(defaultData);
+        
+        // Save default to database
+        const buttonArray = defaultConfig.phase_buttons || defaultConfig.context_buttons || defaultConfig.termination_buttons 
+          ? [...(defaultConfig.phase_buttons || []), ...(defaultConfig.context_buttons || []), ...(defaultConfig.termination_buttons || [])]
+          : defaultConfig.buttons || [];
+        
+        // Get or create active config
+        let activeConfig = database.getActiveButtonConfig();
+        if (!activeConfig) {
+          const configId = database.createButtonConfig('Default', 'Default button configuration');
+          database.setActiveButtonConfig(configId);
+          activeConfig = database.getActiveButtonConfig();
+        }
+        
+        // Save to normalized schema (single source of truth)
+        database.saveButtonConfig(activeConfig.id, buttonArray);
+        
+        config = buttonArray;
+        console.log('Loaded and saved default coding window config to database');
+      } else {
+        return { success: false, error: 'No configuration file found' };
+      }
     }
     
-    // Fall back to default and copy to user location
-    if (fs.existsSync(defaultConfigPath)) {
-      const defaultData = fs.readFileSync(defaultConfigPath, 'utf8');
-      const defaultConfig = JSON.parse(defaultData);
+    // Convert button array back to config format if needed
+    if (Array.isArray(config)) {
+      // Separate buttons by type
+      const phase_buttons = config.filter(btn => btn.type === 'phase');
+      const context_buttons = config.filter(btn => btn.type === 'context');
+      const termination_buttons = config.filter(btn => btn.type === 'termination');
       
-      // Copy default to user location
-      fs.writeFileSync(userConfigPath, JSON.stringify(defaultConfig, null, 2), 'utf8');
-      
-      return { success: true, data: JSON.stringify(defaultConfig) };
+      config = {
+        phase_buttons,
+        context_buttons,
+        termination_buttons
+      };
     }
     
-    // No config found
-    return { success: false, error: 'No configuration file found' };
+    return { success: true, data: JSON.stringify(config) };
   } catch (error) {
     console.error('Error loading coding window config:', error);
     return { success: false, error: String(error) };
@@ -420,10 +381,6 @@ ipcMain.handle('load-coding-window-config', async () => {
 
 ipcMain.handle('save-coding-window-config', async (_event, configData) => {
   try {
-    const userConfigPath = path.join(app.getPath('userData'), 'coding_window.json');
-    const tempPath = `${userConfigPath}.tmp`;
-    
-    // Validate JSON before writing
     const config = JSON.parse(configData);
     
     // Accept new format with separate arrays or old format with single buttons array
@@ -448,11 +405,21 @@ ipcMain.handle('save-coding-window-config', async (_event, configData) => {
       throw new Error('Invalid config: buttons must be an array');
     }
     
-    // Atomic write: write to temp file first
-    fs.writeFileSync(tempPath, JSON.stringify(config, null, 2), 'utf8');
+    // Extract button array for database storage
+    const buttonArray = hasNewFormat
+      ? [...(config.phase_buttons || []), ...(config.context_buttons || []), ...(config.termination_buttons || [])]
+      : config.buttons;
     
-    // Rename temp file to actual file (atomic operation)
-    fs.renameSync(tempPath, userConfigPath);
+    // Get or create active config
+    let activeConfig = database.getActiveButtonConfig();
+    if (!activeConfig) {
+      const configId = database.createButtonConfig('Default', 'Default button configuration');
+      database.setActiveButtonConfig(configId);
+      activeConfig = database.getActiveButtonConfig();
+    }
+    
+    // Save to normalized schema (single source of truth)
+    database.saveButtonConfig(activeConfig.id, buttonArray);
     
     return { success: true };
   } catch (error) {
@@ -463,7 +430,6 @@ ipcMain.handle('save-coding-window-config', async (_event, configData) => {
 
 ipcMain.handle('reset-coding-window-config', async () => {
   try {
-    const userConfigPath = path.join(app.getPath('userData'), 'coding_window.json');
     const defaultConfigPath = app.isPackaged
       ? path.join(process.resourcesPath, 'default_coding_window.json')
       : path.join(__dirname, '../public/default_coding_window.json');
@@ -476,8 +442,21 @@ ipcMain.handle('reset-coding-window-config', async () => {
     const defaultData = fs.readFileSync(defaultConfigPath, 'utf8');
     const defaultConfig = JSON.parse(defaultData);
     
-    // Overwrite user config with default
-    fs.writeFileSync(userConfigPath, JSON.stringify(defaultConfig, null, 2), 'utf8');
+    // Extract button array for database
+    const buttonArray = defaultConfig.phase_buttons || defaultConfig.context_buttons || defaultConfig.termination_buttons 
+      ? [...(defaultConfig.phase_buttons || []), ...(defaultConfig.context_buttons || []), ...(defaultConfig.termination_buttons || [])]
+      : defaultConfig.buttons || [];
+    
+    // Get or create active config
+    let activeConfig = database.getActiveButtonConfig();
+    if (!activeConfig) {
+      const configId = database.createButtonConfig('Default', 'Default button configuration');
+      database.setActiveButtonConfig(configId);
+      activeConfig = database.getActiveButtonConfig();
+    }
+    
+    // Save to normalized schema (single source of truth)
+    database.saveButtonConfig(activeConfig.id, buttonArray);
     
     return { success: true, data: JSON.stringify(defaultConfig) };
   } catch (error) {
@@ -507,8 +486,409 @@ ipcMain.handle('open-config-directory', async () => {
   }
 });
 
+// Button configuration management IPC handlers
+ipcMain.handle('list-button-configs', async () => {
+  try {
+    if (!database) {
+      return { success: false, error: 'Database not initialised' };
+    }
+    
+    const configs = database.listButtonConfigs();
+    return { success: true, configs };
+  } catch (error) {
+    console.error('Error listing button configs:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+ipcMain.handle('get-active-button-config', async () => {
+  try {
+    if (!database) {
+      return { success: false, error: 'Database not initialised' };
+    }
+    
+    const config = database.getActiveButtonConfig();
+    if (config) {
+      const buttons = database.getButtons(config.id);
+      return { success: true, config, buttons };
+    }
+    
+    return { success: true, config: null, buttons: [] };
+  } catch (error) {
+    console.error('Error getting active button config:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+ipcMain.handle('create-button-config', async (_event, name, description) => {
+  try {
+    if (!database) {
+      return { success: false, error: 'Database not initialised' };
+    }
+    
+    const configId = database.createButtonConfig(name, description);
+    return { success: true, configId };
+  } catch (error) {
+    console.error('Error creating button config:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+ipcMain.handle('set-active-button-config', async (_event, configId) => {
+  try {
+    if (!database) {
+      return { success: false, error: 'Database not initialised' };
+    }
+    
+    database.setActiveButtonConfig(configId);
+    return { success: true };
+  } catch (error) {
+    console.error('Error setting active button config:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+ipcMain.handle('delete-button-config', async (_event, configId) => {
+  try {
+    if (!database) {
+      return { success: false, error: 'Database not initialised' };
+    }
+    
+    database.deleteButtonConfig(configId);
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting button config:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+ipcMain.handle('duplicate-button-config', async (_event, sourceConfigId, newName) => {
+  try {
+    if (!database) {
+      return { success: false, error: 'Database not initialised' };
+    }
+    
+    const sourceConfig = database.getButtonConfig(sourceConfigId);
+    if (!sourceConfig) {
+      return { success: false, error: 'Source configuration not found' };
+    }
+    
+    // Create new config
+    const newConfigId = database.createButtonConfig(
+      newName,
+      `Duplicated from ${sourceConfig.name}`
+    );
+    
+    // Copy buttons
+    const sourceButtons = database.getButtons(sourceConfigId);
+    database.saveButtonConfig(newConfigId, sourceButtons);
+    
+    return { success: true, configId: newConfigId };
+  } catch (error) {
+    console.error('Error duplicating button config:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+ipcMain.handle('get-database-path', async () => {
+  try {
+    const dbPath = path.join(app.getPath('userData'), 'matches.db');
+    return { success: true, path: dbPath };
+  } catch (error) {
+    console.error('Error getting database path:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+// Migration IPC Handlers
+ipcMain.handle('migrate-json-to-database', async () => {
+  try {
+    if (!migration) {
+      return { success: false, error: 'Migration not initialized' };
+    }
+    
+    console.log('Starting migration from JSON to database...');
+    const results = migration.migrateMatches();
+    console.log('Migration results:', results);
+    
+    return { success: true, results };
+  } catch (error) {
+    console.error('Migration failed:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+ipcMain.handle('migrate-settings-to-database', async () => {
+  try {
+    if (!migration) {
+      return { success: false, error: 'Migration not initialized' };
+    }
+    
+    const settingsPath = getSettingsPath();
+    const result = migration.migrateSettings(settingsPath);
+    return result;
+  } catch (error) {
+    console.error('Settings migration failed:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+ipcMain.handle('backup-json-files', async () => {
+  try {
+    if (!migration) {
+      return { success: false, error: 'Migration not initialized' };
+    }
+    
+    const backupDir = path.join(app.getPath('userData'), 'backups');
+    const result = migration.createBackup(backupDir);
+    return result;
+  } catch (error) {
+    console.error('Backup failed:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+ipcMain.handle('verify-migration', async () => {
+  try {
+    if (!migration) {
+      return { success: false, error: 'Migration not initialized' };
+    }
+    
+    const results = migration.verifyMigration();
+    return { success: true, results };
+  } catch (error) {
+    console.error('Verification failed:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+ipcMain.handle('get-database-stats', async () => {
+  try {
+    if (!database) {
+      return { success: false, error: 'Database not initialized' };
+    }
+    
+    const stats = database.getStats();
+    return { success: true, stats };
+  } catch (error) {
+    console.error('Failed to get database stats:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+ipcMain.handle('migrate-autosaves-to-database', async (_event, autosaveDir) => {
+  try {
+    if (!migration) {
+      return { success: false, error: 'Migration not initialized' };
+    }
+    
+    console.log('Starting autosave migration...');
+    const results = migration.migrateAutosaves(autosaveDir);
+    console.log('Autosave migration results:', results);
+    
+    return { success: true, results };
+  } catch (error) {
+    console.error('Autosave migration failed:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+// Data Browser IPC handlers
+ipcMain.handle('db:list-tables', async () => {
+  try {
+    if (!database) {
+      return { success: false, error: 'Database not initialised' };
+    }
+    
+    const tables = database.listTables();
+    return { success: true, tables };
+  } catch (error) {
+    console.error('Failed to list tables:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+ipcMain.handle('db:get-table-schema', async (_event, tableName) => {
+  try {
+    if (!database) {
+      return { success: false, error: 'Database not initialised' };
+    }
+    
+    const schema = database.getTableSchema(tableName);
+    return { success: true, schema };
+  } catch (error) {
+    console.error(`Failed to get schema for ${tableName}:`, error);
+    return { success: false, error: String(error) };
+  }
+});
+
+ipcMain.handle('db:get-table-data', async (_event, tableName, options) => {
+  try {
+    if (!database) {
+      return { success: false, error: 'Database not initialised' };
+    }
+    
+    const rows = database.getTableData(tableName, options);
+    const totalCount = database.getRowCount(tableName, options.filters || {});
+    return { success: true, rows, totalCount };
+  } catch (error) {
+    console.error(`Failed to get data for ${tableName}:`, error);
+    return { success: false, error: String(error) };
+  }
+});
+
+ipcMain.handle('db:get-row-count', async (_event, tableName, filters) => {
+  try {
+    if (!database) {
+      return { success: false, error: 'Database not initialised' };
+    }
+    
+    const count = database.getRowCount(tableName, filters || {});
+    return { success: true, count };
+  } catch (error) {
+    console.error(`Failed to get row count for ${tableName}:`, error);
+    return { success: false, error: String(error) };
+  }
+});
+
+ipcMain.handle('db:get-related-data', async (_event, tableName, rowId) => {
+  try {
+    if (!database) {
+      return { success: false, error: 'Database not initialised' };
+    }
+    
+    const related = database.getRelatedData(tableName, rowId);
+    return { success: true, related };
+  } catch (error) {
+    console.error(`Failed to get related data for ${tableName}:`, error);
+    return { success: false, error: String(error) };
+  }
+});
+
+ipcMain.handle('db:update-row', async (_event, tableName, rowId, columnUpdates) => {
+  try {
+    if (!database) {
+      return { success: false, error: 'Database not initialised' };
+    }
+    
+    const updated = database.updateTableRow(tableName, rowId, columnUpdates);
+    return { success: true, updated };
+  } catch (error) {
+    console.error(`Failed to update row in ${tableName}:`, error);
+    return { success: false, error: String(error) };
+  }
+});
+
+ipcMain.handle('db:delete-row', async (_event, tableName, rowId) => {
+  try {
+    if (!database) {
+      return { success: false, error: 'Database not initialised' };
+    }
+    
+    const deleted = database.deleteTableRow(tableName, rowId);
+    return { success: true, deleted };
+  } catch (error) {
+    console.error(`Failed to delete row from ${tableName}:`, error);
+    return { success: false, error: String(error) };
+  }
+});
+
+ipcMain.handle('db:delete-rows', async (_event, tableName, rowIds) => {
+  try {
+    if (!database) {
+      return { success: false, error: 'Database not initialised' };
+    }
+    
+    const deletedCount = database.deleteTableRows(tableName, rowIds);
+    return { success: true, deletedCount };
+  } catch (error) {
+    console.error(`Failed to delete rows from ${tableName}:`, error);
+    return { success: false, error: String(error) };
+  }
+});
+
+ipcMain.handle('db:insert-row', async (_event, tableName, rowData) => {
+  try {
+    if (!database) {
+      return { success: false, error: 'Database not initialised' };
+    }
+    
+    const insertedId = database.insertTableRow(tableName, rowData);
+    return { success: true, insertedId };
+  } catch (error) {
+    console.error(`Failed to insert row into ${tableName}:`, error);
+    return { success: false, error: String(error) };
+  }
+});
+
 // App lifecycle
 app.whenReady().then(() => {
+  // Initialize database
+  const dbPath = path.join(app.getPath('userData'), 'matches.db');
+  console.log('Initialising database at:', dbPath);
+  database = new MatchDatabase(dbPath);
+  console.log('Database initialized successfully');
+  
+  // Initialize migration helper
+  const matchesDir = getMatchesDir();
+  migration = new DatabaseMigration(database, matchesDir);
+  console.log('Migration helper initialized');
+  
+  // Auto-migrate autosave files on startup
+  console.log('Checking for autosave files to migrate...');
+  const autosaveDirs = [
+    matchesDir,
+    path.join(__dirname, '../.autosave'),
+    path.join(process.cwd(), '.autosave'),
+  ];
+  
+  let totalMigrated = 0;
+  for (const dir of autosaveDirs) {
+    if (fs.existsSync(dir)) {
+      const results = migration.migrateAutosaves(dir);
+      totalMigrated += results.success;
+    }
+  }
+  
+  if (totalMigrated > 0) {
+    console.log(`Auto-migrated ${totalMigrated} autosave file(s)`);
+  }
+  
+  // Auto-migrate coding window config if not in database or if missing metadata
+  console.log('Checking button config migration status...');
+  const migrationResult = database.migrateButtonConfig();
+  
+  if (migrationResult.migrated) {
+    console.log('Button config migrated from legacy schema');
+  } else if (migrationResult.reason === 'Already migrated') {
+    console.log('Button config already up to date');
+  } else if (migrationResult.reason === 'No legacy config') {
+    // Try to load from database or JSON file
+    const existingConfig = database.loadButtonConfig();
+    if (!existingConfig) {
+      const userConfigPath = path.join(app.getPath('userData'), 'coding_window.json');
+      if (fs.existsSync(userConfigPath)) {
+        try {
+          const data = fs.readFileSync(userConfigPath, 'utf8');
+          const config = JSON.parse(data);
+          
+          // Extract button array for database
+          const buttonArray = config.phase_buttons || config.context_buttons || config.termination_buttons 
+            ? [...(config.phase_buttons || []), ...(config.context_buttons || []), ...(config.termination_buttons || [])]
+            : config.buttons || [];
+          
+          // Create default config and save buttons
+          const configId = database.createButtonConfig('Default', 'Imported from JSON configuration');
+          database.setActiveButtonConfig(configId);
+          database.saveButtonConfig(configId, buttonArray);
+          console.log('Migrated coding window config from JSON to database');
+        } catch (error) {
+          console.error('Error migrating coding window config:', error);
+        }
+      }
+    }
+  }
+  
   createWindow();
   createMenu();
 
@@ -517,6 +897,13 @@ app.whenReady().then(() => {
       createWindow();
     }
   });
+});
+
+app.on('quit', () => {
+  if (database) {
+    console.log('Closing database connection');
+    database.close();
+  }
 });
 
 app.on('window-all-closed', () => {

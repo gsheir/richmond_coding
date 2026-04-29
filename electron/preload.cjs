@@ -46,6 +46,75 @@ const electronAPI = {
   
   openConfigDirectory: () =>
     ipcRenderer.invoke('open-config-directory'),
+  
+  getDatabasePath: () =>
+    ipcRenderer.invoke('get-database-path'),
+
+  // Migration and database operations
+  migrateJsonToDatabase: () =>
+    ipcRenderer.invoke('migrate-json-to-database'),
+  
+  migrateSettingsToDatabase: () =>
+    ipcRenderer.invoke('migrate-settings-to-database'),
+  
+  backupJsonFiles: () =>
+    ipcRenderer.invoke('backup-json-files'),
+  
+  verifyMigration: () =>
+    ipcRenderer.invoke('verify-migration'),
+  
+  getDatabaseStats: () =>
+    ipcRenderer.invoke('get-database-stats'),
+  
+  migrateAutosavesToDatabase: (autosaveDir) =>
+    ipcRenderer.invoke('migrate-autosaves-to-database', autosaveDir),
+
+  // Data browser operations
+  dbListTables: () =>
+    ipcRenderer.invoke('db:list-tables'),
+  
+  dbGetTableSchema: (tableName) =>
+    ipcRenderer.invoke('db:get-table-schema', tableName),
+  
+  dbGetTableData: (tableName, options) =>
+    ipcRenderer.invoke('db:get-table-data', tableName, options),
+  
+  dbGetRowCount: (tableName, filters) =>
+    ipcRenderer.invoke('db:get-row-count', tableName, filters),
+  
+  dbGetRelatedData: (tableName, rowId) =>
+    ipcRenderer.invoke('db:get-related-data', tableName, rowId),
+  
+  dbUpdateRow: (tableName, rowId, columnUpdates) =>
+    ipcRenderer.invoke('db:update-row', tableName, rowId, columnUpdates),
+  
+  dbDeleteRow: (tableName, rowId) =>
+    ipcRenderer.invoke('db:delete-row', tableName, rowId),
+  
+  dbDeleteRows: (tableName, rowIds) =>
+    ipcRenderer.invoke('db:delete-rows', tableName, rowIds),
+  
+  dbInsertRow: (tableName, rowData) =>
+    ipcRenderer.invoke('db:insert-row', tableName, rowData),
+
+  // Button configuration management
+  listButtonConfigs: () =>
+    ipcRenderer.invoke('list-button-configs'),
+  
+  getActiveButtonConfig: () =>
+    ipcRenderer.invoke('get-active-button-config'),
+  
+  createButtonConfig: (name, description) =>
+    ipcRenderer.invoke('create-button-config', name, description),
+  
+  setActiveButtonConfig: (configId) =>
+    ipcRenderer.invoke('set-active-button-config', configId),
+  
+  deleteButtonConfig: (configId) =>
+    ipcRenderer.invoke('delete-button-config', configId),
+  
+  duplicateButtonConfig: (sourceConfigId, newName) =>
+    ipcRenderer.invoke('duplicate-button-config', sourceConfigId, newName),
 
   // Menu event listeners
   onNavigateToSettings: (callback) => {

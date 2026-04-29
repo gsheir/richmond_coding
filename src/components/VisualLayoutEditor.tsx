@@ -1354,17 +1354,18 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
               }
             });
 
-            const renderKey = (key: string, label?: string, width: string = "w-10", extraClasses: string = "") => {
+            const renderKey = (key: string, label?: string, width: string = "w-10", extraClasses: string = "", uniqueId?: string) => {
               const normalizedKey = key.toUpperCase();
               const buttonList = hotkeyMap.get(normalizedKey) || [];
               const displayLabel = label || key;
+              const reactKey = uniqueId || key;
               
               // Handle multiple buttons with diagonal split
               if (buttonList.length > 1) {
                 const buttonTitles = buttonList.map(b => `${b.label} (${b.code})`).join(', ');
                 return (
                   <div
-                    key={key}
+                    key={reactKey}
                     className={`${width} h-10 rounded border-2 flex items-center justify-center text-xs font-medium transition-all overflow-hidden relative ${extraClasses}`}
                     style={{
                       borderColor: buttonList[0].style.colour,
@@ -1387,7 +1388,7 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
               const button = buttonList[0];
               return (
                 <div
-                  key={key}
+                  key={reactKey}
                   className={`${width} h-10 rounded border-2 flex items-center justify-center text-xs font-medium transition-all ${extraClasses}`}
                   style={{
                     backgroundColor: button ? button.style.colour : 'transparent',
@@ -1402,16 +1403,17 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
               );
             };
 
-            const renderArrowKey = (key: string, label: string) => {
+            const renderArrowKey = (key: string, label: string, uniqueId?: string) => {
               const normalizedKey = key.toUpperCase();
               const buttonList = hotkeyMap.get(normalizedKey) || [];
+              const reactKey = uniqueId || key;
               
               // Handle multiple buttons with diagonal split
               if (buttonList.length > 1) {
                 const buttonTitles = buttonList.map(b => `${b.label} (${b.code})`).join(', ');
                 return (
                   <div
-                    key={key}
+                    key={reactKey}
                     className="w-10 h-[18px] rounded border-2 flex items-center justify-center text-xs font-medium transition-all overflow-hidden relative"
                     style={{
                       borderColor: buttonList[0].style.colour,
@@ -1434,7 +1436,7 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
               const button = buttonList[0];
               return (
                 <div
-                  key={key}
+                  key={reactKey}
                   className="w-10 h-[18px] rounded border-2 flex items-center justify-center text-xs font-medium transition-all"
                   style={{
                     backgroundColor: button ? button.style.colour : 'transparent',
@@ -1454,7 +1456,7 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
                 {/* Number row */}
                 <div className="flex gap-1">
                   {renderKey('`', '`')}
-                  {['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'].map(k => renderKey(k))}
+                  {['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'].map(k => renderKey(k, k, 'w-10', '', k))}
                   {renderKey('-', '-')}
                   {renderKey('=', '=')}
                   {renderKey('Backspace', 'delete', 'w-20', 'text-[10px]')}
@@ -1463,7 +1465,7 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
                 {/* QWERTY row */}
                 <div className="flex gap-1">
                   {renderKey('Tab', 'tab', 'w-16', 'text-[10px]')}
-                  {['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'].map(k => renderKey(k))}
+                  {['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'].map(k => renderKey(k, k, 'w-10', '', k))}
                   {renderKey('[', '[')}
                   {renderKey(']', ']')}
                   {renderKey('\\', '\\')}
@@ -1472,7 +1474,7 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
                 {/* ASDF row */}
                 <div className="flex gap-1">
                   {renderKey('CapsLock', 'caps lock', 'w-20', 'text-[10px]')}
-                  {['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'].map(k => renderKey(k))}
+                  {['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'].map(k => renderKey(k, k, 'w-10', '', k))}
                   {renderKey(';', ';')}
                   {renderKey("'", "'")}
                   {renderKey('Enter', 'return', 'w-20', 'text-[10px]')}
@@ -1480,23 +1482,23 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
 
                 {/* ZXCV row */}
                 <div className="flex gap-1">
-                  {renderKey('Shift', 'shift', 'w-24', 'text-[10px]')}
-                  {['Z', 'X', 'C', 'V', 'B', 'N', 'M'].map(k => renderKey(k))}
+                  {renderKey('Shift', 'shift', 'w-24', 'text-[10px]', 'left-shift')}
+                  {['Z', 'X', 'C', 'V', 'B', 'N', 'M'].map(k => renderKey(k, k, 'w-10', '', k))}
                   {renderKey(',', ',')}
                   {renderKey('.', '.')}
                   {renderKey('/', '/')}
-                  {renderKey('Shift', 'shift', 'w-24', 'text-[10px]')}
+                  {renderKey('Shift', 'shift', 'w-24', 'text-[10px]', 'right-shift')}
                 </div>
 
                 {/* Space row */}
                 <div className="flex gap-1 items-center">
                   {renderKey('Fn', 'fn', 'w-10', 'text-[10px]')}
                   {renderKey('Ctrl', '⌃', 'w-10')}
-                  {renderKey('Alt', '⌥', 'w-10')}
-                  {renderKey('Cmd', '⌘', 'w-10')}
+                  {renderKey('Alt', '⌥', 'w-10', '', 'left-alt')}
+                  {renderKey('Cmd', '⌘', 'w-10', '', 'left-cmd')}
                   {renderKey('Space', '', 'w-[216px]')}
-                  {renderKey('Cmd', '⌘', 'w-10')}
-                  {renderKey('Alt', '⌥', 'w-10')}
+                  {renderKey('Cmd', '⌘', 'w-10', '', 'right-cmd')}
+                  {renderKey('Alt', '⌥', 'w-10', '', 'right-alt')}
                   
                   {/* Arrow keys */}
                   <div className="flex flex-col gap-1 ml-2">

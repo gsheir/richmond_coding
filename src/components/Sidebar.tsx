@@ -1,13 +1,13 @@
 // Sidebar navigation (Linear-inspired)
-import { FolderOpen, Settings, FileText, X, Moon, Sun } from "lucide-react";
+import { FolderOpen, Settings, FileText, X, Moon, Sun, Database } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import { useAppStore } from "@/lib/store";
 import { Button } from "./ui/Button";
 
 interface SidebarProps {
-  currentPage: "matches" | "settings" | null;
-  onNavigate: (page: "matches" | "settings") => void;
+  currentPage: "matches" | "settings" | "data-browser" | null;
+  onNavigate: (page: "matches" | "settings" | "data-browser") => void;
   onSwitchToTab: (tabId: string) => void;
   isOpen: boolean;
   isOverlay?: boolean;
@@ -40,6 +40,7 @@ export function Sidebar({ currentPage, onNavigate, onSwitchToTab, isOpen, isOver
   
   const navItems = [
     { id: "matches" as const, label: "Matches", icon: FolderOpen },
+    { id: "data-browser" as const, label: "Data Browser", icon: Database },
     { id: "settings" as const, label: "Settings", icon: Settings },
   ];
 

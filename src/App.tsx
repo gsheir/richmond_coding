@@ -4,12 +4,13 @@ import { Sidebar } from "./components/Sidebar";
 import { CodePage } from "./components/CodePage";
 import { MatchesPage } from "./components/MatchesPage";
 import { SettingsPage } from "./components/SettingsPage";
+import { DataBrowserPage } from "./components/DataBrowserPage";
 import { useAppStore } from "./lib/store";
 import { loadButtonConfig } from "./lib/config-loader";
 import "./App.css";
 
 function App() {
-  const [currentPage, setCurrentPage] = useState<"matches" | "settings" | null>(
+  const [currentPage, setCurrentPage] = useState<"matches" | "settings" | "data-browser" | null>(
     "matches"
   );
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -52,7 +53,7 @@ function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const handleNavigate = (page: "matches" | "settings") => {
+  const handleNavigate = (page: "matches" | "settings" | "data-browser") => {
     setCurrentPage(page);
   };
 
@@ -101,6 +102,7 @@ function App() {
               <>
                 {currentPage === "matches" && <MatchesPage onOpenMatch={handleOpenMatch} />}
                 {currentPage === "settings" && <SettingsPage />}
+                {currentPage === "data-browser" && <DataBrowserPage />}
               </>
             )}
           </div>

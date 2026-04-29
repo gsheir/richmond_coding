@@ -47,7 +47,6 @@ interface AppState {
   
   // Settings
   defaultHomeTeam: string;
-  autosaveDirectory: string;
   defaultLeadMs: number;
   defaultLagMs: number;
   
@@ -81,7 +80,6 @@ interface AppState {
   
   // Settings actions
   setDefaultHomeTeam: (team: string) => void;
-  setAutosaveDirectory: (dir: string) => void;
   setDefaultLeadMs: (ms: number) => void;
   setDefaultLagMs: (ms: number) => void;
   
@@ -156,7 +154,6 @@ export const useAppStore = create<AppState>((set, get) => {
     matches: [],
     buttonConfig: [],
     defaultHomeTeam: "Richmond",
-    autosaveDirectory: "~/Documents/Richmond Hockey Club/matches",
     defaultLeadMs: 5000,
     defaultLagMs: 5000,
     
@@ -168,16 +165,14 @@ export const useAppStore = create<AppState>((set, get) => {
             if (settings) {
               set({
                 defaultHomeTeam: settings.defaultHomeTeam,
-                autosaveDirectory: settings.autosaveDirectory,
                 defaultLeadMs: settings.defaultLeadMs,
                 defaultLagMs: settings.defaultLagMs,
               });
             } else {
               // No settings file exists, save current defaults
-              const { defaultHomeTeam, autosaveDirectory, defaultLeadMs, defaultLagMs } = get();
+              const { defaultHomeTeam, defaultLeadMs, defaultLagMs } = get();
               saveSettingsBackend({
                 defaultHomeTeam,
-                autosaveDirectory,
                 defaultLeadMs,
                 defaultLagMs,
               }).catch(console.error);
@@ -495,22 +490,9 @@ export const useAppStore = create<AppState>((set, get) => {
     
     setDefaultHomeTeam: (team) => {
       set({ defaultHomeTeam: team });
-      const { autosaveDirectory, defaultLeadMs, defaultLagMs } = get();
+      const { defaultLeadMs, defaultLagMs } = get();
       const settings = {
         defaultHomeTeam: team,
-        autosaveDirectory,
-        defaultLeadMs,
-        defaultLagMs,
-      };
-      saveSettingsBackend(settings).catch(console.error);
-    },
-    
-    setAutosaveDirectory: (dir) => {
-      set({ autosaveDirectory: dir });
-      const { defaultHomeTeam, defaultLeadMs, defaultLagMs } = get();
-      const settings = {
-        defaultHomeTeam,
-        autosaveDirectory: dir,
         defaultLeadMs,
         defaultLagMs,
       };
@@ -519,10 +501,9 @@ export const useAppStore = create<AppState>((set, get) => {
     
     setDefaultLeadMs: (ms) => {
       set({ defaultLeadMs: ms });
-      const { defaultHomeTeam, autosaveDirectory, defaultLagMs } = get();
+      const { defaultHomeTeam, defaultLagMs } = get();
       const settings = {
         defaultHomeTeam,
-        autosaveDirectory,
         defaultLeadMs: ms,
         defaultLagMs,
       };
@@ -531,10 +512,9 @@ export const useAppStore = create<AppState>((set, get) => {
     
     setDefaultLagMs: (ms) => {
       set({ defaultLagMs: ms });
-      const { defaultHomeTeam, autosaveDirectory, defaultLeadMs } = get();
+      const { defaultHomeTeam, defaultLeadMs } = get();
       const settings = {
         defaultHomeTeam,
-        autosaveDirectory,
         defaultLeadMs,
         defaultLagMs: ms,
       };
