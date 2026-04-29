@@ -28,8 +28,9 @@ The app provides a visual configuration editor in the Settings page where you ca
 - Customise colours, styling, and hotkeys
 - Configure lead/lag times for video clips
 
-Configuration is stored in JSON format at:
-`~/Library/Application Support/Richmond Hockey Club/coding_window.json`
+Configuration is stored in the SQLite database at:
+`~/Library/Application Support/Richmond Hockey Club/matches.db`
 
-You can also edit this file manually if preferred. Click "Open Directory" in the Settings page to access it.
 
+![](./assets/match_screenshot.png)
+![](./assets/settings_screenshot.png)
