@@ -9,6 +9,7 @@ export enum ButtonType {
 export enum PhaseStatus {
   UNDEFINED = "undefined",
   CLASSIFIED = "classified",
+  ENDED_UNDEFINED = "ended_undefined", // Phase ended with Space but no termination selected
   TERMINATED = "terminated",
 }
 
@@ -36,6 +37,7 @@ export interface Phase {
   terminationCategory: string | null; // "success", "failure", or "hold"
   leadMs: number;
   lagMs: number;
+  needsReview?: boolean;
 }
 
 export interface Match {
@@ -54,7 +56,7 @@ export interface Tab {
   matchId: string;
   label: string;
   isDirty: boolean;
-  lastAutosaveTime: string | null;
+  lastSaveTime: string | null;
 }
 
 export interface ButtonConfig {

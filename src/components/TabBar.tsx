@@ -2,9 +2,10 @@
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store";
+import { showCloseTabDialog } from "@/lib/electron-api";
 
 export function TabBar() {
-  const { tabs, activeTabId, switchTab, closeTab } = useAppStore();
+  const { tabs, activeTabId, switchTab, closeTab, saveMatch } = useAppStore();
 
   if (tabs.length === 0) return null;
 
@@ -26,7 +27,7 @@ export function TabBar() {
           >
             {/* Dirty indicator */}
             {tabData.tab.isDirty && (
-              <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-blue-500 rounded-full" />
+              <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-amber-500 rounded-full" />
             )}
 
             {/* Tab label */}
@@ -34,9 +35,32 @@ export function TabBar() {
 
             {/* Close button */}
             <button
-              onClick={(e) => {
+              onClick={async (e) => {
                 e.stopPropagation();
-                closeTab(tabData.tab.id);
+                
+                // Check if tab has unsaved changes
+                if (tabData.tab.isDirty) {
+                  try {
+                    const response = await showCloseTabDialog();
+                    
+                    if (response === 0) {
+                      // Save and Close
+                      await saveMatch(tabData.tab.id);
+                      closeTab(tabData.tab.id);
+                    } else if (response === 1) {
+                      // Discard Changes
+                      closeTab(tabData.tab.id);
+                    }
+                    // response === 2 is Cancel, do nothing
+                  } catch (error) {
+                    console.error("Error showing close tab dialog:", error);
+                    // Fallback: just close the tab
+                    closeTab(tabData.tab.id);
+                  }
+                } else {
+                  // No unsaved changes, close directly
+                  closeTab(tabData.tab.id);
+                }
               }}
               className={cn(
                 "p-0.5 rounded hover:bg-muted transition-colors",

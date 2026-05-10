@@ -28,6 +28,17 @@ export function ButtonGrid({ buttons, disabled = false, activePhasePossession }:
     if (disabled) return;
 
     const handleKeyPress = (e: KeyboardEvent) => {
+      // Handle Backspace for undo (not when typing in inputs)
+      if (e.key === 'Backspace' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        const target = e.target as HTMLElement;
+        // Don't trigger if typing in an input or textarea
+        if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA' && !target.isContentEditable) {
+          e.preventDefault();
+          useAppStore.getState().undoLastPhase();
+          return;
+        }
+      }
+
       if (e.metaKey || e.ctrlKey || e.altKey) return;
 
       // Find first button matching hotkey that is not disabled

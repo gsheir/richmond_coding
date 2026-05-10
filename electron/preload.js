@@ -21,6 +21,9 @@ const electronAPI = {
   loadAutosave: () =>
     ipcRenderer.invoke('load-autosave'),
   
+  showCloseTabDialog: () =>
+    ipcRenderer.invoke('show-close-tab-dialog'),
+  
   exportXML: (matchData, defaultFilename) =>
     ipcRenderer.invoke('export-xml', matchData, defaultFilename),
 

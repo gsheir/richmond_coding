@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import { useAppStore } from "@/lib/store";
 import { Button } from "./ui/Button";
+import { showCloseTabDialog } from "@/lib/electron-api";
 
 interface SidebarProps {
   currentPage: "matches" | "settings" | "data-browser" | null;
@@ -15,8 +16,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ currentPage, onNavigate, onSwitchToTab, isOpen, isOverlay = false, onClose }: SidebarProps) {
-  const { tabs, activeTabId, closeTab } = useAppStore();
-  const [closingTabId, setClosingTabId] = useState<string | null>(null);
+  const { tabs, activeTabId, closeTab, saveMatch } = useAppStore();
   const [isDarkMode, setIsDarkMode] = useState(() => {
     // Initialize from localStorage or system preference
     if (typeof window !== 'undefined') {
@@ -156,14 +156,37 @@ export function Sidebar({ currentPage, onNavigate, onSwitchToTab, isOpen, isOver
                       <FileText className="w-4 h-4 shrink-0" />
                       <span className="truncate text-xs flex-1 min-w-0">{tabData.tab.label}</span>
                       {tabData.tab.isDirty && (
-                        <div className="w-1.5 h-1.5 bg-blue-500 rounded-full shrink-0" />
+                        <div className="w-2.5 h-2.5 bg-amber-500 rounded-full shrink-0" />
                       )}
                     </button>
                     
                     <button
-                      onClick={(e) => {
+                      onClick={async (e) => {
                         e.stopPropagation();
-                        setClosingTabId(tabData.tab.id);
+                        
+                        // Check if tab has unsaved changes
+                        if (tabData.tab.isDirty) {
+                          try {
+                            const response = await showCloseTabDialog();
+                            
+                            if (response === 0) {
+                              // Save and Close
+                              await saveMatch(tabData.tab.id);
+                              closeTab(tabData.tab.id);
+                            } else if (response === 1) {
+                              // Discard Changes
+                              closeTab(tabData.tab.id);
+                            }
+                            // response === 2 is Cancel, do nothing
+                          } catch (error) {
+                            console.error("Error showing close tab dialog:", error);
+                            // Fallback: just close the tab
+                            closeTab(tabData.tab.id);
+                          }
+                        } else {
+                          // No unsaved changes, close directly
+                          closeTab(tabData.tab.id);
+                        }
                       }}
                       className={cn(
                         "p-0.5 rounded hover:bg-muted transition-colors shrink-0",
@@ -203,46 +226,6 @@ export function Sidebar({ currentPage, onNavigate, onSwitchToTab, isOpen, isOver
           <Moon className="w-4 h-4 text-muted-foreground" />
         </div>
       </div>
-
-      {/* Close tab confirmation modal */}
-      {closingTabId && (
-        <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"
-          onClick={() => setClosingTabId(null)}
-        >
-          <div 
-            className="bg-card border border-border rounded-xl p-6 max-w-sm w-full mx-4 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-semibold mb-2">Close tab?</h3>
-            <p className="text-sm text-muted-foreground mb-6">
-              Are you sure you want to close this match tab?
-            </p>
-            
-            <div className="flex gap-3 justify-end">
-              <Button
-                onClick={() => setClosingTabId(null)}
-                variant="ghost"
-                size="sm"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={() => {
-                  if (closingTabId) {
-                    closeTab(closingTabId);
-                    setClosingTabId(null);
-                  }
-                }}
-                variant="destructive"
-                size="sm"
-              >
-                Close Tab
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
       </>
     );
   }

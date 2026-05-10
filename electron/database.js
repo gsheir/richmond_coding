@@ -36,6 +36,11 @@ export class MatchDatabase {
         console.log(`Migrating database schema from version ${currentVersion} to version 3...`);
         this.migrateToVersion3();
       }
+      
+      if (currentVersion < 4) {
+        console.log(`Migrating database schema from version ${currentVersion} to version 4...`);
+        this.migrateToVersion4();
+      }
     }
   }
 
@@ -68,6 +73,7 @@ export class MatchDatabase {
         termination_category TEXT CHECK(termination_category IN ('success', 'failure', 'hold', NULL)),
         lead_ms INTEGER NOT NULL,
         lag_ms INTEGER NOT NULL,
+        needs_review INTEGER DEFAULT 0,
         PRIMARY KEY (match_id, phase_id),
         FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE
       );
@@ -157,7 +163,7 @@ export class MatchDatabase {
       );
 
       -- Insert initial schema version
-      INSERT OR IGNORE INTO schema_version (version, applied_at) VALUES (3, datetime('now'));
+      INSERT OR IGNORE INTO schema_version (version, applied_at) VALUES (4, datetime('now'));
     `);
 
     console.log('Database schema initialized');
@@ -281,6 +287,19 @@ export class MatchDatabase {
     console.log('Database migrated to schema version 3');
   }
 
+  migrateToVersion4() {
+    // Add needs_review column to phases table
+    this.db.exec(`
+      -- Add needs_review column
+      ALTER TABLE phases ADD COLUMN needs_review INTEGER DEFAULT 0;
+
+      -- Update schema version
+      INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (4, datetime('now'));
+    `);
+
+    console.log('Database migrated to schema version 4');
+  }
+
   // ==================== Match Operations ====================
 
   saveMatch(match) {
@@ -309,8 +328,8 @@ export class MatchDatabase {
       const insertPhase = this.db.prepare(
         `INSERT INTO phases 
          (match_id, phase_id, start_time_ms, end_time_ms, phase_code, phase_label, 
-          status, period, termination_event, termination_category, lead_ms, lag_ms)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          status, period, termination_event, termination_category, lead_ms, lag_ms, needs_review)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       );
 
       const insertContext = this.db.prepare(
@@ -331,7 +350,8 @@ export class MatchDatabase {
           phase.terminationEvent,
           phase.terminationCategory,
           phase.leadMs,
-          phase.lagMs
+          phase.lagMs,
+          phase.needsReview ? 1 : 0
         );
 
         // Insert context labels
@@ -361,7 +381,7 @@ export class MatchDatabase {
     const phaseRows = this.db
       .prepare(
         `SELECT phase_id, start_time_ms, end_time_ms, phase_code, phase_label,
-                status, period, termination_event, termination_category, lead_ms, lag_ms
+                status, period, termination_event, termination_category, lead_ms, lag_ms, needs_review
          FROM phases WHERE match_id = ? ORDER BY phase_id`
       )
       .all(matchId);
@@ -388,6 +408,7 @@ export class MatchDatabase {
         terminationCategory: row.termination_category,
         leadMs: row.lead_ms,
         lagMs: row.lag_ms,
+        needsReview: row.needs_review === 1,
       };
     });
 

@@ -4,22 +4,50 @@ import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAppStore } from "@/lib/store";
 import { useState } from "react";
-import { Pencil } from "lucide-react";
+import { Pencil, Flag, Trash2, AlertCircle } from "lucide-react";
 
 interface EventLogProps {
   phases: Phase[];
 }
 
 export function EventLog({ phases }: EventLogProps) {
-  const { buttonConfig, updatePhase } = useAppStore();
+  const { buttonConfig, updatePhase, deletePhase } = useAppStore();
   const [editingCell, setEditingCell] = useState<{ phaseId: number; field: string } | null>(null);
   const [editValue, setEditValue] = useState("");
+
+  const toggleReview = (phaseId: number, currentValue: boolean | undefined) => {
+    updatePhase(phaseId, { needsReview: !currentValue });
+  };
+
+  const handleDelete = (phaseId: number, phaseLabel: string | null) => {
+    if (confirm(`Delete phase "${phaseLabel || 'Undefined'}"?`)) {
+      deletePhase(phaseId);
+    }
+  };
 
   // Show newest first
   const sortedPhases = [...phases].reverse();
 
   const phaseButtons = buttonConfig.filter((b) => b.type === ButtonType.PHASE);
   const terminationButtons = buttonConfig.filter((b) => b.type === ButtonType.TERMINATION);
+
+  // Find currently active phase (not fully terminated)
+  const activePhase = phases.find(p => 
+    p.status === PhaseStatus.CLASSIFIED || 
+    p.status === PhaseStatus.ENDED_UNDEFINED ||
+    p.status === PhaseStatus.UNDEFINED
+  );
+  
+  // Find last terminated phase
+  const terminatedPhases = phases.filter(p => p.status === PhaseStatus.TERMINATED);
+  const lastTerminatedPhase = terminatedPhases.length > 0 
+    ? terminatedPhases[terminatedPhases.length - 1] 
+    : null;
+
+  // Get button config for active phase color
+  const activePhaseButton = activePhase?.phaseCode 
+    ? buttonConfig.find(b => b.code === activePhase.phaseCode)
+    : null;
 
   const startEditing = (phaseId: number, field: string, currentValue: string) => {
     setEditingCell({ phaseId, field });
@@ -77,7 +105,12 @@ export function EventLog({ phases }: EventLogProps) {
   };
 
   const getDotColor = (phase: Phase) => {
-    // If terminated with null termination (END_PHASE button), use yellow
+    // ENDED_UNDEFINED - phase ended with Space but no termination selected
+    if (phase.status === PhaseStatus.ENDED_UNDEFINED) {
+      return "bg-amber-500";
+    }
+    
+    // If terminated with null termination (shouldn't happen with new system, but keep for compatibility)
     if (phase.status === PhaseStatus.TERMINATED && !phase.terminationEvent) {
       return "bg-yellow-500";
     }
@@ -104,11 +137,66 @@ export function EventLog({ phases }: EventLogProps) {
 
   return (
     <div className="flex flex-col h-full bg-card/80 backdrop-blur-sm rounded-xl border border-border/50 overflow-hidden">
-      <div className="px-3 py-2 border-b border-border/40">
-        <h3 className="font-semibold text-xs text-muted-foreground">Event Log</h3>
-        <p className="text-xs text-muted-foreground/70 mt-0.5">
-          {phases.length} phases recorded
-        </p>
+      <div className="px-3 py-3 border-b border-border/40 flex items-center justify-between gap-4">
+        {/* Left: Event log title and info */}
+        <div className="flex flex-col gap-1 shrink-0">
+          <h3 className="font-semibold text-xs text-muted-foreground">Event Log</h3>
+          <p className="text-[10px] text-muted-foreground/70">
+            {phases.length} phases
+          </p>
+        </div>
+        
+        {/* Center: Currently active phase (prominent) */}
+        <div className="flex-1 flex items-center justify-center">
+          {activePhase ? (
+            <div className="flex flex-col items-center gap-1">
+              <div 
+                className="px-6 py-3 rounded-lg text-lg font-bold shadow-md min-w-[120px] text-center relative"
+                style={{ 
+                  backgroundColor: activePhaseButton?.style.colour || '#666',
+                  color: 'white'
+                }}
+              >
+                {activePhase.phaseLabel || 'Undefined'}
+                {activePhase.status === PhaseStatus.ENDED_UNDEFINED && (
+                  <div className="absolute -top-2 -right-2">
+                    <div className="relative">
+                      <AlertCircle className="w-5 h-5 text-amber-500 bg-card rounded-full animate-pulse" />
+                    </div>
+                  </div>
+                )}
+              </div>
+              {activePhase.status === PhaseStatus.ENDED_UNDEFINED && (
+                <span className="text-[10px] text-amber-500 font-medium">
+                  Select termination event
+                </span>
+              )}
+            </div>
+          ) : (
+            <div className="text-xs text-muted-foreground/40 italic">No active phase</div>
+          )}
+        </div>
+        
+        {/* Right: Last terminated phase */}
+        <div className="flex flex-col gap-1 items-end shrink-0">
+          {lastTerminatedPhase ? (
+            <>
+              <span className="text-[9px] text-muted-foreground/50 uppercase tracking-wide">Last:</span>
+              <div className="flex flex-col items-end">
+                <span className="text-[11px] text-muted-foreground font-medium">
+                  {lastTerminatedPhase.phaseLabel || 'Undefined'}
+                </span>
+                {lastTerminatedPhase.terminationEvent && (
+                  <span className="text-[9px] text-muted-foreground/60">
+                    → {lastTerminatedPhase.terminationEvent}
+                  </span>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="h-full"></div>
+          )}
+        </div>
       </div>
 
       <div className="flex-1 overflow-auto">
@@ -127,6 +215,9 @@ export function EventLog({ phases }: EventLogProps) {
               </th>
               <th className="px-3 py-1.5 text-left font-medium text-muted-foreground text-xs">
                 Termination
+              </th>
+              <th className="px-3 py-1.5 text-center font-medium text-muted-foreground text-xs">
+                Actions
               </th>
             </tr>
           </thead>
@@ -241,8 +332,27 @@ export function EventLog({ phases }: EventLogProps) {
                         <Pencil className="w-3 h-3 absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-50" />
                       </>
                     )}
-                  </td>
-                </motion.tr>
+                  </td>                  <td className="px-3 py-1.5">
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => toggleReview(phase.id, phase.needsReview)}
+                        className={cn(
+                          "p-1 rounded hover:bg-accent/50 transition-colors",
+                          phase.needsReview && "text-amber-500"
+                        )}
+                        title={phase.needsReview ? "Remove review flag" : "Mark for review"}
+                      >
+                        <Flag className="w-3.5 h-3.5" fill={phase.needsReview ? "currentColor" : "none"} />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(phase.id, phase.phaseLabel)}
+                        className="p-1 rounded hover:bg-destructive/50 transition-colors text-destructive"
+                        title="Delete phase"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </td>                </motion.tr>
               ))}
             </AnimatePresence>
           </tbody>
@@ -250,7 +360,7 @@ export function EventLog({ phases }: EventLogProps) {
 
         {phases.length === 0 && (
           <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
-            No phases recorded yet. Press Space to start coding.
+            No phases recorded yet.
           </div>
         )}
       </div>

@@ -106,6 +106,26 @@ export class EventEngine {
     return true;
   }
 
+  endPhaseUndefined(): boolean {
+    if (!this.activePhase) return false;
+    if (this.activePhase.status !== PhaseStatus.CLASSIFIED) return false;
+
+    const endTimeMs = this.clock.currentTimeMs();
+    const index = this.phases.indexOf(this.activePhase);
+    if (index === -1) return false;
+
+    // Set phase to ENDED_UNDEFINED status - phase has ended but no termination selected
+    this.activePhase = {
+      ...this.activePhase,
+      endTimeMs,
+      status: PhaseStatus.ENDED_UNDEFINED,
+    };
+    this.phases[index] = this.activePhase;
+    // Note: activePhase remains set, so user can still apply termination
+
+    return true;
+  }
+
   handleButtonClick(code: string, buttonType: ButtonType): void {
     const button = this.buttonConfig[code];
     if (!button) return;
@@ -127,11 +147,25 @@ export class EventEngine {
           this.terminateActivePhase("SAME_PHASE");
           // Continue to start a new phase
         }
-        // If there's a different classified phase active, auto-terminate it first
+        // If there's a classified phase active, auto-terminate it first
         else if (this.activePhase !== null && this.activePhase.status === PhaseStatus.CLASSIFIED) {
           const terminationCode = this.determineAutoTermination(this.activePhase, button);
           this.terminateActivePhase(terminationCode);
           // activePhase is now null
+        }
+        // If there's an ENDED_UNDEFINED phase active, auto-terminate it first
+        else if (this.activePhase !== null && this.activePhase.status === PhaseStatus.ENDED_UNDEFINED) {
+          const terminationCode = this.determineAutoTermination(this.activePhase, button);
+          // Complete the termination with auto-determined code
+          const index = this.phases.indexOf(this.activePhase);
+          if (index !== -1) {
+            const button = terminationCode ? this.buttonConfig[terminationCode] : null;
+            const terminationCategory = button?.category || null;
+            this.activePhase = terminatePhase(this.activePhase, this.activePhase.endTimeMs!, terminationCode, terminationCategory);
+            this.phases[index] = this.activePhase;
+            this.notifyPhaseTerminated(this.activePhase);
+          }
+          this.activePhase = null;
         }
         
         // Start new undefined phase if needed
@@ -151,16 +185,27 @@ export class EventEngine {
         // Special handling for END_PHASE button
         if (code === "END_PHASE") {
           if (this.activePhase && this.activePhase.status === PhaseStatus.CLASSIFIED) {
-            // Terminate with undefined termination event
-            this.terminateActivePhase(null);
-            // Store reference to this phase for retroactive termination assignment
-            const lastPhase = this.phases[this.phases.length - 1];
-            if (lastPhase) {
-              this.lastPhaseWithUndefinedTermination = lastPhase;
-            }
+            // End phase without termination (sets status to ENDED_UNDEFINED)
+            this.endPhaseUndefined();
           }
         } else {
-          this.terminateActivePhase(code);
+          // Regular termination button clicked
+          if (this.activePhase && this.activePhase.status === PhaseStatus.ENDED_UNDEFINED) {
+            // Phase was ended with Space, now applying proper termination
+            const index = this.phases.indexOf(this.activePhase);
+            if (index !== -1) {
+              const button = this.buttonConfig[code];
+              const terminationCategory = button?.category || null;
+              // Use the existing endTimeMs from when END_PHASE was pressed
+              this.activePhase = terminatePhase(this.activePhase, this.activePhase.endTimeMs!, code, terminationCategory);
+              this.phases[index] = this.activePhase;
+              this.notifyPhaseTerminated(this.activePhase);
+              this.activePhase = null;
+            }
+          } else {
+            // Normal termination of classified phase
+            this.terminateActivePhase(code);
+          }
         }
         break;
     }
@@ -238,6 +283,21 @@ export class EventEngine {
     }
 
     this.nextPhaseId--;
+    return true;
+  }
+
+  deletePhase(phaseId: number): boolean {
+    const index = this.phases.findIndex((p) => p.id === phaseId);
+    if (index === -1) return false;
+
+    // Remove the phase
+    const removedPhase = this.phases.splice(index, 1)[0];
+    
+    // If the removed phase was active, clear active phase
+    if (removedPhase && this.activePhase?.id === removedPhase.id) {
+      this.activePhase = null;
+    }
+
     return true;
   }
 

@@ -265,6 +265,26 @@ ipcMain.handle('load-autosave', async () => {
   }
 });
 
+ipcMain.handle('show-close-tab-dialog', async () => {
+  try {
+    const result = await dialog.showMessageBox(mainWindow, {
+      type: 'warning',
+      title: 'Unsaved Changes',
+      message: 'There are unsaved changes in this match.',
+      detail: 'Do you want to save before closing?',
+      buttons: ['Save and Close', 'Discard Changes', 'Cancel'],
+      defaultId: 0,
+      cancelId: 2,
+    });
+    
+    // Return which button was clicked: 0 = Save and Close, 1 = Discard, 2 = Cancel
+    return { success: true, response: result.response };
+  } catch (error) {
+    console.error('Error showing close tab dialog:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
 ipcMain.handle('save-settings', async (_event, settingsData) => {
   try {
     const settings = JSON.parse(settingsData);

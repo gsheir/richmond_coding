@@ -87,6 +87,21 @@ export async function loadAutosave(): Promise<Match | null> {
   return result.data ? JSON.parse(result.data) : null;
 }
 
+export async function showCloseTabDialog(): Promise<number> {
+  if (!window.electronAPI) {
+    console.warn('electronAPI not available, returning cancel');
+    return 2; // Cancel
+  }
+  
+  const result = await window.electronAPI.showCloseTabDialog();
+  
+  if (!result.success) {
+    throw new Error(result.error || "Failed to show close tab dialog");
+  }
+  
+  return result.response ?? 2; // Default to cancel if no response
+}
+
 export async function exportXML(
   matchData: string,
   defaultFilename: string

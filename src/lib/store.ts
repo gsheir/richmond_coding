@@ -60,6 +60,7 @@ interface AppState {
   switchTab: (tabId: string) => void;
   getActiveTab: () => TabData | null;
   updateActiveMatch: (date: string, homeTeam: string, awayTeam: string) => void;
+  markActiveTabDirty: () => void;
   
   // Clock actions (operate on active tab)
   startClock: () => void;
@@ -87,6 +88,7 @@ interface AppState {
   startPhase: () => void;
   handleButtonClick: (code: string, type: any) => void;
   undoLastPhase: () => void;
+  deletePhase: (phaseId: number) => void;
   clearAllPhases: () => void;
   updatePhase: (phaseId: number, updates: Partial<Phase>) => void;
   
@@ -122,8 +124,8 @@ export const useAppStore = create<AppState>((set, get) => {
         };
         set({ tabs: updatedTabs });
         
-        // Save match when clock starts
-        if (state === ClockState.RUNNING) {
+        // Save match when clock starts, stops, or is paused
+        if (state === ClockState.RUNNING || state === ClockState.STOPPED || state === ClockState.PAUSED) {
           get().saveMatch(updatedTabs[tabIndex].tab.id);
         }
       }
@@ -134,7 +136,7 @@ export const useAppStore = create<AppState>((set, get) => {
       matchId: match.id,
       label: getMatchDisplayName(match),
       isDirty: false,
-      lastAutosaveTime: null,
+      lastSaveTime: null,
     };
     
     return {
@@ -200,26 +202,20 @@ export const useAppStore = create<AppState>((set, get) => {
               clockTimeMs: tabData.clock.currentTimeMs(),
             };
             autosaveMatchBackend(updatedMatch)
-              .then(() => {
-                // Update last autosave time for this tab
-                const currentTabs = get().tabs;
-                const tabIndex = currentTabs.findIndex(t => t.tab.id === tabData.tab.id);
-                if (tabIndex !== -1) {
-                  const updatedTabs = [...currentTabs];
-                  updatedTabs[tabIndex] = {
-                    ...updatedTabs[tabIndex],
-                    tab: {
-                      ...updatedTabs[tabIndex].tab,
-                      lastAutosaveTime: new Date().toISOString(),
-                    },
-                  };
-                  set({ tabs: updatedTabs });
-                }
-              })
               .catch(console.error);
           }
         });
       }, 10000);
+      
+      // Set up main database save every 5 minutes for all running tabs
+      setInterval(() => {
+        const tabs = get().tabs;
+        tabs.forEach((tabData) => {
+          if (tabData.clockState === ClockState.RUNNING) {
+            get().saveMatch(tabData.tab.id);
+          }
+        });
+      }, 300000); // 5 minutes
       
       // Load matches
       get().refreshMatches();
@@ -453,6 +449,7 @@ export const useAppStore = create<AppState>((set, get) => {
             tab: {
               ...newTabs[tabIndex].tab,
               isDirty: false,
+              lastSaveTime: new Date().toISOString(),
             },
           };
           set({ tabs: newTabs });
@@ -521,12 +518,32 @@ export const useAppStore = create<AppState>((set, get) => {
       saveSettingsBackend(settings).catch(console.error);
     },
     
+    // Helper function to mark active tab as dirty
+    markActiveTabDirty: () => {
+      const { tabs, activeTabId } = get();
+      if (!activeTabId) return;
+      
+      const tabIndex = tabs.findIndex(t => t.tab.id === activeTabId);
+      if (tabIndex !== -1) {
+        const newTabs = [...tabs];
+        newTabs[tabIndex] = {
+          ...newTabs[tabIndex],
+          tab: {
+            ...newTabs[tabIndex].tab,
+            isDirty: true,
+          },
+        };
+        set({ tabs: newTabs });
+      }
+    },
+    
     startPhase: () => {
       const activeTab = get().getActiveTab();
       if (!activeTab) return;
       
       const { defaultLeadMs, defaultLagMs } = get();
       activeTab.eventEngine.startUndefinedPhase(defaultLeadMs, defaultLagMs);
+      get().markActiveTabDirty();
     },
     
     handleButtonClick: (code, type) => {
@@ -534,6 +551,7 @@ export const useAppStore = create<AppState>((set, get) => {
       if (!activeTab) return;
       
       activeTab.eventEngine.handleButtonClick(code, type);
+      get().markActiveTabDirty();
     },
     
     undoLastPhase: () => {
@@ -541,6 +559,15 @@ export const useAppStore = create<AppState>((set, get) => {
       if (!activeTab) return;
       
       activeTab.eventEngine.undoLastAction();
+      get().markActiveTabDirty();
+    },
+    
+    deletePhase: (phaseId: number) => {
+      const activeTab = get().getActiveTab();
+      if (!activeTab) return;
+      
+      activeTab.eventEngine.deletePhase(phaseId);
+      get().markActiveTabDirty();
     },
     
     clearAllPhases: () => {
@@ -561,6 +588,8 @@ export const useAppStore = create<AppState>((set, get) => {
           };
           set({ tabs: newTabs });
         }
+        
+        get().markActiveTabDirty();
       }
     },
     
@@ -568,6 +597,7 @@ export const useAppStore = create<AppState>((set, get) => {
       const activeTab = get().getActiveTab();
       if (!activeTab) return;
       activeTab.eventEngine.updatePhase(phaseId, updates);
+      get().markActiveTabDirty();
     },
     
     exportXML: async () => {
