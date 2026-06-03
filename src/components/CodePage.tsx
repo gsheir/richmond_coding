@@ -12,6 +12,7 @@ import { useAppStore } from "@/lib/store";
 import { ClockState, Match, PhaseStatus } from "@/lib/types";
 import { GameClock } from "@/lib/clock";
 import { EventEngine } from "@/lib/event-engine";
+import { TimelineView } from "./TimelineView";
 
 interface CodePageProps {
   tabId: string;
@@ -52,6 +53,8 @@ export function CodePage({
   const [resizeStartY, setResizeStartY] = useState(0);
   const [resizeStartHeight, setResizeStartHeight] = useState(0);
   const [analyticsTab, setAnalyticsTab] = useState<'efficiency' | 'transition'>('efficiency');
+  const [panelView, setPanelView] = useState<'log' | 'timeline'>('log');
+  const [timelineZoom, setTimelineZoom] = useState(1);
 
   const phases = eventEngine.getAllPhases();
   const isRunning = clockState === ClockState.RUNNING;
@@ -399,12 +402,31 @@ export function CodePage({
             className="px-3 py-3 border-b border-border/40 flex items-center justify-between gap-4 cursor-pointer hover:bg-accent/30 transition-colors"
             onClick={() => setEventLogCollapsed(!eventLogCollapsed)}
           >
-            {/* Left: Event log title and info */}
-            <div className="flex flex-col gap-1 shrink-0">
-              <h3 className="font-semibold text-xs text-muted-foreground">Event Log</h3>
-              <p className="text-[10px] text-muted-foreground/70">
-                {phases.length} phases
-              </p>
+            {/* Left: view tab toggle + phase count */}
+            <div className="flex items-center gap-3 shrink-0" onClick={e => e.stopPropagation()}>
+              <div className="flex gap-0.5 border border-border/50 rounded-md p-0.5 bg-card/50">
+                <button
+                  onClick={() => setPanelView('log')}
+                  className={`px-2.5 py-0.5 text-[11px] font-medium rounded transition-colors ${
+                    panelView === 'log'
+                      ? 'bg-primary/80 text-white'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Log
+                </button>
+                <button
+                  onClick={() => setPanelView('timeline')}
+                  className={`px-2.5 py-0.5 text-[11px] font-medium rounded transition-colors ${
+                    panelView === 'timeline'
+                      ? 'bg-primary/80 text-white'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Timeline
+                </button>
+              </div>
+              <p className="text-[10px] text-muted-foreground/70">{phases.length} phases</p>
             </div>
             
             {/* Center: Currently active phase (prominent) */}
@@ -466,40 +488,53 @@ export function CodePage({
             </div>
           </div>
 
-          {/* Event log content - resizable height */}
+          {/* Panel content – resizable height */}
           {!eventLogCollapsed && (
-            <div className="overflow-auto" style={{ maxHeight: `${eventLogHeight}px` }}>
-              <table className="w-full text-xs">
-                <thead className="sticky top-0 bg-card/90 backdrop-blur-sm border-b border-border/30">
-                  <tr>
-                    <th className="w-6"></th>
-                    <th className="px-3 py-1.5 text-left font-medium text-muted-foreground text-xs">
-                      Time
-                    </th>
-                    <th className="px-3 py-1.5 text-left font-medium text-muted-foreground text-xs">
-                      Code
-                    </th>
-                    <th className="px-3 py-1.5 text-left font-medium text-muted-foreground text-xs">
-                      Context
-                    </th>
-                    <th className="px-3 py-1.5 text-left font-medium text-muted-foreground text-xs">
-                      Termination
-                    </th>
-                    <th className="px-3 py-1.5 text-center font-medium text-muted-foreground text-xs">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {/* Event log rows will be rendered here */}
-                  <EventLogRows phases={phases} />
-                </tbody>
-              </table>
-
-              {phases.length === 0 && (
-                <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
-                  No phases recorded yet.
-                </div>
+            <div
+              style={{ height: `${eventLogHeight}px` }}
+              className={panelView === 'log' ? 'overflow-auto' : 'overflow-hidden'}
+            >
+              {panelView === 'log' ? (
+                <>
+                  <table className="w-full text-xs">
+                    <thead className="sticky top-0 bg-card/90 backdrop-blur-sm border-b border-border/30">
+                      <tr>
+                        <th className="w-6"></th>
+                        <th className="px-3 py-1.5 text-left font-medium text-muted-foreground text-xs">
+                          Time
+                        </th>
+                        <th className="px-3 py-1.5 text-left font-medium text-muted-foreground text-xs">
+                          Code
+                        </th>
+                        <th className="px-3 py-1.5 text-left font-medium text-muted-foreground text-xs">
+                          Context
+                        </th>
+                        <th className="px-3 py-1.5 text-left font-medium text-muted-foreground text-xs">
+                          Termination
+                        </th>
+                        <th className="px-3 py-1.5 text-center font-medium text-muted-foreground text-xs">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <EventLogRows phases={phases} />
+                    </tbody>
+                  </table>
+                  {phases.length === 0 && (
+                    <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
+                      No phases recorded yet.
+                    </div>
+                  )}
+                </>
+              ) : (
+                <TimelineView
+                  phases={phases}
+                  buttonConfig={buttonConfig}
+                  zoomLevel={timelineZoom}
+                  onZoomChange={setTimelineZoom}
+                  currentTimeMs={clock.currentTimeMs()}
+                />
               )}
             </div>
           )}
