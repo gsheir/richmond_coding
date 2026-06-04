@@ -55,77 +55,77 @@ export function ClockWidget({ clockState, currentTime, clock }: ClockWidgetProps
   };
 
   return (
-    <div className="flex items-center gap-4">
-      {/* Clock display */}
-      <div className="flex items-baseline gap-1">
-        <span className="text-3xl font-mono font-bold tabular-nums">
-          {currentTime}
-        </span>
+    <div className="flex flex-col gap-2">
+      {/* First row: timestamp + start/stop + skip controls */}
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="flex items-baseline gap-1 shrink-0">
+          <span className="text-2xl font-mono font-bold tabular-nums leading-none">
+            {currentTime}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          {!isRunning ? (
+            <Button
+              onClick={startClock}
+              variant="attack"
+              size="sm"
+              className="gap-1 px-2"
+            >
+              <Play className="w-3.5 h-3.5" />
+              Start
+            </Button>
+          ) : (
+            <Button
+              onClick={pauseClock}
+              variant="destructive"
+              size="sm"
+              className="gap-1 px-2"
+            >
+              <Pause className="w-3.5 h-3.5" />
+              Pause
+            </Button>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1 border-l border-border pl-2 min-w-0">
+          <Button
+            onClick={skipToStart}
+            variant="outline"
+            size="sm"
+            title="Skip to start"
+          >
+            <SkipBack className="w-3.5 h-3.5" />
+          </Button>
+          <Button
+            onClick={() => skipBack(5)}
+            variant="outline"
+            size="sm"
+            title="Skip back 5s"
+          >
+            <Rewind className="w-3.5 h-3.5" />
+          </Button>
+          <Button
+            onClick={() => skipForward(5)}
+            variant="outline"
+            size="sm"
+            title="Skip forward 5s"
+          >
+            <FastForward className="w-3.5 h-3.5" />
+          </Button>
+          <Button
+            onClick={skipToEnd}
+            variant="outline"
+            size="sm"
+            title="Skip to latest time"
+          >
+            <SkipForward className="w-3.5 h-3.5" />
+          </Button>
+        </div>
       </div>
 
-      {/* Primary controls */}
+      {/* Second row: jump controls */}
       <div className="flex items-center gap-2">
-        {!isRunning ? (
-          <Button
-            onClick={startClock}
-            variant="attack"
-            size="sm"
-            className="gap-1.5"
-          >
-            <Play className="w-3.5 h-3.5" />
-            Start
-          </Button>
-        ) : (
-          <Button
-            onClick={pauseClock}
-            variant="destructive"
-            size="sm"
-            className="gap-1.5"
-          >
-            <Pause className="w-3.5 h-3.5" />
-            Pause
-          </Button>
-        )}
-      </div>
-
-      {/* Skip controls */}
-      <div className="flex items-center gap-1 border-l border-border pl-4">
-        <Button
-          onClick={skipToStart}
-          variant="outline"
-          size="sm"
-          title="Skip to start"
-        >
-          <SkipBack className="w-3.5 h-3.5" />
-        </Button>
-        <Button
-          onClick={() => skipBack(5)}
-          variant="outline"
-          size="sm"
-          title="Skip back 5s"
-        >
-          <Rewind className="w-3.5 h-3.5" />
-        </Button>
-        <Button
-          onClick={() => skipForward(5)}
-          variant="outline"
-          size="sm"
-          title="Skip forward 5s"
-        >
-          <FastForward className="w-3.5 h-3.5" />
-        </Button>
-        <Button
-          onClick={skipToEnd}
-          variant="outline"
-          size="sm"
-          title="Skip to latest time"
-        >
-          <SkipForward className="w-3.5 h-3.5" />
-        </Button>
-      </div>
-
-      {/* Jump to time */}
-      <div className="flex items-center gap-2 border-l border-border pl-4">
         <input
           type="text"
           value={jumpTimeInput}

@@ -13,8 +13,6 @@ function App() {
   const [currentPage, setCurrentPage] = useState<"matches" | "settings" | "data-browser" | null>(
     "matches"
   );
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [isNarrow, setIsNarrow] = useState(false);
   const { initialize, setButtonConfig, tabs, activeTabId, getActiveTab } = useAppStore();
 
   useEffect(() => {
@@ -34,31 +32,11 @@ function App() {
     }
   }, [tabs.length, currentPage]);
 
-  // Auto-collapse/expand sidebar based on viewport width
-  useEffect(() => {
-    const handleResize = () => {
-      const narrow = window.innerWidth < 1000;
-      setIsNarrow(narrow);
-      
-      // Auto-close sidebar when going narrow, auto-open when going wide
-      if (narrow) {
-        setSidebarOpen(false);
-      } else {
-        setSidebarOpen(true);
-      }
-    };
-
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
   const handleNavigate = (page: "matches" | "settings" | "data-browser") => {
     setCurrentPage(page);
   };
 
-  const handleSwitchToTab = (tabId: string) => {
-    useAppStore.getState().switchTab(tabId);
+  const handleSwitchToCoding = () => {
     setCurrentPage(null);
   };
 
@@ -67,46 +45,42 @@ function App() {
     setCurrentPage(null);
   };
 
-  const hasOpenTabs = tabs.length > 0;
   const activeTab = getActiveTab();
   const showCodePage = currentPage === null && activeTab;
 
   return (
     <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden">
-      <TitleBar sidebarOpen={sidebarOpen} onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
+      <TitleBar />
       
       <div className="flex flex-1 min-h-0">
-        <Sidebar 
-          currentPage={currentPage} 
+        <Sidebar
+          currentPage={currentPage}
           onNavigate={handleNavigate}
-          onSwitchToTab={handleSwitchToTab}
-          isOpen={sidebarOpen} 
-          isOverlay={isNarrow && sidebarOpen}
-          onClose={() => setSidebarOpen(false)}
+          onSwitchToCoding={handleSwitchToCoding}
         />
-        
-        <main className="flex-1 overflow-auto p-4 bg-background">
-          <div className="h-full bg-card/50 rounded-xl border border-border/40 backdrop-blur-sm">
-            {/* Show code page if a match tab is active, otherwise show navigation pages */}
-            {showCodePage ? (
-              <CodePage
-                tabId={activeTab.tab.id}
-                match={activeTab.match}
-                clock={activeTab.clock}
-                eventEngine={activeTab.eventEngine}
-                clockState={activeTab.clockState}
-                currentTime={activeTab.currentTime}
-                activePhaseId={activeTab.activePhaseId}
-              />
-            ) : (
-              <>
-                {currentPage === "matches" && <MatchesPage onOpenMatch={handleOpenMatch} />}
-                {currentPage === "settings" && <SettingsPage />}
-                {currentPage === "data-browser" && <DataBrowserPage />}
-              </>
-            )}
-          </div>
-        </main>
+
+        {/* Main content – no padding/card for coding view so panels can tile edge-to-edge */}
+        {showCodePage ? (
+          <main className="flex-1 min-h-0 overflow-hidden bg-background">
+            <CodePage
+              tabId={activeTab.tab.id}
+              match={activeTab.match}
+              clock={activeTab.clock}
+              eventEngine={activeTab.eventEngine}
+              clockState={activeTab.clockState}
+              currentTime={activeTab.currentTime}
+              activePhaseId={activeTab.activePhaseId}
+            />
+          </main>
+        ) : (
+          <main className="flex-1 overflow-auto p-4 bg-background">
+            <div className="h-full bg-card/50 rounded-xl border border-border/40 backdrop-blur-sm">
+              {currentPage === "matches" && <MatchesPage onOpenMatch={handleOpenMatch} />}
+              {currentPage === "settings" && <SettingsPage />}
+              {currentPage === "data-browser" && <DataBrowserPage />}
+            </div>
+          </main>
+        )}
       </div>
     </div>
   );

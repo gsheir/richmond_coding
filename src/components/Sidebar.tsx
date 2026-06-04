@@ -1,24 +1,19 @@
-// Sidebar navigation (Linear-inspired)
-import { FolderOpen, Settings, FileText, X, Moon, Sun, Database } from "lucide-react";
+// Sidebar navigation – collapsible icon rail
+import { FolderOpen, Settings, Moon, Sun, Database, Activity, ChevronRight, ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import { useAppStore } from "@/lib/store";
-import { Button } from "./ui/Button";
-import { showCloseTabDialog } from "@/lib/electron-api";
 
 interface SidebarProps {
   currentPage: "matches" | "settings" | "data-browser" | null;
   onNavigate: (page: "matches" | "settings" | "data-browser") => void;
-  onSwitchToTab: (tabId: string) => void;
-  isOpen: boolean;
-  isOverlay?: boolean;
-  onClose?: () => void;
+  onSwitchToCoding: () => void;
 }
 
-export function Sidebar({ currentPage, onNavigate, onSwitchToTab, isOpen, isOverlay = false, onClose }: SidebarProps) {
-  const { tabs, activeTabId, closeTab, saveMatch } = useAppStore();
+export function Sidebar({ currentPage, onNavigate, onSwitchToCoding }: SidebarProps) {
+  const { tabs, activeTabId } = useAppStore();
+  const [isExpanded, setIsExpanded] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(() => {
-    // Initialize from localStorage or system preference
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('theme');
       if (stored) return stored === 'dark';
@@ -27,7 +22,6 @@ export function Sidebar({ currentPage, onNavigate, onSwitchToTab, isOpen, isOver
     return false;
   });
 
-  // Apply theme class to document
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
@@ -37,196 +31,102 @@ export function Sidebar({ currentPage, onNavigate, onSwitchToTab, isOpen, isOver
       localStorage.setItem('theme', 'light');
     }
   }, [isDarkMode]);
-  
+
   const navItems = [
-    { id: "matches" as const, label: "Matches", icon: FolderOpen },
-    { id: "data-browser" as const, label: "Data Browser", icon: Database },
-    { id: "settings" as const, label: "Settings", icon: Settings },
+    { id: "matches" as const, icon: FolderOpen, label: "Matches" },
+    { id: "data-browser" as const, icon: Database, label: "Data Browser" },
+    { id: "settings" as const, icon: Settings, label: "Settings" },
   ];
 
-  // Close on escape key when overlay
-  useEffect(() => {
-    if (!isOverlay || !isOpen) return;
+  const isCoding = currentPage === null && activeTabId !== null;
 
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && onClose) {
-        onClose();
-      }
-    };
-
-    window.addEventListener("keydown", handleEscape);
-    return () => window.removeEventListener("keydown", handleEscape);
-  }, [isOverlay, isOpen, onClose]);
-
-  if (!isOpen) return null;
-
-  // Overlay mode: fixed position with backdrop
-  if (isOverlay) {
-    return (
-      <>
-        {/* Backdrop */}
-        <div 
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
-          onClick={onClose}
-        />
-        
-        {/* Sidebar */}
-        <div className="fixed top-0 left-0 bottom-0 w-60 bg-background flex flex-col shrink-0 z-50 border-r border-border/50 shadow-2xl pt-12">
-          {renderContent()}
-        </div>
-      </>
-    );
-  }
-
-  // Normal mode: inline sidebar
   return (
-    <div className="w-60 bg-background flex flex-col shrink-0">
-      {renderContent()}
+    <div
+      className={cn(
+        "bg-background border-r border-border/50 flex flex-col py-2 gap-1 shrink-0 transition-all duration-200 overflow-hidden",
+        isExpanded ? "w-40 items-start px-2" : "w-10 items-center"
+      )}
+    >
+      {/* Coding session icon – visible when a match is open */}
+      {tabs.length > 0 && (
+        <button
+          onClick={onSwitchToCoding}
+          className={cn(
+            "h-7 rounded-md flex items-center gap-2 transition-colors shrink-0",
+            isExpanded ? "w-full px-2" : "w-7 justify-center",
+            isCoding
+              ? "bg-foreground/10 text-foreground"
+              : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+          )}
+          title={isExpanded ? undefined : "Coding session"}
+        >
+          <Activity className="w-4 h-4 shrink-0" />
+          {isExpanded && <span className="text-xs font-medium truncate">Coding</span>}
+        </button>
+      )}
+
+      <div className={cn("h-px bg-border/50 my-0.5 shrink-0", isExpanded ? "w-full" : "w-5")} />
+
+      {/* Navigation icons */}
+      <div className="flex flex-col gap-1 w-full">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = currentPage === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => onNavigate(item.id)}
+              className={cn(
+                "h-7 rounded-md flex items-center gap-2 transition-colors shrink-0",
+                isExpanded ? "w-full px-2" : "w-7 justify-center",
+                isActive
+                  ? "bg-foreground/10 text-foreground"
+                  : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+              )}
+              title={isExpanded ? undefined : item.label}
+            >
+              <Icon className="w-4 h-4 shrink-0" />
+              {isExpanded && <span className="text-xs font-medium truncate">{item.label}</span>}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Bottom: theme toggle + expand/collapse */}
+      <div className={cn("mt-auto flex flex-col gap-1 w-full", isExpanded ? "items-start" : "items-center")}>
+        <button
+          onClick={() => setIsDarkMode(!isDarkMode)}
+          className={cn(
+            "h-7 rounded-md flex items-center gap-2 text-muted-foreground hover:bg-foreground/5 hover:text-foreground transition-colors shrink-0",
+            isExpanded ? "w-full px-2" : "w-7 justify-center"
+          )}
+          title={isExpanded ? undefined : (isDarkMode ? "Switch to light mode" : "Switch to dark mode")}
+        >
+          {isDarkMode
+            ? <Sun className="w-4 h-4 shrink-0" />
+            : <Moon className="w-4 h-4 shrink-0" />}
+          {isExpanded && (
+            <span className="text-xs font-medium truncate">
+              {isDarkMode ? "Light mode" : "Dark mode"}
+            </span>
+          )}
+        </button>
+
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className={cn(
+            "h-7 rounded-md flex items-center gap-2 text-muted-foreground hover:bg-foreground/5 hover:text-foreground transition-colors shrink-0",
+            isExpanded ? "w-full px-2" : "w-7 justify-center"
+          )}
+          title={isExpanded ? undefined : "Expand sidebar"}
+        >
+          {isExpanded
+            ? <ChevronLeft className="w-4 h-4 shrink-0" />
+            : <ChevronRight className="w-4 h-4 shrink-0" />}
+          {isExpanded && <span className="text-xs font-medium truncate">Collapse</span>}
+        </button>
+      </div>
     </div>
   );
-
-  function renderContent() {
-    return (
-      <>
-      <div className="p-4 flex items-center gap-3">
-        <img 
-          src="/rhc_logo.png" 
-          alt="Richmond Hockey Club" 
-          className="w-10 h-10 rounded-lg"
-        />
-        <div>
-          <h1 className="text-base font-bold text-foreground">Richmond Hockey Club</h1>
-          <p className="text-xs text-muted-foreground">Geoffrey Sheir</p>
-        </div>
-      </div>
-
-      <nav className="flex-1 px-2 space-y-1 overflow-y-auto">
-        {/* Navigation items */}
-        <div className="space-y-1">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = currentPage === item.id;
-
-            return (
-              <button
-                key={item.id}
-                onClick={() => onNavigate(item.id)}
-                className={cn(
-                  "w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
-                  isActive
-                    ? "bg-foreground/10 text-foreground"
-                    : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
-                )}
-              >
-
-                <Icon className="w-4 h-4" />
-                {item.label}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Open matches section */}
-        {tabs.length > 0 && (
-          <>
-            <div className="pt-4 pb-2">
-              <div className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Open Matches
-              </div>
-            </div>
-            
-            <div className="space-y-1">
-              {tabs.map((tabData) => {
-                const isActive = activeTabId === tabData.tab.id && currentPage === null;
-
-                return (
-                  <div
-                    key={tabData.tab.id}
-                    className={cn(
-                      "group relative w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-all",
-                      isActive
-                        ? "bg-foreground/10 text-foreground"
-                        : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
-                    )}
-                  >
-                    <button
-                      onClick={() => onSwitchToTab(tabData.tab.id)}
-                      className="flex-1 flex items-center gap-2 text-left min-w-0"
-                    >
-                      <FileText className="w-4 h-4 shrink-0" />
-                      <span className="truncate text-xs flex-1 min-w-0">{tabData.tab.label}</span>
-                      {tabData.tab.isDirty && (
-                        <div className="w-2.5 h-2.5 bg-amber-500 rounded-full shrink-0" />
-                      )}
-                    </button>
-                    
-                    <button
-                      onClick={async (e) => {
-                        e.stopPropagation();
-                        
-                        // Check if tab has unsaved changes
-                        if (tabData.tab.isDirty) {
-                          try {
-                            const response = await showCloseTabDialog();
-                            
-                            if (response === 0) {
-                              // Save and Close
-                              await saveMatch(tabData.tab.id);
-                              closeTab(tabData.tab.id);
-                            } else if (response === 1) {
-                              // Discard Changes
-                              closeTab(tabData.tab.id);
-                            }
-                            // response === 2 is Cancel, do nothing
-                          } catch (error) {
-                            console.error("Error showing close tab dialog:", error);
-                            // Fallback: just close the tab
-                            closeTab(tabData.tab.id);
-                          }
-                        } else {
-                          // No unsaved changes, close directly
-                          closeTab(tabData.tab.id);
-                        }
-                      }}
-                      className={cn(
-                        "p-0.5 rounded hover:bg-muted transition-colors shrink-0",
-                        isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-                      )}
-                      aria-label="Close tab"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          </>
-        )}
-      </nav>
-
-      {/* Theme toggle */}
-      <div className="p-2">
-        <div className="flex items-center gap-2">
-          <Sun className="w-4 h-4 text-muted-foreground" />
-          <button
-            onClick={() => setIsDarkMode(!isDarkMode)}
-            className={cn(
-              "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-              isDarkMode ? "bg-primary" : "bg-input"
-            )}
-            aria-label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
-          >
-            <span
-              className={cn(
-                "inline-block h-4 w-4 transform rounded-full bg-background shadow-lg transition-transform",
-                isDarkMode ? "translate-x-6" : "translate-x-1"
-              )}
-            />
-          </button>
-          <Moon className="w-4 h-4 text-muted-foreground" />
-        </div>
-      </div>
-      </>
-    );
-  }
 }
+

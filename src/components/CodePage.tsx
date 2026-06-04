@@ -1,15 +1,13 @@
 // Main coding page
 import { useEffect, useState } from "react";
 import { ClockWidget } from "./ClockWidget";
-import { MatchDetailsCard } from "./MatchDetailsCard";
 import { ButtonGrid } from "./ButtonGrid";
 import { PhaseEfficiency } from "./PhaseEfficiency";
 import { PhaseTransition } from "./PhaseTransition";
 import { SaveIndicator } from "./SaveIndicator";
-import { Button } from "./ui/Button";
-import { Download, Trash2, Undo, Save, MoreVertical, ChevronDown, ChevronUp, Flag, AlertCircle } from "lucide-react";
+import { ChevronDown, ChevronUp, Flag, AlertCircle, Trash2 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
-import { ClockState, Match, PhaseStatus } from "@/lib/types";
+import { ClockState, Match, Phase, PhaseStatus } from "@/lib/types";
 import { GameClock } from "@/lib/clock";
 import { EventEngine } from "@/lib/event-engine";
 import { TimelineView } from "./TimelineView";
@@ -35,26 +33,25 @@ export function CodePage({
 }: CodePageProps) {
   const {
     buttonConfig,
-    exportXML,
-    clearAllPhases,
-    undoLastPhase,
-    saveMatch,
     tabs,
     startClock,
     pauseClock,
+    updatePhase,
+    deletePhase,
   } = useAppStore();
 
-  const [isNarrow, setIsNarrow] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [eventLogCollapsed, setEventLogCollapsed] = useState(false);
-  const [phaseEfficiencyCollapsed, setPhaseEfficiencyCollapsed] = useState(false);
-  const [eventLogHeight, setEventLogHeight] = useState(240);
+  const [eventLogHeight, setEventLogHeight] = useState(180);
   const [isResizingEventLog, setIsResizingEventLog] = useState(false);
   const [resizeStartY, setResizeStartY] = useState(0);
   const [resizeStartHeight, setResizeStartHeight] = useState(0);
   const [analyticsTab, setAnalyticsTab] = useState<'efficiency' | 'transition'>('efficiency');
-  const [panelView, setPanelView] = useState<'log' | 'timeline'>('log');
   const [timelineZoom, setTimelineZoom] = useState(1);
+  const [rightPanelTab, setRightPanelTab] = useState<'events' | 'analytics'>('events');
+  const [rightColWidth, setRightColWidth] = useState(300);
+  const [isResizingRightCol, setIsResizingRightCol] = useState(false);
+  const [resizeStartX, setResizeStartX] = useState(0);
+  const [resizeStartWidth, setResizeStartWidth] = useState(0);
 
   const phases = eventEngine.getAllPhases();
   const isRunning = clockState === ClockState.RUNNING;
@@ -79,22 +76,6 @@ export function CodePage({
   const activePhaseButton = activePhase?.phaseCode 
     ? buttonConfig.find(b => b.code === activePhase.phaseCode)
     : null;
-
-  // Detect narrow viewport
-  useEffect(() => {
-    const handleResize = () => {
-      const narrow = window.innerWidth < 1280;
-      setIsNarrow(narrow);
-      // Default to collapsed when narrow
-      if (narrow) {
-        setPhaseEfficiencyCollapsed(true);
-      }
-    };
-
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   // Shift+Space to toggle clock start/pause
   useEffect(() => {
@@ -155,6 +136,34 @@ export function CodePage({
     };
   }, [isResizingEventLog, resizeStartY, resizeStartHeight]);
 
+  // Handle right column resize
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizingRightCol) return;
+      const deltaX = resizeStartX - e.clientX;
+      const newWidth = resizeStartWidth + deltaX;
+      setRightColWidth(Math.max(220, Math.min(500, newWidth)));
+    };
+
+    const handleMouseUp = () => {
+      setIsResizingRightCol(false);
+    };
+
+    if (isResizingRightCol) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'ew-resize';
+      document.body.style.userSelect = 'none';
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isResizingRightCol, resizeStartX, resizeStartWidth]);
+
   const handleResizeStart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -163,179 +172,221 @@ export function CodePage({
     setIsResizingEventLog(true);
   };
 
+  const handleRightColResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setResizeStartX(e.clientX);
+    setResizeStartWidth(rightColWidth);
+    setIsResizingRightCol(true);
+  };
+
+  // Sorted phases for the compact right-panel event list (newest first)
+  const sortedPhases = [...phases].reverse();
+
+  const getPhaseStatusDot = (phase: Phase): string => {
+    if (phase.status === PhaseStatus.ENDED_UNDEFINED) return 'bg-amber-500';
+    if (phase.status === PhaseStatus.TERMINATED && !phase.terminationEvent) return 'bg-yellow-500';
+    if (phase.status === PhaseStatus.TERMINATED) {
+      if (phase.terminationCategory === 'success') return 'bg-green-500';
+      if (phase.terminationCategory === 'failure') return 'bg-red-500';
+      return 'bg-green-500';
+    }
+    if (phase.status === PhaseStatus.UNDEFINED) return 'bg-yellow-500';
+    if (phase.status === PhaseStatus.CLASSIFIED) return 'bg-blue-500';
+    return 'bg-gray-500';
+  };
+
+  const formatMs = (ms: number): string => {
+    const s = Math.floor(ms / 1000);
+    return `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
+  };
+
   return (
-    <div className="flex flex-col h-full p-4 gap-4">
-      {/* Top bar with clock and actions */}
-      <div className="flex items-center justify-between gap-4">
-        <ClockWidget
-          clockState={clockState}
-          currentTime={currentTime}
-          clock={clock}
+    <div className="flex flex-col h-full overflow-hidden">
+
+      {/* ── Main area: code window (left) | right column ──────────── */}
+      <div className="flex flex-1 min-h-0">
+
+        {/* Code window \u2013 fills all available horizontal space */}
+        <div className="flex flex-col flex-1 min-w-0">
+          <div className="px-3 py-1.5 border-b border-border/40 flex items-center bg-card/30 shrink-0">
+            <h3 className="font-semibold text-[10px] uppercase tracking-wider text-muted-foreground">Code Window</h3>
+            <span className="ml-auto text-[10px] text-muted-foreground/50">Shift+Space to start / pause</span>
+          </div>
+          <div className="flex-1 min-h-0 overflow-hidden relative">
+            <ButtonGrid
+              buttons={buttonConfig}
+              disabled={!isRunning}
+              activePhasePossession={activePhasePossession}
+            />
+          </div>
+        </div>
+
+        {/* Vertical resize handle */}
+        <div
+          className="w-1 shrink-0 bg-border/30 hover:bg-primary/40 cursor-ew-resize transition-colors"
+          onMouseDown={handleRightColResizeStart}
         />
 
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={undoLastPhase}
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            disabled={phases.length === 0}
-          >
-            <Undo className="w-3.5 h-3.5" />
-            Undo
-          </Button>
-
-          <Button
-            onClick={() => saveMatch(tabId)}
-            variant="attack"
-            size="sm"
-            className="gap-1.5 relative"
-            disabled={!isDirty}
-          >
-            {isDirty && (
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full" />
-            )}
-            <Save className="w-3.5 h-3.5" />
-            {isDirty ? "Save" : "Saved"}
-          </Button>
-
-          <Button
-            onClick={exportXML}
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            disabled={phases.length === 0}
-          >
-            <Download className="w-3.5 h-3.5" />
-            Export
-          </Button>
-
-          <div className="relative">
-            <Button
-              onClick={() => setMenuOpen(!menuOpen)}
-              variant="outline"
-              size="sm"
-            >
-              <MoreVertical className="w-3.5 h-3.5" />
-            </Button>
-
-            {menuOpen && (
-              <>
-                <div 
-                  className="fixed inset-0 z-10" 
-                  onClick={() => setMenuOpen(false)}
-                />
-                <div className="absolute right-0 top-full mt-1 z-20 w-40 bg-card border border-border rounded-lg shadow-lg overflow-hidden">
-                  <button
-                    onClick={() => {
-                      setMenuOpen(false);
-                      clearAllPhases();
-                    }}
-                    disabled={phases.length === 0}
-                    className="w-full px-3 py-2 text-left text-sm hover:bg-destructive/50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-white"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    Clear All Phases
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Match details card - full width */}
-      <MatchDetailsCard
-        tabId={tabId}
-        match={match}
-        clockState={clockState}
-      />
-
-      {/* Main content area - code window + placeholder card */}
-      <div className={`flex-1 ${isNarrow ? 'flex flex-col' : 'flex'} gap-4 min-h-0`}>
-        {/* Code window - fixed 720px width on desktop */}
-        <div className={isNarrow ? 'flex-1 min-h-0' : 'w-[720px] shrink-0'} >
-          <div className="h-full bg-card/70 backdrop-blur-sm rounded-xl border border-border/50 p-3 flex flex-col overflow-hidden">
-            <h3 className="font-semibold text-xs mb-3 text-muted-foreground">Code Window</h3>
-            <div className="relative flex-1 min-h-0">
-              <ButtonGrid 
-                buttons={buttonConfig} 
-                disabled={!isRunning}
-                activePhasePossession={activePhasePossession}
-              />
+        {/* Right column: Match Status + tabbed Events / Analytics */}
+        <div
+          className="flex flex-col shrink-0 min-h-0 border-l border-border/50"
+          style={{ width: rightColWidth }}
+        >
+          {/* Match Status panel */}
+          <div className="shrink-0 border-b border-border/50">
+            <div className="px-3 py-1.5 border-b border-border/40 bg-card/30">
+              <h3 className="font-semibold text-[10px] uppercase tracking-wider text-muted-foreground">Match Status</h3>
             </div>
-          </div>
-        </div>
+            <div className="p-3 flex flex-col gap-3">
+              {/* Clock and transport controls */}
+              <ClockWidget
+                clockState={clockState}
+                currentTime={currentTime}
+                clock={clock}
+              />
 
-        {/* Analytics panel */}
-        <div className={isNarrow ? 'shrink-0' : 'flex-1 min-h-0'}>
-          <div className={`h-full bg-card/70 backdrop-blur-sm rounded-xl border border-border/50 overflow-hidden ${isNarrow ? '' : 'p-3'} flex flex-col`}>
-            {/* Collapsible header when narrow */}
-            {isNarrow ? (
-              <>
-                <div 
-                  className="px-3 py-2 border-b border-border/40 flex items-center justify-between cursor-pointer hover:bg-accent/30 transition-colors"
-                  onClick={() => setPhaseEfficiencyCollapsed(!phaseEfficiencyCollapsed)}
-                >
-                  <h3 className="font-semibold text-xs text-muted-foreground">Analytics</h3>
-                  <button className="p-1 hover:bg-accent rounded">
-                    {phaseEfficiencyCollapsed ? (
-                      <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                    ) : (
-                      <ChevronUp className="w-4 h-4 text-muted-foreground" />
-                    )}
-                  </button>
-                </div>
-                {!phaseEfficiencyCollapsed && (
-                  <div className="flex-1 min-h-0 p-3 overflow-y-auto">
-                    {/* Tab buttons */}
-                    <div className="flex gap-2 mb-3 border-b border-border/40">
-                      <button
-                        onClick={() => setAnalyticsTab('efficiency')}
-                        className={`px-3 py-1.5 text-xs font-medium transition-colors relative ${
-                          analyticsTab === 'efficiency'
-                            ? 'text-foreground'
-                            : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                      >
-                        Phase Efficiency
-                        {analyticsTab === 'efficiency' && (
-                          <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
-                        )}
-                      </button>
-                      <button
-                        onClick={() => setAnalyticsTab('transition')}
-                        className={`px-3 py-1.5 text-xs font-medium transition-colors relative ${
-                          analyticsTab === 'transition'
-                            ? 'text-foreground'
-                            : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                      >
-                        Phase Transition
-                        {analyticsTab === 'transition' && (
-                          <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
-                        )}
-                      </button>
+              <div className="border-t border-border/40" />
+
+              {/* Active phase */}
+              <div>
+                <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Active Phase</div>
+                {activePhase ? (
+                  <div className="flex flex-col items-center gap-1">
+                    <div
+                      className="w-full px-4 py-2.5 rounded-lg text-base font-bold text-center relative"
+                      style={{
+                        backgroundColor: activePhaseButton?.style.colour || '#666',
+                        color: 'white',
+                      }}
+                    >
+                      {activePhase.phaseLabel || 'Undefined'}
+                      {activePhase.status === PhaseStatus.ENDED_UNDEFINED && (
+                        <div className="absolute -top-2 -right-2">
+                          <AlertCircle className="w-5 h-5 text-amber-500 bg-card rounded-full animate-pulse" />
+                        </div>
+                      )}
                     </div>
-                    
-                    {/* Tab content */}
-                    {analyticsTab === 'efficiency' ? (
-                      <div>
-                        <PhaseEfficiency phases={phases} />
-                      </div>
-                    ) : (
-                      <div>
-                        <PhaseTransition phases={phases} />
-                      </div>
+                    {activePhase.status === PhaseStatus.ENDED_UNDEFINED && (
+                      <span className="text-[10px] text-amber-500 font-medium">
+                        Select termination event
+                      </span>
                     )}
                   </div>
+                ) : (
+                  <div className="w-full px-4 py-2.5 rounded-lg text-xs text-muted-foreground/50 italic text-center border border-dashed border-border/40">
+                    No active phase
+                  </div>
+                )}
+              </div>
+
+              {/* Last terminated phase */}
+              {lastTerminatedPhase && (
+                <div className="flex items-center justify-between px-2.5 py-1.5 rounded-md bg-card/50 border border-border/40">
+                  <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/60">Last</span>
+                  <div className="text-xs">
+                    <span className="font-medium text-foreground/80">{lastTerminatedPhase.phaseLabel}</span>
+                    {lastTerminatedPhase.terminationEvent && (
+                      <span className="text-muted-foreground"> → {lastTerminatedPhase.terminationEvent}</span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Tab bar */}
+          <div className="flex items-center gap-0.5 px-2 py-1 border-b border-border/40 bg-card/30 shrink-0">
+            <div className="flex gap-0.5 border border-border/50 rounded-md p-0.5 bg-card/50">
+              <button
+                onClick={() => setRightPanelTab('events')}
+                className={`px-2.5 py-0.5 text-[11px] font-medium rounded transition-colors ${
+                  rightPanelTab === 'events'
+                    ? 'bg-primary/80 text-white'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Events
+              </button>
+              <button
+                onClick={() => setRightPanelTab('analytics')}
+                className={`px-2.5 py-0.5 text-[11px] font-medium rounded transition-colors ${
+                  rightPanelTab === 'analytics'
+                    ? 'bg-primary/80 text-white'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Analytics
+              </button>
+            </div>
+            <span className="ml-auto text-[10px] text-muted-foreground/60">{phases.length} phases</span>
+          </div>
+
+          {/* Right panel content */}
+          <div className="flex-1 min-h-0 overflow-auto">
+            {rightPanelTab === 'events' ? (
+              <>
+                {phases.length === 0 ? (
+                  <div className="flex items-center justify-center h-24 text-muted-foreground text-xs italic">
+                    No phases recorded yet.
+                  </div>
+                ) : (
+                  <table className="w-full text-xs">
+                    <thead className="sticky top-0 bg-card/95 backdrop-blur-sm border-b border-border/30">
+                      <tr>
+                        <th className="w-5 pl-2"></th>
+                        <th className="px-2 py-1.5 text-left font-medium text-muted-foreground text-[10px]">Time</th>
+                        <th className="px-2 py-1.5 text-left font-medium text-muted-foreground text-[10px]">Code</th>
+                        <th className="px-2 py-1.5 text-left font-medium text-muted-foreground text-[10px]">End</th>
+                        <th className="px-2 py-1.5 text-center font-medium text-muted-foreground text-[10px]">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sortedPhases.map((phase) => {
+                        const phaseBtn = buttonConfig.find(b => b.code === phase.phaseCode);
+                        const termColour =
+                          phase.terminationCategory === 'success' ? 'text-green-400' :
+                          phase.terminationCategory === 'failure' ? 'text-red-400' :
+                          'text-muted-foreground';
+                        return (
+                          <tr key={phase.id} className="border-b border-border/40 hover:bg-accent/30 transition-colors">
+                            <td className="pl-2 py-1.5">
+                              <div className={`w-1.5 h-1.5 rounded-full ${getPhaseStatusDot(phase)}`} />
+                            </td>
+                            <td className="px-2 py-1.5 font-mono">{formatMs(phase.startTimeMs)}</td>
+                            <td className="px-2 py-1.5 font-semibold" style={{ color: phaseBtn?.style.colour || undefined }}>
+                              {phase.phaseLabel || '\u2014'}
+                            </td>
+                            <td className={`px-2 py-1.5 ${termColour}`}>
+                              {phase.terminationEvent || '\u2014'}
+                            </td>
+                            <td className="px-1 py-1.5">
+                              <div className="flex items-center justify-center gap-1">
+                                <button
+                                  onClick={() => updatePhase(phase.id, { needsReview: !phase.needsReview })}
+                                  className={`p-1 rounded hover:bg-accent/50 transition-colors ${phase.needsReview ? 'text-amber-500' : 'text-muted-foreground'}`}
+                                  title={phase.needsReview ? 'Remove review flag' : 'Flag for review'}
+                                >
+                                  <Flag className="w-3 h-3" fill={phase.needsReview ? 'currentColor' : 'none'} />
+                                </button>
+                                <button
+                                  onClick={() => { if (confirm(`Delete phase "${phase.phaseLabel || 'Undefined'}"?`)) deletePhase(phase.id); }}
+                                  className="p-1 rounded hover:bg-destructive/50 transition-colors text-muted-foreground hover:text-destructive"
+                                  title="Delete phase"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 )}
               </>
             ) : (
-              <>
-                <h3 className="font-semibold text-xs mb-3 text-muted-foreground">Analytics</h3>
-                
-                {/* Tab buttons */}
+              <div className="p-3">
                 <div className="flex gap-2 mb-3 border-b border-border/40">
                   <button
                     onClick={() => setAnalyticsTab('efficiency')}
@@ -364,435 +415,62 @@ export function CodePage({
                     )}
                   </button>
                 </div>
-                
-                {/* Tab content */}
-                <div className="flex-1 min-h-0 overflow-y-auto">
-                  {analyticsTab === 'efficiency' ? (
-                    <div>
-                      <PhaseEfficiency phases={phases} />
-                    </div>
-                  ) : (
-                    <div>
-                      <PhaseTransition phases={phases} />
-                    </div>
-                  )}
-                </div>
-              </>
+                {analyticsTab === 'efficiency' ? (
+                  <PhaseEfficiency phases={phases} />
+                ) : (
+                  <PhaseTransition phases={phases} />
+                )}
+              </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* Collapsible Event Log Panel at bottom */}
-      <div className="shrink-0">
-        <div className="bg-card/80 backdrop-blur-sm rounded-xl border border-border/50 overflow-hidden">
-          {/* Resize handle */}
-          {!eventLogCollapsed && (
-            <div
-              className="h-1 bg-border/30 hover:bg-primary/50 cursor-ns-resize transition-colors relative group"
-              onMouseDown={handleResizeStart}
+      {/* ── Bottom panel resize handle ─────────────────────────────── */}
+      {!eventLogCollapsed && (
+        <div
+          className="h-1 bg-border/30 hover:bg-primary/50 cursor-ns-resize transition-colors shrink-0"
+          onMouseDown={handleResizeStart}
+        />
+      )}
+
+      {/* ── Bottom panel: Timeline ─────────────────────────────────── */}
+      <div className="shrink-0 border-t border-border/50">
+        {/* Header */}
+        <div
+          className="px-3 py-1.5 flex items-center gap-3 cursor-pointer hover:bg-accent/20 transition-colors bg-card/30"
+          onClick={() => setEventLogCollapsed(!eventLogCollapsed)}
+        >
+          <span className="text-[11px] font-medium text-muted-foreground">Timeline</span>
+
+          <div className="ml-auto flex items-center gap-3">
+            <SaveIndicator tabId={tabId} />
+            <button
+              className="p-0.5 hover:bg-accent rounded"
+              onClick={e => { e.stopPropagation(); setEventLogCollapsed(!eventLogCollapsed); }}
             >
-              {/* Visual indicator */}
-              <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-1 bg-primary/0 group-hover:bg-primary/30 transition-colors" />
-            </div>
-          )}
-          
-          {/* Header with collapse toggle */}
-          <div 
-            className="px-3 py-3 border-b border-border/40 flex items-center justify-between gap-4 cursor-pointer hover:bg-accent/30 transition-colors"
-            onClick={() => setEventLogCollapsed(!eventLogCollapsed)}
-          >
-            {/* Left: view tab toggle + phase count */}
-            <div className="flex items-center gap-3 shrink-0" onClick={e => e.stopPropagation()}>
-              <div className="flex gap-0.5 border border-border/50 rounded-md p-0.5 bg-card/50">
-                <button
-                  onClick={() => setPanelView('log')}
-                  className={`px-2.5 py-0.5 text-[11px] font-medium rounded transition-colors ${
-                    panelView === 'log'
-                      ? 'bg-primary/80 text-white'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  Log
-                </button>
-                <button
-                  onClick={() => setPanelView('timeline')}
-                  className={`px-2.5 py-0.5 text-[11px] font-medium rounded transition-colors ${
-                    panelView === 'timeline'
-                      ? 'bg-primary/80 text-white'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  Timeline
-                </button>
-              </div>
-              <p className="text-[10px] text-muted-foreground/70">{phases.length} phases</p>
-            </div>
-            
-            {/* Center: Currently active phase (prominent) */}
-            <div className="flex-1 flex items-center justify-center">
-              {activePhase ? (
-                <div className="flex flex-col items-center gap-1">
-                  <div 
-                    className="px-6 py-3 rounded-lg text-lg font-bold shadow-md min-w-[120px] text-center relative"
-                    style={{ 
-                      backgroundColor: activePhaseButton?.style.colour || '#666',
-                      color: 'white'
-                    }}
-                  >
-                    {activePhase.phaseLabel || 'Undefined'}
-                    {activePhase.status === PhaseStatus.ENDED_UNDEFINED && (
-                      <div className="absolute -top-2 -right-2">
-                        <div className="relative">
-                          <AlertCircle className="w-5 h-5 text-amber-500 bg-card rounded-full animate-pulse" />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  {activePhase.status === PhaseStatus.ENDED_UNDEFINED && (
-                    <span className="text-[10px] text-amber-500 font-medium">
-                      Select termination event
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <div className="text-xs text-muted-foreground/40 italic">No active phase</div>
-              )}
-            </div>
-            
-            {/* Right: Last terminated phase + collapse button */}
-            <div className="flex items-center gap-3 shrink-0">
-              {lastTerminatedPhase && (
-                <div className="flex flex-col gap-1 items-end">
-                  <span className="text-[9px] text-muted-foreground/50 uppercase tracking-wide">Last:</span>
-                  <div className="flex flex-col items-end">
-                    <span className="text-[11px] text-muted-foreground font-medium">
-                      {lastTerminatedPhase.phaseLabel || 'Undefined'}
-                    </span>
-                    {lastTerminatedPhase.terminationEvent && (
-                      <span className="text-[9px] text-muted-foreground/60">
-                        → {lastTerminatedPhase.terminationEvent}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )}
-              
-              <button className="p-1 hover:bg-accent rounded">
-                {eventLogCollapsed ? (
-                  <ChevronUp className="w-4 h-4 text-muted-foreground" />
-                ) : (
-                  <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                )}
-              </button>
-            </div>
+              {eventLogCollapsed
+                ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" />
+                : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
+            </button>
           </div>
-
-          {/* Panel content – resizable height */}
-          {!eventLogCollapsed && (
-            <div
-              style={{ height: `${eventLogHeight}px` }}
-              className={panelView === 'log' ? 'overflow-auto' : 'overflow-hidden'}
-            >
-              {panelView === 'log' ? (
-                <>
-                  <table className="w-full text-xs">
-                    <thead className="sticky top-0 bg-card/90 backdrop-blur-sm border-b border-border/30">
-                      <tr>
-                        <th className="w-6"></th>
-                        <th className="px-3 py-1.5 text-left font-medium text-muted-foreground text-xs">
-                          Time
-                        </th>
-                        <th className="px-3 py-1.5 text-left font-medium text-muted-foreground text-xs">
-                          Code
-                        </th>
-                        <th className="px-3 py-1.5 text-left font-medium text-muted-foreground text-xs">
-                          Context
-                        </th>
-                        <th className="px-3 py-1.5 text-left font-medium text-muted-foreground text-xs">
-                          Termination
-                        </th>
-                        <th className="px-3 py-1.5 text-center font-medium text-muted-foreground text-xs">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <EventLogRows phases={phases} />
-                    </tbody>
-                  </table>
-                  {phases.length === 0 && (
-                    <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
-                      No phases recorded yet.
-                    </div>
-                  )}
-                </>
-              ) : (
-                <TimelineView
-                  phases={phases}
-                  buttonConfig={buttonConfig}
-                  zoomLevel={timelineZoom}
-                  onZoomChange={setTimelineZoom}
-                  currentTimeMs={clock.currentTimeMs()}
-                />
-              )}
-            </div>
-          )}
         </div>
+
+        {/* Timeline content */}
+        {!eventLogCollapsed && (
+          <div style={{ height: `${eventLogHeight}px` }} className="overflow-hidden">
+            <TimelineView
+              phases={phases}
+              buttonConfig={buttonConfig}
+              zoomLevel={timelineZoom}
+              onZoomChange={setTimelineZoom}
+              currentTimeMs={clock.currentTimeMs()}
+            />
+          </div>
+        )}
       </div>
 
-      {/* Helper text */}
-      <div className="flex items-center justify-between">
-        <SaveIndicator tabId={tabId} />
-        <div className="w-32" /> {/* Spacer for alignment */}
-      </div>
     </div>
   );
 }
 
-// Separate component for event log rows
-function EventLogRows({ phases }: { phases: any[] }) {
-  const { buttonConfig, updatePhase, deletePhase } = useAppStore();
-  const [editingCell, setEditingCell] = useState<{ phaseId: number; field: string } | null>(null);
-  const [editValue, setEditValue] = useState("");
-
-  const toggleReview = (phaseId: number, currentValue: boolean | undefined) => {
-    updatePhase(phaseId, { needsReview: !currentValue });
-  };
-
-  const handleDelete = (phaseId: number, phaseLabel: string | null) => {
-    if (confirm(`Delete phase "${phaseLabel || 'Undefined'}"?`)) {
-      deletePhase(phaseId);
-    }
-  };
-
-  // Show newest first
-  const sortedPhases = [...phases].reverse();
-
-  const phaseButtons = buttonConfig.filter((b) => b.type === "phase");
-  const terminationButtons = buttonConfig.filter((b) => b.type === "termination");
-
-  const startEditing = (phaseId: number, field: string, currentValue: string) => {
-    setEditingCell({ phaseId, field });
-    setEditValue(currentValue);
-  };
-
-  const saveEdit = () => {
-    if (!editingCell) return;
-
-    const { phaseId, field } = editingCell;
-
-    if (field === "phaseLabel") {
-      const button = phaseButtons.find((b) => b.label === editValue);
-      if (button) {
-        updatePhase(phaseId, {
-          phaseLabel: button.label,
-          phaseCode: button.code,
-          status: "classified" as any,
-        });
-      }
-    } else if (field === "contextLabels") {
-      const labels = editValue
-        .split(",")
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0);
-      updatePhase(phaseId, { contextLabels: labels });
-    } else if (field === "terminationEvent") {
-      const button = terminationButtons.find((b) => b.label === editValue);
-      if (button) {
-        updatePhase(phaseId, {
-          terminationEvent: button.label,
-          terminationCategory: button.category || null,
-          status: "terminated" as any,
-        });
-      } else if (editValue === "") {
-        updatePhase(phaseId, {
-          terminationEvent: null,
-          terminationCategory: null,
-          status: "classified" as any,
-        });
-      }
-    }
-
-    setEditingCell(null);
-    setEditValue("");
-  };
-
-  const cancelEdit = () => {
-    setEditingCell(null);
-    setEditValue("");
-  };
-
-  const getDotColor = (phase: any) => {
-    // ENDED_UNDEFINED - phase ended with Space but no termination selected
-    if (phase.status === "ended_undefined") {
-      return "bg-amber-500";
-    }
-    
-    // If terminated with null termination (shouldn't happen with new system, but keep for compatibility)
-    if (phase.status === "terminated" && !phase.terminationEvent) {
-      return "bg-yellow-500";
-    }
-    
-    if (phase.status === "terminated") {
-      if (phase.terminationCategory === "success") {
-        return "bg-green-500";
-      } else if (phase.terminationCategory === "failure") {
-        return "bg-red-500";
-      }
-      return "bg-green-500";
-    }
-    
-    if (phase.status === "undefined") {
-      return "bg-yellow-500";
-    } else if (phase.status === "classified") {
-      return "bg-blue-500";
-    }
-    
-    return "bg-gray-500";
-  };
-
-  const formatTime = (ms: number): string => {
-    const totalSeconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes.toString().padStart(2, "0")}:${seconds
-      .toString()
-      .padStart(2, "0")}`;
-  };
-
-  const cn = (...classes: (string | boolean | undefined)[]) => {
-    return classes.filter(Boolean).join(' ');
-  };
-
-  return (
-    <>
-      {sortedPhases.map((phase) => (
-        <tr
-          key={phase.id}
-          className={cn(
-            "border-b border-border/50 hover:bg-accent/50 transition-colors",
-            phase.status === "undefined" && "bg-yellow-500/10",
-            phase.status === "classified" && "bg-blue-500/10",
-            phase.status === "terminated" && !phase.terminationEvent && "bg-yellow-500/20"
-          )}
-        >
-          <td className="px-3 py-1.5">
-            <div
-              className={cn(
-                "w-2 h-2 rounded-full",
-                getDotColor(phase)
-              )}
-            />
-          </td>
-          <td className="px-3 py-1.5 font-mono text-xs">
-            {formatTime(phase.startTimeMs)}
-          </td>
-          <td 
-            className="px-3 py-1.5 font-medium text-xs cursor-pointer hover:bg-accent/30 group relative"
-            onClick={() => startEditing(phase.id, "phaseLabel", phase.phaseLabel || "")}
-          >
-            {editingCell?.phaseId === phase.id && editingCell?.field === "phaseLabel" ? (
-              <select
-                value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
-                onBlur={saveEdit}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") saveEdit();
-                  if (e.key === "Escape") cancelEdit();
-                }}
-                autoFocus
-                className="w-full px-1 py-0.5 text-xs bg-background border border-border rounded"
-              >
-                <option value="">Undefined</option>
-                {phaseButtons.map((btn) => (
-                  <option key={btn.code} value={btn.label}>
-                    {btn.label}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <>
-                {phase.phaseLabel || "Undefined"}
-              </>
-            )}
-          </td>
-          <td 
-            className="px-3 py-1.5 text-xs text-muted-foreground cursor-pointer hover:bg-accent/30 group relative"
-            onClick={() => startEditing(phase.id, "contextLabels", phase.contextLabels.join(", "))}
-          >
-            {editingCell?.phaseId === phase.id && editingCell?.field === "contextLabels" ? (
-              <input
-                type="text"
-                value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
-                onBlur={saveEdit}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") saveEdit();
-                  if (e.key === "Escape") cancelEdit();
-                }}
-                autoFocus
-                placeholder="Comma-separated labels"
-                className="w-full px-1 py-0.5 text-xs bg-background border border-border rounded"
-              />
-            ) : (
-              <>
-                {phase.contextLabels.join(", ") || "–"}
-              </>
-            )}
-          </td>
-          <td 
-            className="px-3 py-1.5 text-xs text-muted-foreground cursor-pointer hover:bg-accent/30 group relative"
-            onClick={() => startEditing(phase.id, "terminationEvent", phase.terminationEvent || "")}
-          >
-            {editingCell?.phaseId === phase.id && editingCell?.field === "terminationEvent" ? (
-              <select
-                value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
-                onBlur={saveEdit}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") saveEdit();
-                  if (e.key === "Escape") cancelEdit();
-                }}
-                autoFocus
-                className="w-full px-1 py-0.5 text-xs bg-background border border-border rounded"
-              >
-                <option value="">–</option>
-                {terminationButtons.map((btn) => (
-                  <option key={btn.code} value={btn.label}>
-                    {btn.label}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <>
-                {phase.status === "terminated" && !phase.terminationEvent ? "?" : (phase.terminationEvent || "–")}
-              </>
-            )}
-          </td>
-          <td className="px-3 py-1.5">
-            <div className="flex items-center justify-end gap-2">
-              <button
-                onClick={() => toggleReview(phase.id, phase.needsReview)}
-                className={cn(
-                  "p-1 rounded hover:bg-accent/50 transition-colors",
-                  phase.needsReview && "text-amber-500"
-                )}
-                title={phase.needsReview ? "Remove review flag" : "Mark for review"}
-              >
-                <Flag className="w-3.5 h-3.5" fill={phase.needsReview ? "currentColor" : "none"} />
-              </button>
-              <button
-                onClick={() => handleDelete(phase.id, phase.phaseLabel)}
-                className="p-1 rounded hover:bg-destructive/50 transition-colors text-destructive"
-                title="Delete phase"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </td>
-        </tr>
-      ))}
-    </>
-  );
-}
