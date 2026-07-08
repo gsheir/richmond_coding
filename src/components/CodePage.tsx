@@ -5,7 +5,8 @@ import { ButtonGrid } from "./ButtonGrid";
 import { PhaseEfficiency } from "./PhaseEfficiency";
 import { PhaseTransition } from "./PhaseTransition";
 import { SaveIndicator } from "./SaveIndicator";
-import { ChevronDown, ChevronUp, Flag, AlertCircle, Trash2 } from "lucide-react";
+import { TimelineShiftModal } from "./TimelineShiftModal";
+import { ChevronDown, ChevronUp, Flag, AlertCircle, Trash2, Clock as ClockIcon, Undo2 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { ClockState, Match, Phase, PhaseStatus } from "@/lib/types";
 import { GameClock } from "@/lib/clock";
@@ -35,12 +36,15 @@ export function CodePage({
     buttonConfig,
     tabs,
     startClock,
-    pauseClock,
+    stopClock,
     updatePhase,
     deletePhase,
+    shiftTimeline,
+    undoTimelineShift,
   } = useAppStore();
 
   const [eventLogCollapsed, setEventLogCollapsed] = useState(false);
+  const [shiftModalOpen, setShiftModalOpen] = useState(false);
   const [eventLogHeight, setEventLogHeight] = useState(180);
   const [isResizingEventLog, setIsResizingEventLog] = useState(false);
   const [resizeStartY, setResizeStartY] = useState(0);
@@ -90,9 +94,9 @@ export function CodePage({
           return;
         }
         
-        // Toggle between start and pause based on current state
+        // Toggle between start and stop based on current state
         if (clockState === ClockState.RUNNING) {
-          pauseClock();
+          stopClock();
         } else {
           startClock();
         }
@@ -101,7 +105,7 @@ export function CodePage({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [clockState, startClock, pauseClock]);
+  }, [clockState, startClock, stopClock]);
 
   // Handle event log resize
   useEffect(() => {
@@ -211,7 +215,7 @@ export function CodePage({
         <div className="flex flex-col flex-1 min-w-0">
           <div className="px-3 py-1.5 border-b border-border/40 flex items-center bg-card/30 shrink-0">
             <h3 className="font-semibold text-[10px] uppercase tracking-wider text-muted-foreground">Code Window</h3>
-            <span className="ml-auto text-[10px] text-muted-foreground/50">Shift+Space to start / pause</span>
+            <span className="ml-auto text-[10px] text-muted-foreground/50">Shift+Space to start / stop</span>
           </div>
           <div className="flex-1 min-h-0 overflow-hidden relative">
             <ButtonGrid
@@ -442,8 +446,31 @@ export function CodePage({
           onClick={() => setEventLogCollapsed(!eventLogCollapsed)}
         >
           <span className="text-[11px] font-medium text-muted-foreground">Timeline</span>
+          {tabData?.match.timelineOffsetMs ? (
+            <span className="text-[10px] text-muted-foreground/60">
+              (shifted {tabData.match.timelineOffsetMs > 0 ? "+" : ""}{(tabData.match.timelineOffsetMs / 1000).toFixed(1)}s)
+            </span>
+          ) : null}
 
           <div className="ml-auto flex items-center gap-3">
+            {tabData?.lastTimelineShiftMs !== null && tabData?.lastTimelineShiftMs !== undefined && (
+              <button
+                className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                title="Undo timeline shift"
+                onClick={e => { e.stopPropagation(); undoTimelineShift(); }}
+              >
+                <Undo2 className="w-3 h-3" />
+                Undo shift
+              </button>
+            )}
+            <button
+              className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+              title="Shift timeline to sync with video"
+              onClick={e => { e.stopPropagation(); setShiftModalOpen(true); }}
+            >
+              <ClockIcon className="w-3 h-3" />
+              Shift timeline
+            </button>
             <SaveIndicator tabId={tabId} />
             <button
               className="p-0.5 hover:bg-accent rounded"
@@ -469,6 +496,13 @@ export function CodePage({
           </div>
         )}
       </div>
+
+      <TimelineShiftModal
+        isOpen={shiftModalOpen}
+        onClose={() => setShiftModalOpen(false)}
+        currentOffsetMs={tabData?.match.timelineOffsetMs || 0}
+        onApply={(deltaSeconds) => shiftTimeline(deltaSeconds * 1000)}
+      />
 
     </div>
   );

@@ -21,6 +21,7 @@ export class EventEngine {
   private phaseClassifiedListeners: ((phase: Phase) => void)[];
   private phaseTerminatedListeners: ((phase: Phase) => void)[];
   private lastPhaseWithUndefinedTermination: Phase | null;
+  private preShiftSnapshot: Phase[] | null;
 
   constructor(clock: GameClock) {
     this.clock = clock;
@@ -32,6 +33,7 @@ export class EventEngine {
     this.phaseClassifiedListeners = [];
     this.phaseTerminatedListeners = [];
     this.lastPhaseWithUndefinedTermination = null;
+    this.preShiftSnapshot = null;
   }
 
   setButtonConfig(buttons: ButtonConfig[]): void {
@@ -338,17 +340,48 @@ export class EventEngine {
     return true;
   }
 
+  // Shifts every phase's start/end timestamps by a fixed delta – used to
+  // align a timeline coded live against a real clock with a video's timeline.
+  shiftAllPhaseTimestamps(deltaMs: number): void {
+    this.preShiftSnapshot = this.phases.map((p) => ({ ...p }));
+
+    this.phases = this.phases.map((phase) => ({
+      ...phase,
+      startTimeMs: Math.max(0, phase.startTimeMs + deltaMs),
+      endTimeMs: phase.endTimeMs !== null ? Math.max(0, phase.endTimeMs + deltaMs) : null,
+    }));
+
+    if (this.activePhase) {
+      this.activePhase = this.phases.find((p) => p.id === this.activePhase!.id) || null;
+    }
+  }
+
+  undoTimelineShift(): boolean {
+    if (!this.preShiftSnapshot) return false;
+
+    this.phases = this.preShiftSnapshot;
+    this.preShiftSnapshot = null;
+
+    if (this.activePhase) {
+      this.activePhase = this.phases.find((p) => p.id === this.activePhase!.id) || null;
+    }
+
+    return true;
+  }
+
   clearAll(): void {
     this.phases = [];
     this.activePhase = null;
     this.nextPhaseId = 0;
     this.lastPhaseWithUndefinedTermination = null;
+    this.preShiftSnapshot = null;
   }
 
   loadPhases(phases: Phase[]): void {
     this.phases = [...phases];
     this.nextPhaseId = phases.length > 0 ? Math.max(...phases.map((p) => p.id)) + 1 : 0;
     this.activePhase = null;
+    this.preShiftSnapshot = null;
     this.lastPhaseWithUndefinedTermination = null;
   }
 

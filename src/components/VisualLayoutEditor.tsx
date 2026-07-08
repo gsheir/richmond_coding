@@ -1,5 +1,6 @@
 // Visual Layout Editor - drag-and-drop interface for button configuration
 import { useState, useRef, useEffect, DragEvent, MouseEvent } from "react";
+import { createPortal } from "react-dom";
 import { ButtonConfig } from "@/lib/types";
 import { Plus, Edit2, Trash2, AlertCircle, RotateCcw, GripVertical, AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, ChevronDown } from "lucide-react";
 import { Button } from "./ui/Button";
@@ -1544,7 +1545,7 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
       />
 
       {/* Reset Confirmation Dialog */}
-      {showResetConfirm && (
+      {showResetConfirm && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="bg-card border border-border rounded-xl p-6 max-w-md mx-4 shadow-2xl">
             <div className="flex items-start gap-3 mb-4">
@@ -1559,16 +1560,16 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
               </div>
             </div>
             <div className="flex gap-2 justify-end">
-              <Button 
-                onClick={() => setShowResetConfirm(false)} 
-                size="sm" 
+              <Button
+                onClick={() => setShowResetConfirm(false)}
+                size="sm"
                 variant="outline"
               >
                 Cancel
               </Button>
-              <Button 
-                onClick={handleResetConfig} 
-                size="sm" 
+              <Button
+                onClick={handleResetConfig}
+                size="sm"
                 variant="destructive"
                 disabled={saveStatus === "saving"}
               >
@@ -1576,7 +1577,8 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
               </Button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

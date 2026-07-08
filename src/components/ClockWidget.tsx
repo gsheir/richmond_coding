@@ -1,5 +1,5 @@
 // Clock display and controls
-import { Play, Pause, SkipBack, SkipForward, FastForward, Rewind } from "lucide-react";
+import { Play, Square, SkipBack, SkipForward, FastForward, Rewind } from "lucide-react";
 import { Button } from "./ui/Button";
 import { useAppStore } from "@/lib/store";
 import { ClockState } from "@/lib/types";
@@ -13,12 +13,12 @@ interface ClockWidgetProps {
 }
 
 export function ClockWidget({ clockState, currentTime, clock }: ClockWidgetProps) {
-  const { 
-    startClock, 
-    pauseClock, 
-    skipToStart, 
-    skipBack, 
-    skipForward, 
+  const {
+    startClock,
+    stopClock,
+    skipToStart,
+    skipBack,
+    skipForward,
     skipToEnd,
     jumpToTime,
   } = useAppStore();
@@ -77,13 +77,13 @@ export function ClockWidget({ clockState, currentTime, clock }: ClockWidgetProps
             </Button>
           ) : (
             <Button
-              onClick={pauseClock}
+              onClick={stopClock}
               variant="destructive"
               size="sm"
               className="gap-1 px-2"
             >
-              <Pause className="w-3.5 h-3.5" />
-              Pause
+              <Square className="w-3.5 h-3.5" />
+              Stop
             </Button>
           )}
         </div>

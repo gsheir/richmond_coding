@@ -17,20 +17,26 @@ interface InstanceData {
 
 export function exportToSportscodeXML(match: Match, buttonConfig: ButtonConfig[]): string {
   const { phases } = match;
-  
+
+  const buttonsByCode: Record<string, ButtonConfig> = {};
+  buttonConfig.forEach((btn) => {
+    buttonsByCode[btn.code] = btn;
+  });
+
   // Generate instances for both phases and termination events
   const allInstances: InstanceData[] = [];
-  
+
   phases
     .filter((phase) => phase.phaseCode !== null && phase.endTimeMs !== null)
     .forEach((phase) => {
       // Add phase instance
       const phaseInstance = generatePhaseInstance(phase);
       allInstances.push(phaseInstance);
-      
+
       // Add termination event instance if it exists
       if (phase.terminationEvent) {
-        const terminationInstance = generateTerminationInstance(phase);
+        const terminationButton = buttonsByCode[phase.terminationEvent];
+        const terminationInstance = generateTerminationInstance(phase, terminationButton);
         allInstances.push(terminationInstance);
       }
     });
@@ -86,10 +92,12 @@ function generatePhaseInstance(phase: Phase): InstanceData {
   };
 }
 
-function generateTerminationInstance(phase: Phase): InstanceData {
+function generateTerminationInstance(phase: Phase, terminationButton?: ButtonConfig): InstanceData {
   const code = phase.terminationEvent!;
-  const start = phase.endTimeMs! / 1000.0;
-  const end = (phase.endTimeMs! + phase.lagMs) / 1000.0;
+  const leadMs = terminationButton?.leadMs ?? phase.leadMs;
+  const lagMs = terminationButton?.lagMs ?? phase.lagMs;
+  const start = Math.max(0, phase.endTimeMs! - leadMs) / 1000.0;
+  const end = (phase.endTimeMs! + lagMs) / 1000.0;
   
   const labels: Array<{ group: string; text: string }> = [
     { group: "Terminated Phase", text: phase.phaseCode! },

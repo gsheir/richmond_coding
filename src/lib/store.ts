@@ -7,7 +7,6 @@ import {
   Phase,
   Tab,
   ButtonConfig,
-  ClockMode,
   ClockState,
   createMatch,
   generateMatchId,
@@ -32,6 +31,7 @@ interface TabData {
   clockState: ClockState;
   currentTime: string;
   activePhaseId: number | null;
+  lastTimelineShiftMs: number | null;
 }
 
 interface AppState {
@@ -64,7 +64,6 @@ interface AppState {
   
   // Clock actions (operate on active tab)
   startClock: () => void;
-  pauseClock: () => void;
   stopClock: () => void;
   skipToStart: () => void;
   skipBack: (seconds?: number) => void;
@@ -72,6 +71,8 @@ interface AppState {
   skipToEnd: () => void;
   jumpToTime: (timeMs: number) => void;
   updateClockDisplays: () => void;
+  shiftTimeline: (deltaMs: number) => void;
+  undoTimelineShift: () => void;
   
   // Match actions
   createNewMatch: (date: string, homeTeam: string, awayTeam: string) => Promise<void>;
@@ -98,7 +99,7 @@ interface AppState {
 
 export const useAppStore = create<AppState>((set, get) => {
   const createTabData = (match: Match): TabData => {
-    const clock = new GameClock(ClockMode.RETROSPECTIVE);
+    const clock = new GameClock();
     const eventEngine = new EventEngine(clock);
     
     // Set button config if available
@@ -124,10 +125,8 @@ export const useAppStore = create<AppState>((set, get) => {
         };
         set({ tabs: updatedTabs });
         
-        // Save match when clock starts, stops, or is paused
-        if (state === ClockState.RUNNING || state === ClockState.STOPPED || state === ClockState.PAUSED) {
-          get().saveMatch(updatedTabs[tabIndex].tab.id);
-        }
+        // Save match when clock starts or stops
+        get().saveMatch(updatedTabs[tabIndex].tab.id);
       }
     });
     
@@ -147,6 +146,7 @@ export const useAppStore = create<AppState>((set, get) => {
       clockState: ClockState.STOPPED,
       currentTime: "00:00",
       activePhaseId: null,
+      lastTimelineShiftMs: null,
     };
   };
   
@@ -351,12 +351,6 @@ export const useAppStore = create<AppState>((set, get) => {
       activeTab.clock.start();
     },
     
-    pauseClock: () => {
-      const activeTab = get().getActiveTab();
-      if (!activeTab) return;
-      activeTab.clock.pause();
-    },
-    
     stopClock: () => {
       const activeTab = get().getActiveTab();
       if (!activeTab) return;
@@ -407,7 +401,59 @@ export const useAppStore = create<AppState>((set, get) => {
       });
       set({ tabs: updatedTabs });
     },
-    
+
+    shiftTimeline: (deltaMs: number) => {
+      const activeTab = get().getActiveTab();
+      if (!activeTab) return;
+
+      activeTab.eventEngine.shiftAllPhaseTimestamps(deltaMs);
+
+      const updatedMatch = {
+        ...activeTab.match,
+        timelineOffsetMs: (activeTab.match.timelineOffsetMs || 0) + deltaMs,
+      };
+
+      const tabs = get().tabs;
+      const tabIndex = tabs.findIndex(t => t.tab.id === activeTab.tab.id);
+      if (tabIndex !== -1) {
+        const newTabs = [...tabs];
+        newTabs[tabIndex] = {
+          ...newTabs[tabIndex],
+          match: updatedMatch,
+          lastTimelineShiftMs: deltaMs,
+        };
+        set({ tabs: newTabs });
+      }
+
+      get().markActiveTabDirty();
+    },
+
+    undoTimelineShift: () => {
+      const activeTab = get().getActiveTab();
+      if (!activeTab || activeTab.lastTimelineShiftMs === null) return;
+
+      if (!activeTab.eventEngine.undoTimelineShift()) return;
+
+      const updatedMatch = {
+        ...activeTab.match,
+        timelineOffsetMs: (activeTab.match.timelineOffsetMs || 0) - activeTab.lastTimelineShiftMs,
+      };
+
+      const tabs = get().tabs;
+      const tabIndex = tabs.findIndex(t => t.tab.id === activeTab.tab.id);
+      if (tabIndex !== -1) {
+        const newTabs = [...tabs];
+        newTabs[tabIndex] = {
+          ...newTabs[tabIndex],
+          match: updatedMatch,
+          lastTimelineShiftMs: null,
+        };
+        set({ tabs: newTabs });
+      }
+
+      get().markActiveTabDirty();
+    },
+
     createNewMatch: async (date, homeTeam, awayTeam) => {
       const id = generateMatchId(date, homeTeam, awayTeam);
       const match = createMatch(id, date, homeTeam, awayTeam);

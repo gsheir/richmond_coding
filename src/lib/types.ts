@@ -13,15 +13,9 @@ export enum PhaseStatus {
   TERMINATED = "terminated",
 }
 
-export enum ClockMode {
-  LIVE = "live",
-  RETROSPECTIVE = "retrospective",
-}
-
 export enum ClockState {
   STOPPED = "stopped",
   RUNNING = "running",
-  PAUSED = "paused",
 }
 
 export interface Phase {
@@ -49,6 +43,7 @@ export interface Match {
   createdAt: string;
   modifiedAt: string;
   clockTimeMs?: number;
+  timelineOffsetMs?: number;
 }
 
 export interface Tab {

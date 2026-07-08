@@ -1,27 +1,21 @@
 // Game clock for Richmond Hockey coding app
-import { ClockMode, ClockState } from "./types";
+import { ClockState } from "./types";
 
 export class GameClock {
-  private mode: ClockMode;
   private state: ClockState;
   private startTime: number;
   private elapsedMs: number;
-  private pausedElapsedMs: number;
   private latestTimeMs: number;
   private currentPeriod: string;
-  private offsetMs: number;
   private stateChangeListeners: ((state: ClockState) => void)[];
   private timeChangeListeners: ((timeMs: number) => void)[];
 
-  constructor(mode: ClockMode = ClockMode.LIVE) {
-    this.mode = mode;
+  constructor() {
     this.state = ClockState.STOPPED;
     this.startTime = 0;
     this.elapsedMs = 0;
-    this.pausedElapsedMs = 0;
     this.latestTimeMs = 0;
     this.currentPeriod = "Q1";
-    this.offsetMs = 0;
     this.stateChangeListeners = [];
     this.timeChangeListeners = [];
   }
@@ -29,76 +23,42 @@ export class GameClock {
   start(): void {
     if (this.state === ClockState.RUNNING) return;
 
-    if (this.state === ClockState.PAUSED) {
-      // Resume from paused state
-      this.elapsedMs = this.pausedElapsedMs;
-      this.startTime = Date.now();
-      this.state = ClockState.RUNNING;
-      this.notifyStateChange();
-    } else if (this.state === ClockState.STOPPED) {
-      // Start fresh
-      this.elapsedMs = 0;
-      this.pausedElapsedMs = 0;
-      this.startTime = Date.now();
-      this.state = ClockState.RUNNING;
-      this.notifyStateChange();
-    }
-  }
-
-  pause(): void {
-    if (this.state === ClockState.RUNNING) {
-      this.pausedElapsedMs = this.elapsedMs + (Date.now() - this.startTime);
-      this.state = ClockState.PAUSED;
-      this.notifyStateChange();
-    }
-  }
-
-  resume(): void {
-    if (this.state === ClockState.PAUSED) {
-      this.elapsedMs = this.pausedElapsedMs;
-      this.startTime = Date.now();
-      this.state = ClockState.RUNNING;
-      this.notifyStateChange();
-    }
+    // Resume from wherever the clock is currently positioned, whether it
+    // was pre-positioned while stopped or halted mid-match.
+    this.startTime = Date.now();
+    this.state = ClockState.RUNNING;
+    this.notifyStateChange();
   }
 
   stop(): void {
+    if (this.state === ClockState.STOPPED) return;
+
+    // Preserve the elapsed time so the clock can be resumed or
+    // further adjusted while stopped.
+    this.elapsedMs = this.elapsedMs + (Date.now() - this.startTime);
     this.state = ClockState.STOPPED;
-    this.elapsedMs = 0;
-    this.pausedElapsedMs = 0;
     this.notifyStateChange();
   }
 
   restoreTimeMs(timeMs: number): void {
     // Restore clock time when loading a saved match
-    // Set to PAUSED state so the time is visible
-    this.pausedElapsedMs = timeMs;
-    // Also restore latest time
+    this.elapsedMs = timeMs;
     if (timeMs > this.latestTimeMs) {
       this.latestTimeMs = timeMs;
-    }
-    if (timeMs > 0 && this.state === ClockState.STOPPED) {
-      this.state = ClockState.PAUSED;
-      this.notifyStateChange();
     }
   }
 
   currentTimeMs(): number {
-    let currentTime: number;
-    
-    if (this.state === ClockState.STOPPED) {
-      currentTime = 0;
-    } else if (this.state === ClockState.PAUSED) {
-      currentTime = this.pausedElapsedMs;
-    } else {
-      currentTime = this.elapsedMs + (Date.now() - this.startTime);
-    }
-    
+    const currentTime =
+      this.state === ClockState.RUNNING
+        ? this.elapsedMs + (Date.now() - this.startTime)
+        : this.elapsedMs;
+
     // Track the latest time reached
     if (currentTime > this.latestTimeMs) {
       this.latestTimeMs = currentTime;
     }
-    
+
     return currentTime;
   }
 
@@ -107,15 +67,18 @@ export class GameClock {
   }
 
   setTimeMs(timeMs: number): void {
-    if (this.mode === ClockMode.RETROSPECTIVE) {
-      if (this.state === ClockState.RUNNING) {
-        this.elapsedMs = timeMs;
-        this.startTime = Date.now();
-      } else {
-        this.pausedElapsedMs = timeMs;
-      }
-      this.notifyTimeChange(timeMs);
+    if (this.state === ClockState.RUNNING) {
+      this.elapsedMs = timeMs;
+      this.startTime = Date.now();
+    } else {
+      this.elapsedMs = timeMs;
     }
+
+    if (timeMs > this.latestTimeMs) {
+      this.latestTimeMs = timeMs;
+    }
+
+    this.notifyTimeChange(timeMs);
   }
 
   skipToStart(): void {
@@ -138,19 +101,6 @@ export class GameClock {
     this.setTimeMs(this.latestTimeMs);
   }
 
-  setOffsetMs(offsetMs: number): void {
-    if (this.mode === ClockMode.RETROSPECTIVE) {
-      this.offsetMs = offsetMs;
-    }
-  }
-
-  jumpToVideoTimeMs(videoTimeMs: number): void {
-    if (this.mode === ClockMode.RETROSPECTIVE) {
-      const codingTimeMs = videoTimeMs - this.offsetMs;
-      this.setTimeMs(Math.max(0, codingTimeMs));
-    }
-  }
-
   setPeriod(period: string): void {
     this.currentPeriod = period;
   }
@@ -171,14 +121,6 @@ export class GameClock {
 
   getPeriod(): string {
     return this.currentPeriod;
-  }
-
-  canPause(): boolean {
-    return this.mode === ClockMode.RETROSPECTIVE;
-  }
-
-  canRewind(): boolean {
-    return this.mode === ClockMode.RETROSPECTIVE;
   }
 
   onStateChange(listener: (state: ClockState) => void): () => void {

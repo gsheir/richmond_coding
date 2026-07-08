@@ -1,5 +1,6 @@
 // Button Editor Modal - comprehensive form for editing button configuration
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { ButtonConfig, ButtonType } from "@/lib/types";
 import { Button } from "./ui/Button";
 import { X } from "lucide-react";
@@ -186,7 +187,7 @@ export function ButtonEditorModal({
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
       onClick={onClose}
@@ -560,6 +561,26 @@ export function ButtonEditorModal({
                     Which possession context this applies to
                   </p>
                 </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Lead Time (ms)</label>
+                  <input
+                    type="number"
+                    value={leadMs}
+                    onChange={(e) => setLeadMs(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Lag Time (ms)</label>
+                  <input
+                    type="number"
+                    value={lagMs}
+                    onChange={(e) => setLagMs(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm"
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -602,6 +623,7 @@ export function ButtonEditorModal({
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
