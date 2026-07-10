@@ -29,7 +29,9 @@ export interface TableDataOptions {
 }
 
 // Button configuration types
-export interface ButtonConfig {
+
+// A saved, named set of buttons (the `button_configs` table row)
+export interface ButtonConfigSet {
   id: number;
   name: string;
   description: string | null;
@@ -38,16 +40,35 @@ export interface ButtonConfig {
   updated_at: string;
 }
 
+// A single button belonging to a ButtonConfigSet (the `buttons` table row)
 export interface Button {
   id: number;
   config_id: number;
   key: string;
   label: string;
   code: string;
+  type: string;
   category: string | null;
   colour: string;
   hotkey: string | null;
   sort_order: number;
+  // Position metadata
+  position_x: number | null;
+  position_y: number | null;
+  position_width: number | null;
+  position_height: number | null;
+  // Style metadata
+  style_opacity: number | null;
+  style_font_size: number | null;
+  style_font_weight: string | null;
+  // Phase metadata
+  lead_ms: number | null;
+  lag_ms: number | null;
+  possession_state: string | null;
+  hierarchy_level: number | null;
+  // Termination metadata
+  transition_type: string | null;
+  for_possession_state: string | null;
   created_at: string;
 }
 
@@ -87,8 +108,8 @@ interface ElectronAPI {
   dbDeleteRows: (tableName: string, rowIds: any[]) => Promise<{ success: boolean; deletedCount?: number; error?: string }>;
   dbInsertRow: (tableName: string, rowData: Record<string, any>) => Promise<{ success: boolean; insertedId?: number; error?: string }>;
   // Button configuration management
-  listButtonConfigs: () => Promise<{ success: boolean; configs?: ButtonConfig[]; error?: string }>;
-  getActiveButtonConfig: () => Promise<{ success: boolean; config?: ButtonConfig | null; buttons?: Button[]; error?: string }>;
+  listButtonConfigs: () => Promise<{ success: boolean; configs?: ButtonConfigSet[]; error?: string }>;
+  getActiveButtonConfig: () => Promise<{ success: boolean; config?: ButtonConfigSet | null; buttons?: Button[]; error?: string }>;
   createButtonConfig: (name: string, description?: string) => Promise<{ success: boolean; configId?: number; error?: string }>;
   setActiveButtonConfig: (configId: number) => Promise<{ success: boolean; error?: string }>;
   deleteButtonConfig: (configId: number) => Promise<{ success: boolean; error?: string }>;

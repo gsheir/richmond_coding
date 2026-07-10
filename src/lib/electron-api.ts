@@ -1,9 +1,9 @@
 // Electron backend API bindings
 import { Match } from "./types";
-import { TableSchema, TableDataOptions, ColumnInfo, ForeignKeyInfo, ButtonConfig, Button } from "../electron";
+import { TableSchema, TableDataOptions, ColumnInfo, ForeignKeyInfo, ButtonConfigSet, Button } from "../electron";
 
 // Re-export types
-export type { TableSchema, TableDataOptions, ColumnInfo, ForeignKeyInfo, ButtonConfig, Button };
+export type { TableSchema, TableDataOptions, ColumnInfo, ForeignKeyInfo, ButtonConfigSet, Button };
 
 // Settings interface
 export interface Settings {
@@ -409,7 +409,7 @@ export async function dbInsertRow(
 }
 
 // Button configuration management
-export async function listButtonConfigs(): Promise<ButtonConfig[]> {
+export async function listButtonConfigs(): Promise<ButtonConfigSet[]> {
   if (!window.electronAPI) {
     console.error('electronAPI not available');
     throw new Error('Electron API not ready');
@@ -424,7 +424,7 @@ export async function listButtonConfigs(): Promise<ButtonConfig[]> {
   return result.configs || [];
 }
 
-export async function getActiveButtonConfig(): Promise<{ config: ButtonConfig | null; buttons: Button[] }> {
+export async function getActiveButtonConfig(): Promise<{ config: ButtonConfigSet | null; buttons: Button[] }> {
   if (!window.electronAPI) {
     console.error('electronAPI not available');
     throw new Error('Electron API not ready');
