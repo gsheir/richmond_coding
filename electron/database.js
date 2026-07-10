@@ -41,6 +41,11 @@ export class MatchDatabase {
         console.log(`Migrating database schema from version ${currentVersion} to version 4...`);
         this.migrateToVersion4();
       }
+
+      if (currentVersion < 5) {
+        console.log(`Migrating database schema from version ${currentVersion} to version 5...`);
+        this.migrateToVersion5();
+      }
     }
   }
 
@@ -67,7 +72,7 @@ export class MatchDatabase {
         end_time_ms INTEGER,
         phase_code TEXT,
         phase_label TEXT,
-        status TEXT NOT NULL CHECK(status IN ('undefined', 'classified', 'terminated')),
+        status TEXT NOT NULL CHECK(status IN ('undefined', 'classified', 'terminated', 'ended_undefined')),
         period TEXT NOT NULL,
         termination_event TEXT,
         termination_category TEXT CHECK(termination_category IN ('success', 'failure', 'hold', NULL)),
@@ -163,7 +168,7 @@ export class MatchDatabase {
       );
 
       -- Insert initial schema version
-      INSERT OR IGNORE INTO schema_version (version, applied_at) VALUES (4, datetime('now'));
+      INSERT OR IGNORE INTO schema_version (version, applied_at) VALUES (5, datetime('now'));
     `);
 
     console.log('Database schema initialized');
@@ -298,6 +303,44 @@ export class MatchDatabase {
     `);
 
     console.log('Database migrated to schema version 4');
+  }
+
+  migrateToVersion5() {
+    // Allow the 'ended_undefined' phase status. SQLite can't alter a CHECK
+    // constraint in place, so the phases table has to be rebuilt.
+    this.db.pragma('foreign_keys = OFF');
+    this.db.exec(`
+      CREATE TABLE phases_new (
+        match_id TEXT NOT NULL,
+        phase_id INTEGER NOT NULL,
+        start_time_ms INTEGER NOT NULL,
+        end_time_ms INTEGER,
+        phase_code TEXT,
+        phase_label TEXT,
+        status TEXT NOT NULL CHECK(status IN ('undefined', 'classified', 'terminated', 'ended_undefined')),
+        period TEXT NOT NULL,
+        termination_event TEXT,
+        termination_category TEXT CHECK(termination_category IN ('success', 'failure', 'hold', NULL)),
+        lead_ms INTEGER NOT NULL,
+        lag_ms INTEGER NOT NULL,
+        needs_review INTEGER DEFAULT 0,
+        PRIMARY KEY (match_id, phase_id),
+        FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE
+      );
+
+      INSERT INTO phases_new SELECT * FROM phases;
+
+      DROP TABLE phases;
+      ALTER TABLE phases_new RENAME TO phases;
+
+      CREATE INDEX IF NOT EXISTS idx_phases_match ON phases(match_id);
+
+      -- Update schema version
+      INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (5, datetime('now'));
+    `);
+    this.db.pragma('foreign_keys = ON');
+
+    console.log('Database migrated to schema version 5');
   }
 
   // ==================== Match Operations ====================
@@ -965,7 +1008,27 @@ export class MatchDatabase {
     return rows.map((row) => row.name).filter(name => !hiddenTables.includes(name));
   }
 
+  // Guards against SQL injection via renderer-supplied identifiers, which
+  // can't be parameterised with placeholders in SQLite.
+  _assertValidTable(tableName) {
+    if (!this.listTables().includes(tableName)) {
+      throw new Error(`Unknown table: ${tableName}`);
+    }
+  }
+
+  _assertValidColumns(tableName, columnNames) {
+    const schema = this.getTableSchema(tableName);
+    const validColumns = new Set(schema.columns.map((col) => col.name));
+    for (const column of columnNames) {
+      if (!validColumns.has(column)) {
+        throw new Error(`Unknown column '${column}' on table ${tableName}`);
+      }
+    }
+  }
+
   getTableSchema(tableName) {
+    this._assertValidTable(tableName);
+
     // Get column information
     const columns = this.db.prepare(`PRAGMA table_info(${tableName})`).all();
     
@@ -989,12 +1052,18 @@ export class MatchDatabase {
   }
 
   getTableData(tableName, options = {}) {
+    this._assertValidTable(tableName);
     const { limit = 100, offset = 0, orderBy = null, orderDir = 'ASC', filters = {} } = options;
-    
+
+    this._assertValidColumns(tableName, Object.keys(filters));
+    if (orderBy) {
+      this._assertValidColumns(tableName, [orderBy]);
+    }
+
     // Build WHERE clause from filters
     let whereClause = '';
     const filterParams = [];
-    
+
     if (Object.keys(filters).length > 0) {
       const conditions = [];
       for (const [column, value] of Object.entries(filters)) {
@@ -1007,14 +1076,14 @@ export class MatchDatabase {
         whereClause = 'WHERE ' + conditions.join(' AND ');
       }
     }
-    
+
     // Build ORDER BY clause
     let orderClause = '';
     if (orderBy) {
       const direction = orderDir.toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
       orderClause = `ORDER BY ${orderBy} ${direction}`;
     }
-    
+
     const query = `
       SELECT * FROM ${tableName}
       ${whereClause}
@@ -1027,6 +1096,9 @@ export class MatchDatabase {
   }
 
   getRowCount(tableName, filters = {}) {
+    this._assertValidTable(tableName);
+    this._assertValidColumns(tableName, Object.keys(filters));
+
     let whereClause = '';
     const filterParams = [];
     
@@ -1049,6 +1121,8 @@ export class MatchDatabase {
   }
 
   getRelatedData(tableName, rowId) {
+    this._assertValidTable(tableName);
+
     // Get the schema to find foreign keys
     const schema = this.getTableSchema(tableName);
     const related = {};
@@ -1081,13 +1155,16 @@ export class MatchDatabase {
   }
 
   updateTableRow(tableName, rowId, columnUpdates) {
+    this._assertValidTable(tableName);
     const schema = this.getTableSchema(tableName);
     const pkColumn = schema.columns.find((col) => col.isPrimaryKey);
-    
+
     if (!pkColumn) {
       throw new Error(`Table ${tableName} has no primary key`);
     }
-    
+
+    this._assertValidColumns(tableName, Object.keys(columnUpdates));
+
     const setClause = Object.keys(columnUpdates)
       .map((col) => `${col} = ?`)
       .join(', ');
@@ -1100,6 +1177,7 @@ export class MatchDatabase {
   }
 
   deleteTableRow(tableName, rowId) {
+    this._assertValidTable(tableName);
     const schema = this.getTableSchema(tableName);
     const pkColumn = schema.columns.find((col) => col.isPrimaryKey);
     
@@ -1114,6 +1192,7 @@ export class MatchDatabase {
   }
 
   deleteTableRows(tableName, rowIds) {
+    this._assertValidTable(tableName);
     const schema = this.getTableSchema(tableName);
     const pkColumn = schema.columns.find((col) => col.isPrimaryKey);
     
@@ -1129,6 +1208,9 @@ export class MatchDatabase {
   }
 
   insertTableRow(tableName, rowData) {
+    this._assertValidTable(tableName);
+    this._assertValidColumns(tableName, Object.keys(rowData));
+
     const columns = Object.keys(rowData);
     const values = Object.values(rowData);
     const placeholders = columns.map(() => '?').join(',');

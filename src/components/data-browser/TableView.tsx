@@ -218,7 +218,7 @@ export function TableView({ tableName }: TableViewProps) {
 
   if (!schema) {
     return (
-      <div className="flex items-centre justify-centre h-64">
+      <div className="flex items-center justify-center h-64">
         <div className="text-muted-foreground">Loading schema...</div>
       </div>
     );
@@ -228,7 +228,7 @@ export function TableView({ tableName }: TableViewProps) {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="border-b border-border/50 px-4 py-3">
-        <div className="flex items-centre justify-between mb-3">
+        <div className="flex items-center justify-between mb-3">
           <div>
             <h2 className="text-lg font-semibold">{getTableDisplayName(tableName)}</h2>
             <p className="text-sm text-muted-foreground">
@@ -272,7 +272,7 @@ export function TableView({ tableName }: TableViewProps) {
         )}
 
         {loading ? (
-          <div className="flex items-centre justify-centre h-64">
+          <div className="flex items-center justify-center h-64">
             <div className="text-muted-foreground">Loading...</div>
           </div>
         ) : (
@@ -296,12 +296,12 @@ export function TableView({ tableName }: TableViewProps) {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="border-t border-border/50 px-4 py-3">
-          <div className="flex items-centre justify-between">
+          <div className="flex items-center justify-between">
             <div className="text-sm text-muted-foreground">
               Page {page} of {totalPages}
             </div>
 
-            <div className="flex items-centre gap-2">
+            <div className="flex items-center gap-2">
               <select
                 value={pageSize}
                 onChange={(e) => {

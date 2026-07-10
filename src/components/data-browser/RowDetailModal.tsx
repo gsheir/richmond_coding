@@ -92,7 +92,7 @@ export function RowDetailModal({
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-centre justify-centre overflow-y-auto"
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center overflow-y-auto"
         onClick={handleCancel}
       >
         {/* Modal */}
@@ -101,7 +101,7 @@ export function RowDetailModal({
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-centre justify-between px-4 py-3 border-b border-border/50">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
             <div>
               <h2 className="text-lg font-semibold">
                 {readOnly ? 'View Row' : 'Edit Row'}
@@ -113,7 +113,7 @@ export function RowDetailModal({
             </div>
             <button
               onClick={handleCancel}
-              className="p-1 rounded hover:bg-muted transition-colours"
+              className="p-1 rounded hover:bg-muted transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
@@ -135,7 +135,7 @@ export function RowDetailModal({
               return (
                 <div key={column.name}>
                   <label className="block text-sm font-medium mb-1.5">
-                    <div className="flex items-centre gap-2">
+                    <div className="flex items-center gap-2">
                       <span>{column.name}</span>
                       {column.isPrimaryKey && (
                         <span className="text-xs text-blue-600 dark:text-blue-400">
@@ -211,7 +211,7 @@ export function RowDetailModal({
           </form>
 
           {/* Footer */}
-          <div className="flex items-centre justify-end gap-2 px-4 py-3 border-t border-border/50">
+          <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-border/50">
             <Button variant="outline" onClick={handleCancel} disabled={saving}>
               {readOnly ? 'Close' : 'Cancel'}
             </Button>

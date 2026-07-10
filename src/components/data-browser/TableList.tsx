@@ -31,7 +31,7 @@ export function TableList({
 
   if (tables.length === 0) {
     return (
-      <div className="p-4 text-centre text-muted-foreground">
+      <div className="p-4 text-center text-muted-foreground">
         <p className="text-sm">No tables found</p>
       </div>
     );
@@ -51,12 +51,12 @@ export function TableList({
             key={table}
             onClick={() => onTableSelect(table)}
             className={cn(
-              'w-full text-left px-3 py-2 rounded-lg transition-colours',
+              'w-full text-left px-3 py-2 rounded-lg transition-colors',
               'hover:bg-muted/50',
               isSelected && 'bg-muted font-medium'
             )}
           >
-            <div className="flex items-centre justify-between gap-2">
+            <div className="flex items-center justify-between gap-2">
               <span className="text-sm truncate">
                 {getTableDisplayName(table)}
               </span>

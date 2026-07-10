@@ -59,7 +59,7 @@ export function ConfirmDeleteModal({
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-centre justify-centre"
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center"
         onClick={handleCancel}
       >
         {/* Modal */}
@@ -68,14 +68,14 @@ export function ConfirmDeleteModal({
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-centre justify-between px-4 py-3 border-b border-border/50">
-            <div className="flex items-centre gap-2">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
+            <div className="flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
               <h2 className="text-lg font-semibold">Confirm Deletion</h2>
             </div>
             <button
               onClick={handleCancel}
-              className="p-1 rounded hover:bg-muted transition-colours"
+              className="p-1 rounded hover:bg-muted transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
@@ -137,7 +137,7 @@ export function ConfirmDeleteModal({
           </div>
 
           {/* Footer */}
-          <div className="flex items-centre justify-end gap-2 px-4 py-3 border-t border-border/50">
+          <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-border/50">
             <Button variant="outline" onClick={handleCancel} disabled={deleting}>
               Cancel
             </Button>

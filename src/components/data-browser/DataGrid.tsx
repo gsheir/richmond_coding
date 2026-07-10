@@ -58,7 +58,7 @@ export function DataGrid({
   if (rows.length === 0) {
     return (
       <div className="flex items-center justify-center h-64 text-muted-foreground">
-        <div className="text-centre">
+        <div className="text-center">
           <p className="text-lg font-medium">No data</p>
           <p className="text-sm">This table is empty</p>
         </div>
@@ -85,11 +85,11 @@ export function DataGrid({
                 key={column.name}
                 className={cn(
                   'px-4 py-3 text-left font-medium text-muted-foreground whitespace-nowrap',
-                  onSort && 'cursor-pointer hover:text-foreground transition-colours'
+                  onSort && 'cursor-pointer hover:text-foreground transition-colors'
                 )}
                 onClick={() => onSort && handleHeaderClick(column.name)}
               >
-                <div className="flex items-centre gap-2">
+                <div className="flex items-center gap-2">
                   <span>{column.name}</span>
                   {column.isPrimaryKey && (
                     <span className="text-xs text-blue-600 dark:text-blue-400">PK</span>
@@ -123,7 +123,7 @@ export function DataGrid({
               <tr
                 key={rowId ?? rowIndex}
                 className={cn(
-                  'border-t transition-colours',
+                  'border-t transition-colors',
                   isSelected && 'bg-blue-50 dark:bg-blue-950/30',
                   isHovered && !isSelected && 'bg-muted/30',
                   onRowClick && 'cursor-pointer'
