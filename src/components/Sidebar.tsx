@@ -68,7 +68,7 @@ export function Sidebar({ currentPage, onNavigate, onSwitchToCoding }: SidebarPr
       <div className={cn("h-px bg-border/50 my-0.5 shrink-0", isExpanded ? "w-full" : "w-5")} />
 
       {/* Navigation icons */}
-      <div className="flex flex-col gap-1 w-full">
+      <div className={cn("flex flex-col gap-1 w-full", isExpanded ? "items-start" : "items-center")}>
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = currentPage === item.id;

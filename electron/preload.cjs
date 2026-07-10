@@ -23,6 +23,9 @@ const electronAPI = {
   
   showCloseTabDialog: () =>
     ipcRenderer.invoke('show-close-tab-dialog'),
+
+  showUnsavedConfigDialog: () =>
+    ipcRenderer.invoke('show-unsaved-config-dialog'),
   
   exportXML: (matchData, defaultFilename) =>
     ipcRenderer.invoke('export-xml', matchData, defaultFilename),

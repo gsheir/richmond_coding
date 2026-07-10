@@ -7,12 +7,14 @@ import { SettingsPage } from "./components/SettingsPage";
 import { DataBrowserPage } from "./components/DataBrowserPage";
 import { useAppStore } from "./lib/store";
 import { loadButtonConfig } from "./lib/config-loader";
+import { showUnsavedConfigDialog } from "./lib/electron-api";
 import "./App.css";
 
 function App() {
   const [currentPage, setCurrentPage] = useState<"matches" | "settings" | "data-browser" | null>(
     "matches"
   );
+  const [isConfigDirty, setIsConfigDirty] = useState(false);
   const { initialize, setButtonConfig, tabs, activeTabId, getActiveTab } = useAppStore();
 
   useEffect(() => {
@@ -32,11 +34,21 @@ function App() {
     }
   }, [tabs.length, currentPage]);
 
-  const handleNavigate = (page: "matches" | "settings" | "data-browser") => {
+  const confirmLeaveSettings = async () => {
+    if (currentPage !== "settings" || !isConfigDirty) return true;
+    const response = await showUnsavedConfigDialog();
+    return response === 0; // 0 = Discard Changes
+  };
+
+  const handleNavigate = async (page: "matches" | "settings" | "data-browser") => {
+    if (!(await confirmLeaveSettings())) return;
+    setIsConfigDirty(false);
     setCurrentPage(page);
   };
 
-  const handleSwitchToCoding = () => {
+  const handleSwitchToCoding = async () => {
+    if (!(await confirmLeaveSettings())) return;
+    setIsConfigDirty(false);
     setCurrentPage(null);
   };
 
@@ -76,7 +88,7 @@ function App() {
           <main className="flex-1 overflow-auto p-4 bg-background">
             <div className="h-full bg-card/50 rounded-xl border border-border/40 backdrop-blur-sm">
               {currentPage === "matches" && <MatchesPage onOpenMatch={handleOpenMatch} />}
-              {currentPage === "settings" && <SettingsPage />}
+              {currentPage === "settings" && <SettingsPage onDirtyChange={setIsConfigDirty} />}
               {currentPage === "data-browser" && <DataBrowserPage />}
             </div>
           </main>

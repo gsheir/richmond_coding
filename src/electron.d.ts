@@ -59,6 +59,7 @@ interface ElectronAPI {
   autosaveMatch: (matchData: string) => Promise<{ success: boolean; error?: string }>;
   loadAutosave: () => Promise<{ success: boolean; data?: string | null; error?: string }>;
   showCloseTabDialog: () => Promise<{ success: boolean; response?: number; error?: string }>;
+  showUnsavedConfigDialog: () => Promise<{ success: boolean; response?: number; error?: string }>;
   exportXML: (matchData: string, defaultFilename: string) => Promise<{ success: boolean; filePath?: string; canceled?: boolean; error?: string }>;
   saveSettings: (settingsData: string) => Promise<{ success: boolean; error?: string }>;
   loadSettings: () => Promise<{ success: boolean; data?: string | null; error?: string }>;

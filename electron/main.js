@@ -285,6 +285,26 @@ ipcMain.handle('show-close-tab-dialog', async () => {
   }
 });
 
+ipcMain.handle('show-unsaved-config-dialog', async () => {
+  try {
+    const result = await dialog.showMessageBox(mainWindow, {
+      type: 'warning',
+      title: 'Unsaved Changes',
+      message: 'You have unsaved changes in the code window configuration.',
+      detail: 'If you leave this page, your changes will be lost.',
+      buttons: ['Discard Changes', 'Cancel'],
+      defaultId: 1,
+      cancelId: 1,
+    });
+
+    // Return which button was clicked: 0 = Discard Changes, 1 = Cancel
+    return { success: true, response: result.response };
+  } catch (error) {
+    console.error('Error showing unsaved config dialog:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
 ipcMain.handle('save-settings', async (_event, settingsData) => {
   try {
     const settings = JSON.parse(settingsData);

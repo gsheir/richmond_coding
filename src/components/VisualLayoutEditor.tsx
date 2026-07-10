@@ -13,9 +13,10 @@ interface VisualLayoutEditorProps {
   buttons: ButtonConfig[];
   onButtonsChange: (buttons: ButtonConfig[]) => void;
   onConfigSaved?: (buttons: ButtonConfig[]) => void;
+  onDirtyChange?: (isDirty: boolean) => void;
 }
 
-export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: VisualLayoutEditorProps) {
+export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved, onDirtyChange }: VisualLayoutEditorProps) {
   const [selectedButtons, setSelectedButtons] = useState<string[]>([]);
   const [draggingButton, setDraggingButton] = useState<string | null>(null);
   const [editingButton, setEditingButton] = useState<ButtonConfig | null>(null);
@@ -54,8 +55,10 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
   // Track dirty state by comparing current buttons with saved snapshot
   useEffect(() => {
     const currentSnapshot = JSON.stringify(buttons);
-    setIsDirty(currentSnapshot !== savedButtonsSnapshot);
-  }, [buttons, savedButtonsSnapshot]);
+    const dirty = currentSnapshot !== savedButtonsSnapshot;
+    setIsDirty(dirty);
+    onDirtyChange?.(dirty);
+  }, [buttons, savedButtonsSnapshot, onDirtyChange]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -905,23 +908,24 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
       </p>
 
       {/* Toolbar */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button onClick={handleAddButton} size="sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button onClick={handleAddButton} size="sm" className="shrink-0">
             <Plus className="w-4 h-4" />
             Add Button
           </Button>
           {selectedButtons.length > 0 && (
-            <Button 
-              onClick={handleDeleteSelected} 
-              size="sm" 
+            <Button
+              onClick={handleDeleteSelected}
+              size="sm"
               variant="destructive"
+              className="shrink-0"
             >
               <Trash2 className="w-4 h-4" />
               Delete {selectedButtons.length > 1 ? `${selectedButtons.length} Buttons` : "Button"}
             </Button>
           )}
-          <div className="relative">
+          <div className="relative shrink-0">
             <Button onClick={handleSaveConfig} size="sm" variant="secondary" disabled={saveStatus === "saving"}>
               {saveStatus === "saving" ? "Saving..." : saveStatus === "saved" ? "Saved!" : "Save Configuration"}
             </Button>
@@ -929,18 +933,21 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
               <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-blue-500 rounded-full" title="Unsaved changes" />
             )}
           </div>
-          <Button 
-            onClick={() => setShowResetConfirm(true)} 
-            size="sm" 
+          <Button
+            onClick={() => setShowResetConfirm(true)}
+            size="sm"
             variant="outline"
             disabled={saveStatus === "saving"}
+            className="shrink-0"
           >
             <RotateCcw className="w-4 h-4" />
             Reset to Default
           </Button>
 
+          {/* Align, Distribute and Position controls – wrap onto their own row together */}
+          <div className="flex items-center gap-2 shrink-0">
           {/* Align Dropdown */}
-          <div className="relative" ref={alignDropdownRef}>
+          <div className="relative shrink-0" ref={alignDropdownRef}>
             <Button
               onClick={() => setShowAlignDropdown(!showAlignDropdown)}
               size="sm"
@@ -1003,7 +1010,7 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
           </div>
 
           {/* Distribute Dropdown */}
-          <div className="relative" ref={distributeDropdownRef}>
+          <div className="relative shrink-0" ref={distributeDropdownRef}>
             <Button
               onClick={() => setShowDistributeDropdown(!showDistributeDropdown)}
               size="sm"
@@ -1096,7 +1103,7 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
           </div>
 
           {/* Position Fields */}
-          <div className="flex items-center gap-2 ml-auto">
+          <div className="flex items-center gap-2 shrink-0">
             <span className="text-xs font-medium text-muted-foreground">Position:</span>
             <div className="flex items-center gap-1">
               <span className="text-xs text-muted-foreground">X:</span>
@@ -1129,8 +1136,9 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved }: 
               />
             </div>
           </div>
+          </div>
         </div>
-        <div className="text-sm text-muted-foreground">
+        <div className="text-sm text-muted-foreground shrink-0">
           {buttons.length} button{buttons.length !== 1 ? "s" : ""}
           {selectedButtons.length > 0 && ` • ${selectedButtons.length} selected`}
           {isDirty && <span className="text-blue-500 ml-2">• Unsaved changes</span>}

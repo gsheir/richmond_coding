@@ -102,6 +102,21 @@ export async function showCloseTabDialog(): Promise<number> {
   return result.response ?? 2; // Default to cancel if no response
 }
 
+export async function showUnsavedConfigDialog(): Promise<number> {
+  if (!window.electronAPI) {
+    console.warn('electronAPI not available, returning cancel');
+    return 1; // Cancel
+  }
+
+  const result = await window.electronAPI.showUnsavedConfigDialog();
+
+  if (!result.success) {
+    throw new Error(result.error || "Failed to show unsaved config dialog");
+  }
+
+  return result.response ?? 1; // Default to cancel if no response
+}
+
 export async function exportXML(
   matchData: string,
   defaultFilename: string

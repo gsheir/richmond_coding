@@ -11,7 +11,11 @@ import { loadButtonConfig } from "@/lib/config-loader";
 import { ExternalLink, FolderOpen } from "lucide-react";
 import { Button } from "./ui/Button";
 
-export function SettingsPage() {
+interface SettingsPageProps {
+  onDirtyChange?: (isDirty: boolean) => void;
+}
+
+export function SettingsPage({ onDirtyChange }: SettingsPageProps) {
   const { 
     defaultHomeTeam, 
     defaultLeadMs,
@@ -164,10 +168,11 @@ export function SettingsPage() {
             Loading configuration...
           </div>
         ) : (
-          <VisualLayoutEditor 
-            buttons={buttons} 
+          <VisualLayoutEditor
+            buttons={buttons}
             onButtonsChange={setButtons}
             onConfigSaved={(savedButtons) => setButtonConfig(savedButtons)}
+            onDirtyChange={onDirtyChange}
           />
         )}
       </div>

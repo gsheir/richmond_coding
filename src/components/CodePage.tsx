@@ -358,8 +358,17 @@ export function CodePage({
                               <div className={`w-1.5 h-1.5 rounded-full ${getPhaseStatusDot(phase)}`} />
                             </td>
                             <td className="px-2 py-1.5 font-mono">{formatMs(phase.startTimeMs)}</td>
-                            <td className="px-2 py-1.5 font-semibold" style={{ color: phaseBtn?.style.colour || undefined }}>
-                              {phase.phaseLabel || '\u2014'}
+                            <td className="px-2 py-1.5">
+                              {phase.phaseLabel ? (
+                                <span
+                                  className="px-2 py-0.5 rounded-full text-[11px] font-semibold"
+                                  style={{ backgroundColor: phaseBtn?.style.colour || '#666', color: 'white' }}
+                                >
+                                  {phase.phaseLabel}
+                                </span>
+                              ) : (
+                                '\u2014'
+                              )}
                             </td>
                             <td className={`px-2 py-1.5 ${termColour}`}>
                               {phase.terminationEvent || '\u2014'}
