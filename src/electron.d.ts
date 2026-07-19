@@ -1,6 +1,9 @@
 // Type definitions for Electron API exposed via preload script
 
 // Data browser types
+export type Row = Record<string, unknown>;
+export type RowId = string | number;
+
 export interface ColumnInfo {
   name: string;
   type: string;

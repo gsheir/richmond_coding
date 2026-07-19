@@ -12,18 +12,20 @@ import {
   dbDeleteRow,
   dbDeleteRows,
   ColumnInfo,
+  ForeignKeyInfo,
   TableDataOptions,
+  Row,
+  RowId,
 } from '@/lib/electron-api';
 import { getTableDisplayName, getPrimaryKeyColumn } from '@/lib/data-browser-utils';
-import { cn } from '@/lib/utils';
 
 interface TableViewProps {
   tableName: string;
 }
 
 export function TableView({ tableName }: TableViewProps) {
-  const [schema, setSchema] = useState<{ columns: ColumnInfo[]; foreignKeys: any[] } | null>(null);
-  const [rows, setRows] = useState<any[]>([]);
+  const [schema, setSchema] = useState<{ columns: ColumnInfo[]; foreignKeys: ForeignKeyInfo[] } | null>(null);
+  const [rows, setRows] = useState<Row[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,13 +43,13 @@ export function TableView({ tableName }: TableViewProps) {
   const [filters, setFilters] = useState<Record<string, any>>({});
 
   // Selection state
-  const [selectedRows, setSelectedRows] = useState<Set<any>>(new Set());
+  const [selectedRows, setSelectedRows] = useState<Set<RowId>>(new Set());
 
   // Modal state
-  const [editingRow, setEditingRow] = useState<any | null>(null);
-  const [relatedData, setRelatedData] = useState<Record<string, any[]>>({});
+  const [editingRow, setEditingRow] = useState<Row | null>(null);
+  const [relatedData, setRelatedData] = useState<Record<string, Row[]>>({});
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [rowsToDelete, setRowsToDelete] = useState<any[]>([]);
+  const [rowsToDelete, setRowsToDelete] = useState<Row[]>([]);
 
   const pkColumn = schema ? getPrimaryKeyColumn(schema.columns) : null;
 
@@ -132,7 +134,7 @@ export function TableView({ tableName }: TableViewProps) {
     setPage(1);
   };
 
-  const handleRowSelect = (rowId: any) => {
+  const handleRowSelect = (rowId: RowId) => {
     const newSelected = new Set(selectedRows);
     if (newSelected.has(rowId)) {
       newSelected.delete(rowId);
@@ -144,18 +146,18 @@ export function TableView({ tableName }: TableViewProps) {
 
   const handleRowSelectAll = (selected: boolean) => {
     if (selected && pkColumn) {
-      const allIds = rows.map((row) => row[pkColumn.name]);
+      const allIds = rows.map((row) => row[pkColumn.name] as RowId);
       setSelectedRows(new Set(allIds));
     } else {
       setSelectedRows(new Set());
     }
   };
 
-  const handleRowClick = async (row: any) => {
+  const handleRowClick = async (row: Row) => {
     if (!pkColumn) return;
 
     try {
-      const related = await dbGetRelatedData(tableName, row[pkColumn.name]);
+      const related = await dbGetRelatedData(tableName, row[pkColumn.name] as RowId);
       setRelatedData(related);
       setEditingRow(row);
     } catch (err) {
@@ -165,18 +167,18 @@ export function TableView({ tableName }: TableViewProps) {
     }
   };
 
-  const handleSaveRow = async (rowId: any, updates: Record<string, any>) => {
+  const handleSaveRow = async (rowId: RowId, updates: Row) => {
     await dbUpdateRow(tableName, rowId, updates);
     await loadData();
     setEditingRow(null);
     setRelatedData({});
   };
 
-  const handleDeleteRow = async (row: any) => {
+  const handleDeleteRow = async (row: Row) => {
     if (!pkColumn) return;
 
     try {
-      const related = await dbGetRelatedData(tableName, row[pkColumn.name]);
+      const related = await dbGetRelatedData(tableName, row[pkColumn.name] as RowId);
       setRelatedData(related);
       setRowsToDelete([row]);
       setDeleteConfirmOpen(true);
@@ -192,7 +194,7 @@ export function TableView({ tableName }: TableViewProps) {
     if (!pkColumn) return;
 
     const rowsToDeleteArray = rows.filter((row) =>
-      selectedRows.has(row[pkColumn.name])
+      selectedRows.has(row[pkColumn.name] as RowId)
     );
     setRowsToDelete(rowsToDeleteArray);
     setDeleteConfirmOpen(true);
@@ -202,9 +204,9 @@ export function TableView({ tableName }: TableViewProps) {
     if (!pkColumn) return;
 
     if (rowsToDelete.length === 1) {
-      await dbDeleteRow(tableName, rowsToDelete[0][pkColumn.name]);
+      await dbDeleteRow(tableName, rowsToDelete[0][pkColumn.name] as RowId);
     } else {
-      const ids = rowsToDelete.map((row) => row[pkColumn.name]);
+      const ids = rowsToDelete.map((row) => row[pkColumn.name] as RowId);
       await dbDeleteRows(tableName, ids);
     }
 

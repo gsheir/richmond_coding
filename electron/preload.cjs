@@ -77,31 +77,31 @@ const electronAPI = {
 
   // Data browser operations
   dbListTables: () =>
-    ipcRenderer.invoke('db:list-tables'),
-  
+    ipcRenderer.invoke('list-tables'),
+
   dbGetTableSchema: (tableName) =>
-    ipcRenderer.invoke('db:get-table-schema', tableName),
-  
+    ipcRenderer.invoke('get-table-schema', tableName),
+
   dbGetTableData: (tableName, options) =>
-    ipcRenderer.invoke('db:get-table-data', tableName, options),
-  
+    ipcRenderer.invoke('get-table-data', tableName, options),
+
   dbGetRowCount: (tableName, filters) =>
-    ipcRenderer.invoke('db:get-row-count', tableName, filters),
-  
+    ipcRenderer.invoke('get-row-count', tableName, filters),
+
   dbGetRelatedData: (tableName, rowId) =>
-    ipcRenderer.invoke('db:get-related-data', tableName, rowId),
-  
+    ipcRenderer.invoke('get-related-data', tableName, rowId),
+
   dbUpdateRow: (tableName, rowId, columnUpdates) =>
-    ipcRenderer.invoke('db:update-row', tableName, rowId, columnUpdates),
-  
+    ipcRenderer.invoke('update-table-row', tableName, rowId, columnUpdates),
+
   dbDeleteRow: (tableName, rowId) =>
-    ipcRenderer.invoke('db:delete-row', tableName, rowId),
-  
+    ipcRenderer.invoke('delete-table-row', tableName, rowId),
+
   dbDeleteRows: (tableName, rowIds) =>
-    ipcRenderer.invoke('db:delete-rows', tableName, rowIds),
-  
+    ipcRenderer.invoke('delete-table-rows', tableName, rowIds),
+
   dbInsertRow: (tableName, rowData) =>
-    ipcRenderer.invoke('db:insert-row', tableName, rowData),
+    ipcRenderer.invoke('insert-table-row', tableName, rowData),
 
   // Button configuration management
   listButtonConfigs: () =>

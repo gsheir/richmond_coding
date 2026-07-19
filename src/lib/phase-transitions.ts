@@ -156,7 +156,6 @@ export function calculatePhaseTransitions(
     (btn) => btn.code === startingPhaseCode && btn.type === "phase"
   );
   const startingLabel = startingButton?.label || startingPhaseCode;
-  const colour = startingButton?.style.colour || "#666666";
 
   // Find all instances of the starting phase with matching possession
   const startingPhaseInstances = phases.filter(

@@ -7,6 +7,7 @@ import { Modal } from "./ui/Modal";
 import { ButtonEditorModal } from "./ButtonEditorModal";
 import { HotkeyMapVisualiser } from "./HotkeyMapVisualiser";
 import { ButtonListTable } from "./ButtonListTable";
+import { DragPreview } from "./DragPreview";
 import { validateButtonConfig, ValidationResult } from "@/lib/config-validation";
 import { saveCodingWindowConfig, resetCodingWindowConfig } from "@/lib/electron-api";
 import { formatHotkeyDisplay } from "@/lib/utils";
@@ -14,7 +15,7 @@ import { isButtonInSelection, getSelectionRectFromPoints, alignButtons, distribu
 import { serializeButtonConfig, deserializeButtonConfig } from "@/lib/button-config-serialization";
 
 // Buttons shorter than this render as a pill rather than a rounded rectangle
-const PILL_HEIGHT_THRESHOLD = 24;
+export const PILL_HEIGHT_THRESHOLD = 24;
 
 interface VisualLayoutEditorProps {
   buttons: ButtonConfig[];
@@ -920,53 +921,14 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved, on
           })()}
 
           {/* Drag Preview - show buttons being dragged */}
-          {draggingButton && dragCurrentPosition && dragStartPositions.size > 0 && (() => {
-            const originalPos = dragStartPositions.get(draggingButton);
-            if (!originalPos) return null;
-
-            const deltaX = dragCurrentPosition.x - originalPos.x;
-            const deltaY = dragCurrentPosition.y - originalPos.y;
-
-            return Array.from(dragStartPositions.keys()).map((buttonCode) => {
-              const button = buttons.find(b => b.code === buttonCode);
-              const startPos = dragStartPositions.get(buttonCode);
-              if (!button || !startPos) return null;
-
-              const previewX = startPos.x + deltaX;
-              const previewY = startPos.y + deltaY;
-              const borderRadius = button.position.height < PILL_HEIGHT_THRESHOLD ? "9999px" : "0.75rem";
-
-              return (
-                <div
-                  key={`preview-${button.code}`}
-                  className="absolute overflow-hidden shadow-xl pointer-events-none border-2 border-primary"
-                  style={{
-                    left: previewX,
-                    top: previewY,
-                    width: button.position.width,
-                    height: button.position.height,
-                    backgroundColor: button.style.colour,
-                    opacity: 0.8,
-                    borderRadius: borderRadius,
-                  }}
-                >
-                  <div className="relative w-full h-full flex flex-col items-center justify-center text-white">
-                    <span
-                      className="text-center"
-                      style={{ fontSize: `${button.style.fontSize}px`, fontWeight: button.style.fontWeight }}
-                    >
-                      {button.label}
-                    </span>
-                    {button.hotkey && (
-                      <span className="text-[10px] opacity-70 border border-white/30 rounded px-1.5 py-0.5 mt-1">
-                        {formatHotkeyDisplay(button.hotkey)}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            });
-          })()}
+          {draggingButton && dragCurrentPosition && dragStartPositions.size > 0 && (
+            <DragPreview
+              buttons={buttons}
+              draggingButton={draggingButton}
+              dragCurrentPosition={dragCurrentPosition}
+              dragStartPositions={dragStartPositions}
+            />
+          )}
 
           {buttons.length === 0 && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">

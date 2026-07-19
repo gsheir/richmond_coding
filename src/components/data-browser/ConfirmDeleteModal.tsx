@@ -3,7 +3,7 @@ import { AlertTriangle } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
 import { getPrimaryKeyColumn } from '@/lib/data-browser-utils';
-import { ColumnInfo } from '@/lib/electron-api';
+import { ColumnInfo, Row } from '@/lib/electron-api';
 
 interface ConfirmDeleteModalProps {
   isOpen: boolean;
@@ -11,9 +11,9 @@ interface ConfirmDeleteModalProps {
   onConfirm: () => Promise<void>;
   tableName: string;
   rowCount: number;
-  rows?: any[];
+  rows?: Row[];
   columns?: ColumnInfo[];
-  relatedData?: Record<string, any[]>;
+  relatedData?: Record<string, Row[]>;
 }
 
 export function ConfirmDeleteModal({
@@ -97,7 +97,7 @@ export function ConfirmDeleteModal({
             </div>
             {rows.map((row, i) => (
               <div key={i} className="font-mono">
-                {pkColumn.name}: {row[pkColumn.name]}
+                {pkColumn.name}: {String(row[pkColumn.name])}
               </div>
             ))}
           </div>

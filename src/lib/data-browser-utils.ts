@@ -1,11 +1,11 @@
 // Utility functions for the data browser
 
-import { ColumnInfo } from './electron-api';
+import { ColumnInfo, Row, RowId } from './electron-api';
 
 /**
  * Format a cell value based on its column type
  */
-export function formatCellValue(value: any, columnType: string): string {
+export function formatCellValue(value: unknown, columnType: string): string {
   if (value === null || value === undefined) {
     return '';
   }
@@ -15,7 +15,7 @@ export function formatCellValue(value: any, columnType: string): string {
   // Handle timestamps
   if (type.includes('DATETIME') || type.includes('TIMESTAMP')) {
     try {
-      const date = new Date(value);
+      const date = new Date(value as string | number);
       if (!isNaN(date.getTime())) {
         return date.toLocaleString('en-GB', {
           year: 'numeric',
@@ -57,7 +57,7 @@ export function formatCellValue(value: any, columnType: string): string {
 /**
  * Format a full JSON value for display
  */
-export function formatJsonValue(value: any): string {
+export function formatJsonValue(value: unknown): string {
   if (typeof value === 'string') {
     try {
       const parsed = JSON.parse(value);
@@ -97,14 +97,14 @@ export function getPrimaryKeyColumn(columns: ColumnInfo[]): ColumnInfo | null {
 /**
  * Get a row identifier (primary key value or first column)
  */
-export function getRowIdentifier(row: any, columns: ColumnInfo[]): any {
+export function getRowIdentifier(row: Row, columns: ColumnInfo[]): RowId | null {
   const pkColumn = getPrimaryKeyColumn(columns);
   if (pkColumn) {
-    return row[pkColumn.name];
+    return row[pkColumn.name] as RowId;
   }
   // Fallback to first column
   if (columns.length > 0) {
-    return row[columns[0].name];
+    return row[columns[0].name] as RowId;
   }
   return null;
 }
@@ -112,7 +112,7 @@ export function getRowIdentifier(row: any, columns: ColumnInfo[]): any {
 /**
  * Determine if a value is likely to be JSON
  */
-export function isJsonValue(value: any): boolean {
+export function isJsonValue(value: unknown): boolean {
   if (typeof value !== 'string') return false;
   const trimmed = value.trim();
   return (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
@@ -122,7 +122,7 @@ export function isJsonValue(value: any): boolean {
 /**
  * Parse a value for editing
  */
-export function parseValueForEdit(value: any, columnType: string): any {
+export function parseValueForEdit(value: unknown, columnType: string): string | number {
   const type = columnType.toUpperCase();
 
   if (value === null || value === undefined) {
@@ -143,7 +143,7 @@ export function parseValueForEdit(value: any, columnType: string): any {
 /**
  * Prepare a value for saving to the database
  */
-export function prepareValueForSave(value: any, columnType: string): any {
+export function prepareValueForSave(value: unknown, columnType: string): string | number | null {
   const type = columnType.toUpperCase();
 
   if (value === '' || value === null || value === undefined) {

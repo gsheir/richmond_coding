@@ -1,9 +1,9 @@
 // Electron backend API bindings
 import { Match } from "./types";
-import { TableSchema, TableDataOptions, ColumnInfo, ForeignKeyInfo, ButtonConfigSet, Button } from "../electron";
+import { TableSchema, TableDataOptions, ColumnInfo, ForeignKeyInfo, ButtonConfigSet, Button, Row, RowId } from "../electron";
 
 // Re-export types
-export type { TableSchema, TableDataOptions, ColumnInfo, ForeignKeyInfo, ButtonConfigSet, Button };
+export type { TableSchema, TableDataOptions, ColumnInfo, ForeignKeyInfo, ButtonConfigSet, Button, Row, RowId };
 
 // Settings interface
 export interface Settings {
@@ -232,7 +232,7 @@ export async function dbGetTableSchema(tableName: string): Promise<TableSchema> 
 export async function dbGetTableData(
   tableName: string,
   options?: TableDataOptions
-): Promise<{ rows: any[]; totalCount: number }> {
+): Promise<{ rows: Row[]; totalCount: number }> {
   const result = await callIpc(
     (api) => api.dbGetTableData(tableName, options),
     "Failed to get table data"
@@ -256,8 +256,8 @@ export async function dbGetRowCount(
 
 export async function dbGetRelatedData(
   tableName: string,
-  rowId: any
-): Promise<Record<string, any[]>> {
+  rowId: RowId
+): Promise<Record<string, Row[]>> {
   const result = await callIpc(
     (api) => api.dbGetRelatedData(tableName, rowId),
     "Failed to get related data"
@@ -267,8 +267,8 @@ export async function dbGetRelatedData(
 
 export async function dbUpdateRow(
   tableName: string,
-  rowId: any,
-  columnUpdates: Record<string, any>
+  rowId: RowId,
+  columnUpdates: Row
 ): Promise<boolean> {
   const result = await callIpc(
     (api) => api.dbUpdateRow(tableName, rowId, columnUpdates),
@@ -277,7 +277,7 @@ export async function dbUpdateRow(
   return result.updated || false;
 }
 
-export async function dbDeleteRow(tableName: string, rowId: any): Promise<boolean> {
+export async function dbDeleteRow(tableName: string, rowId: RowId): Promise<boolean> {
   const result = await callIpc(
     (api) => api.dbDeleteRow(tableName, rowId),
     "Failed to delete row"
@@ -285,7 +285,7 @@ export async function dbDeleteRow(tableName: string, rowId: any): Promise<boolea
   return result.deleted || false;
 }
 
-export async function dbDeleteRows(tableName: string, rowIds: any[]): Promise<number> {
+export async function dbDeleteRows(tableName: string, rowIds: RowId[]): Promise<number> {
   const result = await callIpc(
     (api) => api.dbDeleteRows(tableName, rowIds),
     "Failed to delete rows"
@@ -295,7 +295,7 @@ export async function dbDeleteRows(tableName: string, rowIds: any[]): Promise<nu
 
 export async function dbInsertRow(
   tableName: string,
-  rowData: Record<string, any>
+  rowData: Row
 ): Promise<number> {
   const result = await callIpc(
     (api) => api.dbInsertRow(tableName, rowData),

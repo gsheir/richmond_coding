@@ -15,7 +15,7 @@ function App() {
     "matches"
   );
   const [isConfigDirty, setIsConfigDirty] = useState(false);
-  const { initialize, setButtonConfig, tabs, activeTabId, getActiveTab } = useAppStore();
+  const { initialize, setButtonConfig, tabs, getActiveTab } = useAppStore();
 
   useEffect(() => {
     // Initialize app
@@ -76,12 +76,10 @@ function App() {
           <main className="flex-1 min-h-0 overflow-hidden bg-background">
             <CodePage
               tabId={activeTab.tab.id}
-              match={activeTab.match}
               clock={activeTab.clock}
               eventEngine={activeTab.eventEngine}
               clockState={activeTab.clockState}
               currentTime={activeTab.currentTime}
-              activePhaseId={activeTab.activePhaseId}
             />
           </main>
         ) : (

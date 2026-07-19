@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
-import { ColumnInfo } from '@/lib/electron-api';
+import { ColumnInfo, Row, RowId } from '@/lib/electron-api';
 import {
   parseValueForEdit,
   prepareValueForSave,
@@ -13,11 +13,11 @@ import { cn } from '@/lib/utils';
 interface RowDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
-  row: any | null;
+  row: Row | null;
   columns: ColumnInfo[];
   tableName: string;
-  onSave: (rowId: any, updates: Record<string, any>) => Promise<void>;
-  relatedData?: Record<string, any[]>;
+  onSave: (rowId: RowId, updates: Row) => Promise<void>;
+  relatedData?: Record<string, Row[]>;
   readOnly?: boolean;
 }
 
@@ -31,7 +31,7 @@ export function RowDetailModal({
   relatedData = {},
   readOnly = false,
 }: RowDetailModalProps) {
-  const [formData, setFormData] = useState<Record<string, any>>({});
+  const [formData, setFormData] = useState<Row>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,22 +53,22 @@ export function RowDetailModal({
     setError(null);
 
     try {
-      const updates: Record<string, any> = {};
-      
+      const updates: Row = {};
+
       // Prepare all changed values
       for (const column of columns) {
         if (column.isPrimaryKey) continue; // Don't update primary key
-        
+
         const newValue = formData[column.name];
         const oldValue = row[column.name];
-        
+
         if (newValue !== oldValue) {
           updates[column.name] = prepareValueForSave(newValue, column.type);
         }
       }
 
       if (Object.keys(updates).length > 0) {
-        await onSave(row[pkColumn.name], updates);
+        await onSave(row[pkColumn.name] as RowId, updates);
       }
       
       onClose();

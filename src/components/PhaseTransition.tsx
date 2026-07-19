@@ -19,7 +19,6 @@ interface TransitionFlowProps {
   description: string;
   startingPhaseCode: string;
   startingPhaseLabel: string;
-  startingPhaseColour: string;
   transitions: TransitionResult[];
   sampleSize: number;
 }
@@ -29,7 +28,6 @@ function TransitionFlow({
   description,
   startingPhaseCode,
   startingPhaseLabel,
-  startingPhaseColour,
   transitions,
   sampleSize,
 }: TransitionFlowProps) {
@@ -143,8 +141,6 @@ function PossessionSection({
     );
   }
 
-  const selectedButton = buttonConfig.find((btn) => btn.code === effectiveSelectedPhase);
-
   return (
     <div className="space-y-3">
       {/* Phase Sequence Bar */}
@@ -188,7 +184,6 @@ function PossessionSection({
             }
             startingPhaseCode={transitionData.startingPhase}
             startingPhaseLabel={transitionData.startingLabel}
-            startingPhaseColour={selectedButton?.style.colour || "#666666"}
             transitions={transitionData.transitions10s}
             sampleSize={transitionData.sampleSize}
           />
@@ -206,7 +201,6 @@ function PossessionSection({
             }
             startingPhaseCode={transitionData.startingPhase}
             startingPhaseLabel={transitionData.startingLabel}
-            startingPhaseColour={selectedButton?.style.colour || "#666666"}
             transitions={transitionData.transitions20s}
             sampleSize={transitionData.sampleSize}
           />

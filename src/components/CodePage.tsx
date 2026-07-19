@@ -8,7 +8,7 @@ import { SaveIndicator } from "./SaveIndicator";
 import { TimelineShiftModal } from "./TimelineShiftModal";
 import { ChevronDown, ChevronUp, Flag, AlertCircle, Trash2, Clock as ClockIcon, Undo2 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
-import { ClockState, Match, Phase, PhaseStatus } from "@/lib/types";
+import { ClockState, Phase, PhaseStatus } from "@/lib/types";
 import { GameClock } from "@/lib/clock";
 import { EventEngine } from "@/lib/event-engine";
 import { TimelineView } from "./TimelineView";
@@ -21,22 +21,18 @@ const RIGHT_COL_MAX_WIDTH = 500;
 
 interface CodePageProps {
   tabId: string;
-  match: Match;
   clock: GameClock;
   eventEngine: EventEngine;
   clockState: ClockState;
   currentTime: string;
-  activePhaseId: number | null;
 }
 
 export function CodePage({
   tabId,
-  match,
   clock,
   eventEngine,
   clockState,
   currentTime,
-  activePhaseId,
 }: CodePageProps) {
   const {
     buttonConfig,
@@ -66,9 +62,7 @@ export function CodePage({
   const phases = eventEngine.getAllPhases();
   const isRunning = clockState === ClockState.RUNNING;
   
-  // Get isDirty state
   const tabData = tabs.find(t => t.tab.id === tabId);
-  const isDirty = tabData?.tab.isDirty || false;
 
   // Get active phase possession state for button filtering
   const activePhase = eventEngine.getActivePhase();

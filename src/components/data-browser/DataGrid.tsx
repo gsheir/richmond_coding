@@ -1,17 +1,17 @@
 import { useState } from 'react';
-import { ColumnInfo } from '@/lib/electron-api';
+import { ColumnInfo, Row, RowId } from '@/lib/electron-api';
 import { formatCellValue, isJsonValue, truncateText } from '@/lib/data-browser-utils';
 import { cn } from '@/lib/utils';
 
 interface DataGridProps {
   columns: ColumnInfo[];
-  rows: any[];
-  selectedRows: Set<any>;
-  onRowSelect: (rowId: any) => void;
+  rows: Row[];
+  selectedRows: Set<RowId>;
+  onRowSelect: (rowId: RowId) => void;
   onRowSelectAll: (selected: boolean) => void;
-  onRowClick?: (row: any) => void;
-  onRowEdit?: (row: any) => void;
-  onRowDelete?: (row: any) => void;
+  onRowClick?: (row: Row) => void;
+  onRowEdit?: (row: Row) => void;
+  onRowDelete?: (row: Row) => void;
   onSort?: (column: string, direction: 'ASC' | 'DESC') => void;
   sortColumn?: string | null;
   sortDirection?: 'ASC' | 'DESC';
@@ -32,11 +32,10 @@ export function DataGrid({
   sortDirection,
   primaryKeyColumn,
 }: DataGridProps) {
-  const [hoveredRow, setHoveredRow] = useState<any>(null);
+  const [hoveredRow, setHoveredRow] = useState<RowId | null>(null);
 
-  const getPrimaryKeyValue = (row: any): any => {
-    if (!primaryKeyColumn) return null;
-    return row[primaryKeyColumn];
+  const getPrimaryKeyValue = (row: Row): RowId => {
+    return row[primaryKeyColumn ?? ''] as RowId;
   };
 
   const handleHeaderClick = (columnName: string) => {
