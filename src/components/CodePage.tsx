@@ -12,6 +12,12 @@ import { ClockState, Match, Phase, PhaseStatus } from "@/lib/types";
 import { GameClock } from "@/lib/clock";
 import { EventEngine } from "@/lib/event-engine";
 import { TimelineView } from "./TimelineView";
+import { formatTimeMs } from "@/lib/utils";
+
+const EVENT_LOG_MIN_HEIGHT = 100;
+const EVENT_LOG_MAX_HEIGHT = 600;
+const RIGHT_COL_MIN_WIDTH = 220;
+const RIGHT_COL_MAX_WIDTH = 500;
 
 interface CodePageProps {
   tabId: string;
@@ -117,7 +123,7 @@ export function CodePage({
       const newHeight = resizeStartHeight + deltaY;
       
       // Constrain height between 100px and 600px
-      const constrainedHeight = Math.max(100, Math.min(600, newHeight));
+      const constrainedHeight = Math.max(EVENT_LOG_MIN_HEIGHT, Math.min(EVENT_LOG_MAX_HEIGHT, newHeight));
       setEventLogHeight(constrainedHeight);
     };
 
@@ -146,7 +152,7 @@ export function CodePage({
       if (!isResizingRightCol) return;
       const deltaX = resizeStartX - e.clientX;
       const newWidth = resizeStartWidth + deltaX;
-      setRightColWidth(Math.max(220, Math.min(500, newWidth)));
+      setRightColWidth(Math.max(RIGHT_COL_MIN_WIDTH, Math.min(RIGHT_COL_MAX_WIDTH, newWidth)));
     };
 
     const handleMouseUp = () => {
@@ -198,11 +204,6 @@ export function CodePage({
     if (phase.status === PhaseStatus.UNDEFINED) return 'bg-yellow-500';
     if (phase.status === PhaseStatus.CLASSIFIED) return 'bg-blue-500';
     return 'bg-gray-500';
-  };
-
-  const formatMs = (ms: number): string => {
-    const s = Math.floor(ms / 1000);
-    return `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
   };
 
   return (
@@ -357,7 +358,7 @@ export function CodePage({
                             <td className="pl-2 py-1.5">
                               <div className={`w-1.5 h-1.5 rounded-full ${getPhaseStatusDot(phase)}`} />
                             </td>
-                            <td className="px-2 py-1.5 font-mono">{formatMs(phase.startTimeMs)}</td>
+                            <td className="px-2 py-1.5 font-mono">{formatTimeMs(phase.startTimeMs)}</td>
                             <td className="px-2 py-1.5">
                               {phase.phaseLabel ? (
                                 <span

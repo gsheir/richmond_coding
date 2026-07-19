@@ -1,7 +1,7 @@
 // Modal for creating a new match
 import { useState } from "react";
 import { Button } from "./ui/Button";
-import { X } from "lucide-react";
+import { Modal } from "./ui/Modal";
 import { useAppStore } from "@/lib/store";
 
 interface NewMatchModalProps {
@@ -40,36 +40,13 @@ export function NewMatchModal({ isOpen, onClose }: NewMatchModalProps) {
     setAwayTeam("");
   };
 
-  if (!isOpen) return null;
-
   const isValid = date && homeTeam.trim() && awayTeam.trim();
 
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center"
-        onClick={handleCancel}
-      >
-        {/* Modal */}
-        <div
-          className="bg-card border border-border/50 rounded-xl shadow-2xl w-full max-w-md mx-4"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
-            <h2 className="text-lg font-semibold">Create New Match</h2>
-            <button
-              onClick={handleCancel}
-              className="p-1 rounded hover:bg-muted transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="p-4 space-y-4">
-            {/* Date */}
+    <Modal isOpen={isOpen} onClose={handleCancel} title="Create New Match">
+      {/* Form */}
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Date */}
             <div>
               <label htmlFor="modal-date" className="block text-sm font-medium mb-1.5">
                 Date
@@ -135,9 +112,7 @@ export function NewMatchModal({ isOpen, onClose }: NewMatchModalProps) {
                 Create Match
               </Button>
             </div>
-          </form>
-        </div>
-      </div>
-    </>
+      </form>
+    </Modal>
   );
 }

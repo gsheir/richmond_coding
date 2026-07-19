@@ -112,7 +112,12 @@ export function TitleBar() {
                   </button>
                   <div className="h-px bg-border/50 mx-2" />
                   <button
-                    onClick={() => { setMenuOpen(false); clearAllPhases(); }}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      if (confirm("Are you sure you want to clear all phases?")) {
+                        clearAllPhases();
+                      }
+                    }}
                     disabled={phases.length === 0}
                     className="w-full px-3 py-2 text-left text-sm hover:bg-destructive/50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-white"
                   >

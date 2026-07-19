@@ -7,6 +7,7 @@ import {
   Phase,
   Tab,
   ButtonConfig,
+  ButtonType,
   ClockState,
   createMatch,
   generateMatchId,
@@ -22,6 +23,7 @@ import {
   saveSettings as saveSettingsBackend,
   loadSettings as loadSettingsBackend,
 } from "./electron-api";
+import { startAppLifecycleTimers } from "./app-lifecycle";
 
 interface TabData {
   tab: Tab;
@@ -81,13 +83,11 @@ interface AppState {
   refreshMatches: () => Promise<void>;
   
   // Settings actions
-  setDefaultHomeTeam: (team: string) => void;
-  setDefaultLeadMs: (ms: number) => void;
-  setDefaultLagMs: (ms: number) => void;
-  
+  updateSettings: (settings: Partial<{ defaultHomeTeam: string; defaultLeadMs: number; defaultLagMs: number }>) => void;
+
   // Phase actions (operate on active tab)
   startPhase: () => void;
-  handleButtonClick: (code: string, type: any) => void;
+  handleButtonClick: (code: string, type: ButtonType) => void;
   undoLastPhase: () => void;
   deletePhase: (phaseId: number) => void;
   clearAllPhases: () => void;
@@ -185,38 +185,25 @@ export const useAppStore = create<AppState>((set, get) => {
           });
       }
       
-      // Set up periodic clock updates for all tabs
-      setInterval(() => {
-        get().updateClockDisplays();
-      }, 100);
-      
-      // Set up autosave every 10 seconds for all running tabs
-      setInterval(() => {
-        const tabs = get().tabs;
-        tabs.forEach((tabData) => {
-          if (tabData.clockState === ClockState.RUNNING) {
-            const updatedMatch = {
-              ...tabData.match,
-              phases: tabData.eventEngine.getAllPhases(),
-              modifiedAt: new Date().toISOString(),
-              clockTimeMs: tabData.clock.currentTimeMs(),
-            };
-            autosaveMatchBackend(updatedMatch)
-              .catch(console.error);
-          }
-        });
-      }, 10000);
-      
-      // Set up main database save every 5 minutes for all running tabs
-      setInterval(() => {
-        const tabs = get().tabs;
-        tabs.forEach((tabData) => {
-          if (tabData.clockState === ClockState.RUNNING) {
-            get().saveMatch(tabData.tab.id);
-          }
-        });
-      }, 300000); // 5 minutes
-      
+      // Clock display ticks, autosave, and periodic database saves
+      startAppLifecycleTimers({
+        updateClockDisplays: () => get().updateClockDisplays(),
+        getRunningTabIds: () =>
+          get().tabs.filter((t) => t.clockState === ClockState.RUNNING).map((t) => t.tab.id),
+        autosaveTab: (tabId) => {
+          const tabData = get().tabs.find((t) => t.tab.id === tabId);
+          if (!tabData) return;
+          const updatedMatch = {
+            ...tabData.match,
+            phases: tabData.eventEngine.getAllPhases(),
+            modifiedAt: new Date().toISOString(),
+            clockTimeMs: tabData.clock.currentTimeMs(),
+          };
+          autosaveMatchBackend(updatedMatch).catch(console.error);
+        },
+        saveTabToDatabase: (tabId) => get().saveMatch(tabId),
+      });
+
       // Load matches
       get().refreshMatches();
       
@@ -251,6 +238,7 @@ export const useAppStore = create<AppState>((set, get) => {
       const existingTab = tabs.find(t => t.tab.matchId === matchId);
       if (existingTab) {
         set({ activeTabId: existingTab.tab.id });
+        get().updateClockDisplays();
         return;
       }
       
@@ -312,6 +300,9 @@ export const useAppStore = create<AppState>((set, get) => {
     
     switchTab: (tabId: string) => {
       set({ activeTabId: tabId });
+      // Refresh immediately so the newly active tab's clock/phase display
+      // isn't stale until the next 100ms tick.
+      get().updateClockDisplays();
     },
     
     updateActiveMatch: (date: string, homeTeam: string, awayTeam: string) => {
@@ -389,17 +380,28 @@ export const useAppStore = create<AppState>((set, get) => {
       activeTab.clock.setTimeMs(clampedTime);
     },
     
+    // Only the active tab's clock/phase display is ever read (see App.tsx), so
+    // only it needs to be kept live – updating every tab on every 100ms tick
+    // would re-render tabs that aren't visible.
     updateClockDisplays: () => {
-      const tabs = get().tabs;
-      const updatedTabs = tabs.map(tabData => {
-        const activePhase = tabData.eventEngine.getActivePhase();
-        return {
-          ...tabData,
-          currentTime: tabData.clock.getTimeString(),
-          activePhaseId: activePhase?.id ?? null,
-        };
-      });
-      set({ tabs: updatedTabs });
+      const { tabs, activeTabId } = get();
+      if (!activeTabId) return;
+
+      const tabIndex = tabs.findIndex(t => t.tab.id === activeTabId);
+      if (tabIndex === -1) return;
+
+      const tabData = tabs[tabIndex];
+      const activePhase = tabData.eventEngine.getActivePhase();
+      const currentTime = tabData.clock.getTimeString();
+      const activePhaseId = activePhase?.id ?? null;
+
+      if (tabData.currentTime === currentTime && tabData.activePhaseId === activePhaseId) {
+        return;
+      }
+
+      const newTabs = [...tabs];
+      newTabs[tabIndex] = { ...tabData, currentTime, activePhaseId };
+      set({ tabs: newTabs });
     },
 
     shiftTimeline: (deltaMs: number) => {
@@ -531,37 +533,10 @@ export const useAppStore = create<AppState>((set, get) => {
       }
     },
     
-    setDefaultHomeTeam: (team) => {
-      set({ defaultHomeTeam: team });
-      const { defaultLeadMs, defaultLagMs } = get();
-      const settings = {
-        defaultHomeTeam: team,
-        defaultLeadMs,
-        defaultLagMs,
-      };
-      saveSettingsBackend(settings).catch(console.error);
-    },
-    
-    setDefaultLeadMs: (ms) => {
-      set({ defaultLeadMs: ms });
-      const { defaultHomeTeam, defaultLagMs } = get();
-      const settings = {
-        defaultHomeTeam,
-        defaultLeadMs: ms,
-        defaultLagMs,
-      };
-      saveSettingsBackend(settings).catch(console.error);
-    },
-    
-    setDefaultLagMs: (ms) => {
-      set({ defaultLagMs: ms });
-      const { defaultHomeTeam, defaultLeadMs } = get();
-      const settings = {
-        defaultHomeTeam,
-        defaultLeadMs,
-        defaultLagMs: ms,
-      };
-      saveSettingsBackend(settings).catch(console.error);
+    updateSettings: (partial) => {
+      set(partial);
+      const { defaultHomeTeam, defaultLeadMs, defaultLagMs } = get();
+      saveSettingsBackend({ defaultHomeTeam, defaultLeadMs, defaultLagMs }).catch(console.error);
     },
     
     // Helper function to mark active tab as dirty
@@ -619,24 +594,22 @@ export const useAppStore = create<AppState>((set, get) => {
     clearAllPhases: () => {
       const activeTab = get().getActiveTab();
       if (!activeTab) return;
-      
-      if (confirm("Are you sure you want to clear all phases?")) {
-        activeTab.eventEngine.clearAll();
-        
-        // Update tab state
-        const tabs = get().tabs;
-        const tabIndex = tabs.findIndex(t => t.tab.id === activeTab.tab.id);
-        if (tabIndex !== -1) {
-          const newTabs = [...tabs];
-          newTabs[tabIndex] = {
-            ...newTabs[tabIndex],
-            activePhaseId: null,
-          };
-          set({ tabs: newTabs });
-        }
-        
-        get().markActiveTabDirty();
+
+      activeTab.eventEngine.clearAll();
+
+      // Update tab state
+      const tabs = get().tabs;
+      const tabIndex = tabs.findIndex(t => t.tab.id === activeTab.tab.id);
+      if (tabIndex !== -1) {
+        const newTabs = [...tabs];
+        newTabs[tabIndex] = {
+          ...newTabs[tabIndex],
+          activePhaseId: null,
+        };
+        set({ tabs: newTabs });
       }
+
+      get().markActiveTabDirty();
     },
     
     updatePhase: (phaseId: number, updates: Partial<Phase>) => {

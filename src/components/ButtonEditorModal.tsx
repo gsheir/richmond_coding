@@ -1,8 +1,8 @@
 // Button Editor Modal - comprehensive form for editing button configuration
 import { useState, useEffect, useRef } from "react";
-import { createPortal } from "react-dom";
 import { ButtonConfig, ButtonType } from "@/lib/types";
 import { Button } from "./ui/Button";
+import { Modal } from "./ui/Modal";
 import { X } from "lucide-react";
 import { formatHotkeyDisplay, normaliseHotkey, isValidHotkeyKey } from "@/lib/utils";
 
@@ -185,33 +185,25 @@ export function ButtonEditorModal({
     onClose();
   };
 
-  if (!isOpen) return null;
-
-  return createPortal(
-    <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-      onClick={onClose}
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={button ? "Edit Button" : "Add Button"}
+      size="lg"
+      bodyClassName="space-y-6"
+      footer={
+        <>
+          <Button onClick={onClose} variant="ghost">
+            Cancel
+          </Button>
+          <Button onClick={handleSave}>
+            {button ? "Save Changes" : "Add Button"}
+          </Button>
+        </>
+      }
     >
-      <div
-        className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="sticky top-0 bg-card border-b border-border px-6 py-4 flex items-center justify-between">
-          <h2 className="text-xl font-semibold">
-            {button ? "Edit Button" : "Add Button"}
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-1 rounded hover:bg-muted transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="p-6 space-y-6">
-          {/* Basic Properties */}
+      {/* Basic Properties */}
           <div>
             <h3 className="text-sm font-semibold mb-3">Basic Properties</h3>
             <div className="grid grid-cols-2 gap-4">
@@ -611,19 +603,6 @@ export function ButtonEditorModal({
               </button>
             </div>
           </div>
-        </div>
-
-        {/* Footer */}
-        <div className="sticky bottom-0 bg-card border-t border-border px-6 py-4 flex gap-3 justify-end">
-          <Button onClick={onClose} variant="ghost">
-            Cancel
-          </Button>
-          <Button onClick={handleSave}>
-            {button ? "Save Changes" : "Add Button"}
-          </Button>
-        </div>
-      </div>
-    </div>,
-    document.body
+    </Modal>
   );
 }

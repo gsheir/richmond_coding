@@ -110,10 +110,6 @@ export const createPhase = (
   lagMs,
 });
 
-export const isPhaseActive = (phase: Phase): boolean => {
-  return phase.status !== PhaseStatus.TERMINATED && phase.endTimeMs === null;
-};
-
 export const classifyPhase = (
   phase: Phase,
   code: string,
@@ -144,16 +140,6 @@ export const terminatePhase = (
   terminationCategory,
   status: PhaseStatus.TERMINATED,
 });
-
-export const getPhaseExportCode = (phase: Phase): string => {
-  if (!phase.phaseCode) return "UNDEFINED";
-  
-  let code = phase.phaseCode;
-  if (phase.contextLabels.length > 0) {
-    code += ` (${phase.contextLabels.join(", ")})`;
-  }
-  return code;
-};
 
 export const getPhaseStartTimeSeconds = (phase: Phase): number => {
   return Math.max(0, phase.startTimeMs - phase.leadMs) / 1000.0;

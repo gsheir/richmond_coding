@@ -4,6 +4,7 @@ import { Button } from "./ui/Button";
 import { useAppStore } from "@/lib/store";
 import { ClockState } from "@/lib/types";
 import { GameClock } from "@/lib/clock";
+import { formatTimeMs } from "@/lib/utils";
 import { useState } from "react";
 
 interface ClockWidgetProps {
@@ -29,9 +30,7 @@ export function ClockWidget({ clockState, currentTime, clock }: ClockWidgetProps
   
   // Get max time for display
   const latestTimeMs = clock.getLatestTimeMs();
-  const maxMinutes = Math.floor(latestTimeMs / 60000);
-  const maxSeconds = Math.floor((latestTimeMs % 60000) / 1000);
-  const maxTimeString = `${maxMinutes.toString().padStart(2, "0")}:${maxSeconds.toString().padStart(2, "0")}`;
+  const maxTimeString = formatTimeMs(latestTimeMs);
 
   const handleJumpToTime = () => {
     // Parse MM:SS format

@@ -1,5 +1,6 @@
 // Timeline view for coded phases
 import { Phase, ButtonConfig, ButtonType } from "@/lib/types";
+import { formatTimeMs } from "@/lib/utils";
 
 import { ZoomIn, ZoomOut } from "lucide-react";
 
@@ -16,13 +17,6 @@ const LABEL_WIDTH = 120;
 const RULER_HEIGHT = 24;
 const BAR_HEIGHT = 20;
 const BAR_TOP = (ROW_HEIGHT - BAR_HEIGHT) / 2;
-
-function formatTimeLabel(ms: number): string {
-  const totalSeconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-}
 
 function getNiceTickIntervalMs(totalDurationMs: number, canvasWidth: number): number {
   const pxPerMs = canvasWidth / totalDurationMs;
@@ -118,7 +112,7 @@ export function TimelineView({
                   >
                     <div className="w-px h-2.5 bg-border/60 mt-1" />
                     <span className="text-[9px] text-muted-foreground/70 pl-0.5 leading-none whitespace-nowrap">
-                      {formatTimeLabel(t)}
+                      {formatTimeMs(t)}
                     </span>
                   </div>
                 );
@@ -194,7 +188,7 @@ export function TimelineView({
                             ? `0 0 6px 1px ${track.style.colour}88`
                             : undefined,
                         }}
-                        title={`${phase.phaseLabel || "Undefined"} – ${formatTimeLabel(phase.startTimeMs)}${phase.endTimeMs ? ` → ${formatTimeLabel(phase.endTimeMs)}` : " (active)"}`}
+                        title={`${phase.phaseLabel || "Undefined"} – ${formatTimeMs(phase.startTimeMs)}${phase.endTimeMs ? ` → ${formatTimeMs(phase.endTimeMs)}` : " (active)"}`}
                       >
                         {phase.terminationCategory && (
                           <div

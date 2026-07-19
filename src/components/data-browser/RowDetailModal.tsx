@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { Modal } from '../ui/Modal';
 import { ColumnInfo } from '@/lib/electron-api';
 import {
   parseValueForEdit,
   prepareValueForSave,
-  formatJsonValue,
   isJsonValue,
   getPrimaryKeyColumn,
 } from '@/lib/data-browser-utils';
@@ -86,42 +85,36 @@ export function RowDetailModal({
     onClose();
   };
 
-  if (!isOpen || !row) return null;
+  if (!row) return null;
 
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center overflow-y-auto"
-        onClick={handleCancel}
-      >
-        {/* Modal */}
-        <div
-          className="bg-card border border-border/50 rounded-xl shadow-2xl w-full max-w-3xl mx-4 my-8"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
-            <div>
-              <h2 className="text-lg font-semibold">
-                {readOnly ? 'View Row' : 'Edit Row'}
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                Table: {tableName}
-                {pkColumn && ` • ${pkColumn.name}: ${row[pkColumn.name]}`}
-              </p>
-            </div>
-            <button
-              onClick={handleCancel}
-              className="p-1 rounded hover:bg-muted transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="p-4 space-y-4 max-h-[70vh] overflow-y-auto">
-            {error && (
+    <Modal
+      isOpen={isOpen}
+      onClose={handleCancel}
+      title={readOnly ? 'View Row' : 'Edit Row'}
+      subtitle={
+        <>
+          Table: {tableName}
+          {pkColumn && ` • ${pkColumn.name}: ${row[pkColumn.name]}`}
+        </>
+      }
+      size="xl"
+      footer={
+        <>
+          <Button variant="outline" onClick={handleCancel} disabled={saving}>
+            {readOnly ? 'Close' : 'Cancel'}
+          </Button>
+          {!readOnly && (
+            <Button type="submit" onClick={handleSubmit} disabled={saving}>
+              {saving ? 'Saving...' : 'Save Changes'}
+            </Button>
+          )}
+        </>
+      }
+    >
+      {/* Form */}
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && (
               <div className="bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 px-3 py-2 rounded-lg text-sm">
                 {error}
               </div>
@@ -208,21 +201,7 @@ export function RowDetailModal({
                 ))}
               </div>
             )}
-          </form>
-
-          {/* Footer */}
-          <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-border/50">
-            <Button variant="outline" onClick={handleCancel} disabled={saving}>
-              {readOnly ? 'Close' : 'Cancel'}
-            </Button>
-            {!readOnly && (
-              <Button type="submit" onClick={handleSubmit} disabled={saving}>
-                {saving ? 'Saving...' : 'Save Changes'}
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
-    </>
+      </form>
+    </Modal>
   );
 }

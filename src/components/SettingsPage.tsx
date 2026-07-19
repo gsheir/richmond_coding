@@ -17,12 +17,10 @@ interface SettingsPageProps {
 
 export function SettingsPage({ onDirtyChange }: SettingsPageProps) {
   const { 
-    defaultHomeTeam, 
+    defaultHomeTeam,
     defaultLeadMs,
     defaultLagMs,
-    setDefaultHomeTeam, 
-    setDefaultLeadMs,
-    setDefaultLagMs,
+    updateSettings,
     setButtonConfig,
   } = useAppStore();
 
@@ -104,7 +102,7 @@ export function SettingsPage({ onDirtyChange }: SettingsPageProps) {
             id="default-home-team"
             type="text"
             value={defaultHomeTeam}
-            onChange={(e) => setDefaultHomeTeam(e.target.value)}
+            onChange={(e) => updateSettings({ defaultHomeTeam: e.target.value })}
             placeholder="e.g., Richmond"
             className="w-full max-w-md px-3 py-2 text-sm bg-background/50 border border-border/50 rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
           />
@@ -130,7 +128,7 @@ export function SettingsPage({ onDirtyChange }: SettingsPageProps) {
                 id="default-lead-ms"
                 type="number"
                 value={defaultLeadMs}
-                onChange={(e) => setDefaultLeadMs(parseInt(e.target.value) || 5000)}
+                onChange={(e) => updateSettings({ defaultLeadMs: parseInt(e.target.value) || 5000 })}
                 min="0"
                 step="1000"
                 className="w-full px-3 py-2 text-sm bg-background/50 border border-border/50 rounded-md focus:outline-none focus:ring-2 focus:ring-ring font-mono"
@@ -149,7 +147,7 @@ export function SettingsPage({ onDirtyChange }: SettingsPageProps) {
                 id="default-lag-ms"
                 type="number"
                 value={defaultLagMs}
-                onChange={(e) => setDefaultLagMs(parseInt(e.target.value) || 5000)}
+                onChange={(e) => updateSettings({ defaultLagMs: parseInt(e.target.value) || 5000 })}
                 min="0"
                 step="1000"
                 className="w-full px-3 py-2 text-sm bg-background/50 border border-border/50 rounded-md focus:outline-none focus:ring-2 focus:ring-ring font-mono"

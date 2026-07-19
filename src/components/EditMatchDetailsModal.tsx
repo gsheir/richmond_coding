@@ -1,9 +1,9 @@
 // Modal for editing match details (date, home team, away team)
 import { useState } from "react";
-import { X } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { ClockState } from "@/lib/types";
 import { Button } from "./ui/Button";
+import { Modal } from "./ui/Modal";
 
 interface EditMatchDetailsModalProps {
   tabId: string;
@@ -34,25 +34,20 @@ export function EditMatchDetailsModal({ tabId, match, clockState, onClose }: Edi
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="bg-card border border-border rounded-xl shadow-xl w-[460px] p-5"
-        onClick={e => e.stopPropagation()}
-        onKeyDown={handleKeyDown}
+    <div onKeyDown={handleKeyDown}>
+      <Modal
+        isOpen
+        onClose={onClose}
+        title="Edit Match Details"
+        footer={
+          <>
+            <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
+            <Button variant="attack" size="sm" onClick={handleSave} disabled={!canSave}>
+              Save
+            </Button>
+          </>
+        }
       >
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-semibold">Edit Match Details</h2>
-          <button
-            onClick={onClose}
-            className="p-1 rounded hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
         {!canEdit && (
           <div className="mb-4 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-amber-500">
             Cannot edit match details while the clock is running.
@@ -95,14 +90,7 @@ export function EditMatchDetailsModal({ tabId, match, clockState, onClose }: Edi
             />
           </div>
         </div>
-
-        <div className="flex justify-end gap-2 mt-5">
-          <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
-          <Button variant="attack" size="sm" onClick={handleSave} disabled={!canSave}>
-            Save
-          </Button>
-        </div>
-      </div>
+      </Modal>
     </div>
   );
 }

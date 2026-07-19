@@ -1,5 +1,6 @@
 // Game clock for Richmond Hockey coding app
 import { ClockState } from "./types";
+import { formatTimeMs } from "./utils";
 
 export class GameClock {
   private state: ClockState;
@@ -106,13 +107,7 @@ export class GameClock {
   }
 
   getTimeString(): string {
-    const timeMs = this.currentTimeMs();
-    const totalSeconds = Math.floor(timeMs / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes.toString().padStart(2, "0")}:${seconds
-      .toString()
-      .padStart(2, "0")}`;
+    return formatTimeMs(this.currentTimeMs());
   }
 
   getState(): ClockState {

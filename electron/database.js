@@ -903,6 +903,35 @@ export class MatchDatabase {
   }
 
   /**
+   * Flatten a { phase_buttons, context_buttons, termination_buttons } config object
+   * (or a legacy { buttons } array) into a single flat button array for storage.
+   */
+  normalizeButtonArray(config) {
+    const hasNewFormat = config.phase_buttons || config.context_buttons || config.termination_buttons;
+    if (hasNewFormat) {
+      return [
+        ...(config.phase_buttons || []),
+        ...(config.context_buttons || []),
+        ...(config.termination_buttons || []),
+      ];
+    }
+    return config.buttons || [];
+  }
+
+  /**
+   * Get the active button configuration, creating a default one if none exists.
+   */
+  getOrCreateActiveConfig() {
+    let activeConfig = this.getActiveButtonConfig();
+    if (!activeConfig) {
+      const configId = this.createButtonConfig('Default', 'Default button configuration');
+      this.setActiveButtonConfig(configId);
+      activeConfig = this.getActiveButtonConfig();
+    }
+    return activeConfig;
+  }
+
+  /**
    * Migrate from legacy button_config to new schema
    */
   migrateButtonConfig() {

@@ -1,13 +1,20 @@
 // Visual Layout Editor - drag-and-drop interface for button configuration
 import { useState, useRef, useEffect, DragEvent, MouseEvent } from "react";
-import { createPortal } from "react-dom";
 import { ButtonConfig } from "@/lib/types";
-import { Plus, Edit2, Trash2, AlertCircle, RotateCcw, GripVertical, AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, ChevronDown } from "lucide-react";
+import { Plus, Edit2, Trash2, AlertCircle, RotateCcw, AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, ChevronDown } from "lucide-react";
 import { Button } from "./ui/Button";
+import { Modal } from "./ui/Modal";
 import { ButtonEditorModal } from "./ButtonEditorModal";
+import { HotkeyMapVisualiser } from "./HotkeyMapVisualiser";
+import { ButtonListTable } from "./ButtonListTable";
 import { validateButtonConfig, ValidationResult } from "@/lib/config-validation";
 import { saveCodingWindowConfig, resetCodingWindowConfig } from "@/lib/electron-api";
 import { formatHotkeyDisplay } from "@/lib/utils";
+import { isButtonInSelection, getSelectionRectFromPoints, alignButtons, distributeButtons } from "@/lib/layout-geometry";
+import { serializeButtonConfig, deserializeButtonConfig } from "@/lib/button-config-serialization";
+
+// Buttons shorter than this render as a pill rather than a rounded rectangle
+const PILL_HEIGHT_THRESHOLD = 24;
 
 interface VisualLayoutEditorProps {
   buttons: ButtonConfig[];
@@ -284,21 +291,6 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved, on
     }
   };
 
-  // Check if a button intersects with the selection rectangle
-  const isButtonInSelection = (button: ButtonConfig, rect: { x1: number; y1: number; x2: number; y2: number }) => {
-    const btnLeft = button.position.x;
-    const btnRight = button.position.x + button.position.width;
-    const btnTop = button.position.y;
-    const btnBottom = button.position.y + button.position.height;
-
-    return !(
-      btnRight < rect.x1 ||
-      btnLeft > rect.x2 ||
-      btnBottom < rect.y1 ||
-      btnTop > rect.y2
-    );
-  };
-
   // Canvas mouse handlers for rectangular selection
   const handleCanvasMouseDown = (e: MouseEvent<HTMLDivElement>) => {
     if (!canvasRef.current) return;
@@ -365,215 +357,18 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved, on
     }
   };
 
-  // Calculate selection rectangle dimensions for rendering
-  const getSelectionRect = () => {
-    const x1 = Math.min(selectionStart.x, selectionEnd.x);
-    const y1 = Math.min(selectionStart.y, selectionEnd.y);
-    const x2 = Math.max(selectionStart.x, selectionEnd.x);
-    const y2 = Math.max(selectionStart.y, selectionEnd.y);
-
-    return {
-      left: x1,
-      top: y1,
-      width: x2 - x1,
-      height: y2 - y1,
-    };
-  };
-
   // Align selected buttons
   const handleAlign = (alignment: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom') => {
     if (selectedButtons.length < 2) return;
     setShowAlignDropdown(false);
-
-    const selectedButtonsData = buttons.filter(b => selectedButtons.includes(b.code));
-    
-    let referenceValue: number;
-    
-    switch (alignment) {
-      case 'left':
-        referenceValue = Math.min(...selectedButtonsData.map(b => b.position.x));
-        break;
-      case 'center':
-        const minX = Math.min(...selectedButtonsData.map(b => b.position.x));
-        const maxX = Math.max(...selectedButtonsData.map(b => b.position.x + b.position.width));
-        referenceValue = (minX + maxX) / 2;
-        break;
-      case 'right':
-        referenceValue = Math.max(...selectedButtonsData.map(b => b.position.x + b.position.width));
-        break;
-      case 'top':
-        referenceValue = Math.min(...selectedButtonsData.map(b => b.position.y));
-        break;
-      case 'middle':
-        const minY = Math.min(...selectedButtonsData.map(b => b.position.y));
-        const maxY = Math.max(...selectedButtonsData.map(b => b.position.y + b.position.height));
-        referenceValue = (minY + maxY) / 2;
-        break;
-      case 'bottom':
-        referenceValue = Math.max(...selectedButtonsData.map(b => b.position.y + b.position.height));
-        break;
-    }
-
-    const updatedButtons = buttons.map(btn => {
-      if (!selectedButtons.includes(btn.code)) return btn;
-
-      let newX = btn.position.x;
-      let newY = btn.position.y;
-
-      switch (alignment) {
-        case 'left':
-          newX = referenceValue;
-          break;
-        case 'center':
-          newX = referenceValue - btn.position.width / 2;
-          break;
-        case 'right':
-          newX = referenceValue - btn.position.width;
-          break;
-        case 'top':
-          newY = referenceValue;
-          break;
-        case 'middle':
-          newY = referenceValue - btn.position.height / 2;
-          break;
-        case 'bottom':
-          newY = referenceValue - btn.position.height;
-          break;
-      }
-
-      return {
-        ...btn,
-        position: {
-          ...btn.position,
-          x: Math.round(Math.max(0, Math.min(CANVAS_WIDTH - btn.position.width, newX))),
-          y: Math.round(Math.max(0, Math.min(CANVAS_HEIGHT - btn.position.height, newY))),
-        },
-      };
-    });
-
-    onButtonsChange(updatedButtons);
+    onButtonsChange(alignButtons(buttons, selectedButtons, alignment, CANVAS_WIDTH, CANVAS_HEIGHT));
   };
 
   // Distribute selected buttons
   const handleDistribute = (direction: 'horizontal' | 'vertical', gap?: number) => {
     if (selectedButtons.length < 3) return;
     setShowDistributeDropdown(false);
-
-    const selectedButtonsData = buttons.filter(b => selectedButtons.includes(b.code));
-    
-    if (gap !== undefined) {
-      // Distribute with specific gap
-      if (direction === 'horizontal') {
-        const sorted = [...selectedButtonsData].sort((a, b) => a.position.x - b.position.x);
-        
-        // Pre-calculate positions for all sorted buttons
-        const newPositions = new Map<string, number>();
-        let currentX = sorted[0].position.x;
-        newPositions.set(sorted[0].code, currentX);
-        
-        for (let i = 1; i < sorted.length; i++) {
-          currentX += sorted[i - 1].position.width + gap;
-          newPositions.set(sorted[i].code, currentX);
-        }
-        
-        const updatedButtons = buttons.map(btn => {
-          const newX = newPositions.get(btn.code);
-          if (newX === undefined) return btn;
-          
-          return {
-            ...btn,
-            position: {
-              ...btn.position,
-              x: Math.round(newX),
-            },
-          };
-        });
-        
-        onButtonsChange(updatedButtons);
-      } else {
-        const sorted = [...selectedButtonsData].sort((a, b) => a.position.y - b.position.y);
-        
-        // Pre-calculate positions for all sorted buttons
-        const newPositions = new Map<string, number>();
-        let currentY = sorted[0].position.y;
-        newPositions.set(sorted[0].code, currentY);
-        
-        for (let i = 1; i < sorted.length; i++) {
-          currentY += sorted[i - 1].position.height + gap;
-          newPositions.set(sorted[i].code, currentY);
-        }
-        
-        const updatedButtons = buttons.map(btn => {
-          const newY = newPositions.get(btn.code);
-          if (newY === undefined) return btn;
-          
-          return {
-            ...btn,
-            position: {
-              ...btn.position,
-              y: Math.round(newY),
-            },
-          };
-        });
-        
-        onButtonsChange(updatedButtons);
-      }
-    } else {
-      // Distribute evenly across available space
-      if (direction === 'horizontal') {
-        const sorted = [...selectedButtonsData].sort((a, b) => a.position.x - b.position.x);
-        const leftmost = sorted[0].position.x;
-        const rightmost = sorted[sorted.length - 1].position.x + sorted[sorted.length - 1].position.width;
-        const totalWidth = sorted.reduce((sum, btn) => sum + btn.position.width, 0);
-        const totalGap = (rightmost - leftmost - totalWidth) / (sorted.length - 1);
-        
-        let currentX = leftmost;
-        const updatedButtons = buttons.map(btn => {
-          const index = sorted.findIndex(s => s.code === btn.code);
-          if (index === -1) return btn;
-          
-          if (index > 0) {
-            currentX += sorted[index - 1].position.width + totalGap;
-          }
-          
-          return {
-            ...btn,
-            position: {
-              ...btn.position,
-              x: Math.round(currentX),
-            },
-          };
-        });
-        
-        onButtonsChange(updatedButtons);
-      } else {
-        const sorted = [...selectedButtonsData].sort((a, b) => a.position.y - b.position.y);
-        const topmost = sorted[0].position.y;
-        const bottommost = sorted[sorted.length - 1].position.y + sorted[sorted.length - 1].position.height;
-        const totalHeight = sorted.reduce((sum, btn) => sum + btn.position.height, 0);
-        const totalGap = (bottommost - topmost - totalHeight) / (sorted.length - 1);
-        
-        let currentY = topmost;
-        const updatedButtons = buttons.map(btn => {
-          const index = sorted.findIndex(s => s.code === btn.code);
-          if (index === -1) return btn;
-          
-          if (index > 0) {
-            currentY += sorted[index - 1].position.height + totalGap;
-          }
-          
-          return {
-            ...btn,
-            position: {
-              ...btn.position,
-              y: Math.round(currentY),
-            },
-          };
-        });
-        
-        onButtonsChange(updatedButtons);
-      }
-    }
+    onButtonsChange(distributeButtons(buttons, selectedButtons, direction, gap));
   };
 
   // Update position from input fields
@@ -614,55 +409,8 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved, on
   const handleSaveConfig = async () => {
     try {
       setSaveStatus("saving");
-      
-      // Helper function to serialize a button
-      const serializeButton = (btn: ButtonConfig) => {
-        const baseConfig: any = {
-          code: btn.code,
-          label: btn.label,
-          type: btn.type,
-          category: btn.category,
-          hotkey: btn.hotkey,
-          position: btn.position,
-          style: {
-            colour: btn.style.colour,
-            opacity: btn.style.opacity,
-            font_size: btn.style.fontSize,
-            font_weight: btn.style.fontWeight,
-          },
-          lead_ms: btn.leadMs,
-          lag_ms: btn.lagMs,
-        };
-        
-        // Add optional properties if they exist
-        if (btn.possessionState) {
-          baseConfig.possession_state = btn.possessionState;
-        }
-        if (btn.hierarchyLevel !== undefined) {
-          baseConfig.hierarchy_level = btn.hierarchyLevel;
-        }
-        if (btn.transitionType) {
-          baseConfig.transition_type = btn.transitionType;
-        }
-        if (btn.forPossessionState) {
-          baseConfig.for_possession_state = btn.forPossessionState;
-        }
-        
-        return baseConfig;
-      };
-      
-      // Separate buttons by type
-      const phaseButtons = buttons.filter(b => b.type === 'phase').map(serializeButton);
-      const contextButtons = buttons.filter(b => b.type === 'context').map(serializeButton);
-      const terminationButtons = buttons.filter(b => b.type === 'termination').map(serializeButton);
-      
-      const config = {
-        phase_buttons: phaseButtons,
-        context_buttons: contextButtons,
-        termination_buttons: terminationButtons,
-      };
 
-      await saveCodingWindowConfig(config);
+      await saveCodingWindowConfig(serializeButtonConfig(buttons));
       
       // Update global store after successful save
       if (typeof onConfigSaved === 'function') {
@@ -686,36 +434,8 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved, on
     try {
       setSaveStatus("saving");
       const defaultConfig = await resetCodingWindowConfig();
-      
-      // Combine phase, context, and termination buttons
-      const allButtons = [
-        ...(defaultConfig.phase_buttons || []),
-        ...(defaultConfig.context_buttons || []),
-        ...(defaultConfig.termination_buttons || []),
-      ];
-      
-      // Update buttons from default config
-      const loadedButtons = allButtons.map((btn: any) => ({
-        code: btn.code,
-        label: btn.label,
-        type: btn.type,
-        category: btn.category || undefined,
-        hotkey: btn.hotkey || undefined,
-        position: btn.position,
-        style: {
-          colour: btn.style.colour,
-          opacity: btn.style.opacity,
-          fontSize: btn.style.font_size,
-          fontWeight: btn.style.font_weight,
-        },
-        leadMs: btn.lead_ms,
-        lagMs: btn.lag_ms,
-        possessionState: btn.possession_state,
-        hierarchyLevel: btn.hierarchy_level,
-        transitionType: btn.transition_type,
-        forPossessionState: btn.for_possession_state,
-      }));
-      
+      const loadedButtons = deserializeButtonConfig(defaultConfig);
+
       onButtonsChange(loadedButtons);
       
       // Update global store after successful reset
@@ -799,105 +519,17 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved, on
   const contextButtons = buttons.filter(b => b.type === 'context');
   const terminationButtons = buttons.filter(b => b.type === 'termination');
 
-  // Helper to render a categorised button table
-  const renderButtonTable = (categoryButtons: ButtonConfig[], categoryName: string, categoryType: string) => {
-    if (categoryButtons.length === 0) return null;
-
-    return (
-      <div key={categoryType} className="w-full">
-        <h4 className="text-sm font-medium mb-2">{categoryName}</h4>
-        <div className="border border-border rounded-lg overflow-hidden w-full">
-          <table className="w-full text-sm table-fixed">
-            <thead className="bg-muted/50 border-b border-border">
-              <tr>
-                <th className="w-8"></th>
-                <th className="text-left px-3 py-2 font-medium">Code</th>
-                <th className="text-left px-3 py-2 font-medium">Label</th>
-                <th className="text-left px-3 py-2 font-medium">Hotkey</th>
-                <th className="text-left px-3 py-2 font-medium">Position</th>
-                <th className="text-right px-3 py-2 font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {categoryButtons.map((button) => (
-                <tr
-                  key={button.code}
-                  draggable
-                  onDragStart={(e) => handleListDragStart(e, button.code)}
-                  onDragOver={handleListDragOver}
-                  onDrop={(e) => handleListDrop(e, button.code, categoryType)}
-                  onDragEnd={handleListDragEnd}
-                  className={`border-b border-border/50 hover:bg-muted/30 transition-colors cursor-move ${
-                    selectedButtons.includes(button.code) ? "bg-muted/50" : ""
-                  } ${draggedListButton === button.code ? "opacity-50" : ""}`}
-                  onClick={(e) => {
-                    if (e.metaKey || e.ctrlKey) {
-                      if (selectedButtons.includes(button.code)) {
-                        setSelectedButtons(selectedButtons.filter((c) => c !== button.code));
-                      } else {
-                        setSelectedButtons([...selectedButtons, button.code]);
-                      }
-                    } else {
-                      setSelectedButtons([button.code]);
-                    }
-                  }}
-                >
-                  <td className="px-2 py-2 text-muted-foreground">
-                    <GripVertical className="w-4 h-4" />
-                  </td>
-                  <td 
-                    className="px-3 py-2 font-mono text-xs font-bold text-white"
-                    style={{ 
-                      backgroundColor: button.style.colour,
-                      opacity: button.style.opacity 
-                    }}
-                  >
-                    {button.code}
-                  </td>
-                  <td className="px-3 py-2">{button.label}</td>
-                  <td className="px-3 py-2">
-                    {button.hotkey ? (
-                      <span className="inline-block border border-border rounded px-1.5 py-0.5 text-xs font-mono">
-                        {formatHotkeyDisplay(button.hotkey)}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">None</span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2 text-xs text-muted-foreground">
-                    {button.position.x}, {button.position.y}
-                  </td>
-                  <td className="px-3 py-2 text-right">
-                    <div className="flex gap-1 justify-end">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEditButton(button);
-                        }}
-                        className="p-1 rounded hover:bg-muted transition-colors"
-                        title="Edit"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteButton(button.code);
-                        }}
-                        className="p-1 rounded hover:bg-destructive/20 text-destructive transition-colors"
-                        title="Delete"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    );
+  // Toggle/replace selection when a row in a button list is clicked
+  const handleListItemSelect = (e: MouseEvent, buttonCode: string) => {
+    if (e.metaKey || e.ctrlKey) {
+      if (selectedButtons.includes(buttonCode)) {
+        setSelectedButtons(selectedButtons.filter((c) => c !== buttonCode));
+      } else {
+        setSelectedButtons([...selectedButtons, buttonCode]);
+      }
+    } else {
+      setSelectedButtons([buttonCode]);
+    }
   };
 
   return (
@@ -1204,7 +836,7 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved, on
           onMouseLeave={handleCanvasMouseUp}
         >
           {buttons.map((button) => {
-            const borderRadius = button.position.height < 24 ? "9999px" : "0.75rem";
+            const borderRadius = button.position.height < PILL_HEIGHT_THRESHOLD ? "9999px" : "0.75rem";
             const isSelected = selectedButtons.includes(button.code);
             const isBeingDragged = draggingButton !== null && dragStartPositions.has(button.code);
             return (
@@ -1273,7 +905,7 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved, on
 
           {/* Selection Rectangle */}
           {isSelecting && (() => {
-            const rect = getSelectionRect();
+            const rect = getSelectionRectFromPoints(selectionStart, selectionEnd);
             return (
               <div
                 className="absolute border-2 border-primary bg-primary/10 pointer-events-none"
@@ -1302,7 +934,7 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved, on
 
               const previewX = startPos.x + deltaX;
               const previewY = startPos.y + deltaY;
-              const borderRadius = button.position.height < 24 ? "9999px" : "0.75rem";
+              const borderRadius = button.position.height < PILL_HEIGHT_THRESHOLD ? "9999px" : "0.75rem";
 
               return (
                 <div
@@ -1351,188 +983,55 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved, on
       <div className="space-y-2" style={{ width: CANVAS_WIDTH }}>
         <h3 className="text-sm font-semibold">Keyboard Hotkey Map</h3>
         <div className="bg-muted/20 rounded-xl p-4 border border-border">
-          {/* Create hotkey map */}
-          {(() => {
-            const hotkeyMap = new Map<string, ButtonConfig[]>();
-            buttons.forEach((btn) => {
-              if (btn.hotkey) {
-                // Normalize space character to 'SPACE' for matching
-                const normalizedHotkey = btn.hotkey === ' ' ? 'SPACE' : btn.hotkey.toUpperCase();
-                const existing = hotkeyMap.get(normalizedHotkey) || [];
-                hotkeyMap.set(normalizedHotkey, [...existing, btn]);
-              }
-            });
-
-            const renderKey = (key: string, label?: string, width: string = "w-10", extraClasses: string = "", uniqueId?: string) => {
-              const normalizedKey = key.toUpperCase();
-              const buttonList = hotkeyMap.get(normalizedKey) || [];
-              const displayLabel = label || key;
-              const reactKey = uniqueId || key;
-              
-              // Handle multiple buttons with diagonal split
-              if (buttonList.length > 1) {
-                const buttonTitles = buttonList.map(b => `${b.label} (${b.code})`).join(', ');
-                return (
-                  <div
-                    key={reactKey}
-                    className={`${width} h-10 rounded border-2 flex items-center justify-center text-xs font-medium transition-all overflow-hidden relative ${extraClasses}`}
-                    style={{
-                      borderColor: buttonList[0].style.colour,
-                    }}
-                    title={buttonTitles}
-                  >
-                    {/* Diagonal split background */}
-                    <div 
-                      className="absolute inset-0"
-                      style={{
-                        background: `linear-gradient(to bottom right, ${buttonList[0].style.colour} 0%, ${buttonList[0].style.colour} 50%, ${buttonList[1].style.colour} 50%, ${buttonList[1].style.colour} 100%)`,
-                      }}
-                    />
-                    <span className="relative z-10 text-white font-bold">{displayLabel}</span>
-                  </div>
-                );
-              }
-              
-              // Single button or no button
-              const button = buttonList[0];
-              return (
-                <div
-                  key={reactKey}
-                  className={`${width} h-10 rounded border-2 flex items-center justify-center text-xs font-medium transition-all ${extraClasses}`}
-                  style={{
-                    backgroundColor: button ? button.style.colour : 'transparent',
-                    borderColor: button ? button.style.colour : 'hsl(var(--border))',
-                    color: button ? 'white' : 'hsl(var(--muted-foreground))',
-                    fontWeight: button ? 'bold' : 'normal',
-                  }}
-                  title={button ? `${button.label} (${button.code})` : undefined}
-                >
-                  {displayLabel}
-                </div>
-              );
-            };
-
-            const renderArrowKey = (key: string, label: string, uniqueId?: string) => {
-              const normalizedKey = key.toUpperCase();
-              const buttonList = hotkeyMap.get(normalizedKey) || [];
-              const reactKey = uniqueId || key;
-              
-              // Handle multiple buttons with diagonal split
-              if (buttonList.length > 1) {
-                const buttonTitles = buttonList.map(b => `${b.label} (${b.code})`).join(', ');
-                return (
-                  <div
-                    key={reactKey}
-                    className="w-10 h-[18px] rounded border-2 flex items-center justify-center text-xs font-medium transition-all overflow-hidden relative"
-                    style={{
-                      borderColor: buttonList[0].style.colour,
-                    }}
-                    title={buttonTitles}
-                  >
-                    {/* Diagonal split background */}
-                    <div 
-                      className="absolute inset-0"
-                      style={{
-                        background: `linear-gradient(to bottom right, ${buttonList[0].style.colour} 0%, ${buttonList[0].style.colour} 50%, ${buttonList[1].style.colour} 50%, ${buttonList[1].style.colour} 100%)`,
-                      }}
-                    />
-                    <span className="relative z-10 text-white font-bold">{label}</span>
-                  </div>
-                );
-              }
-              
-              // Single button or no button
-              const button = buttonList[0];
-              return (
-                <div
-                  key={reactKey}
-                  className="w-10 h-[18px] rounded border-2 flex items-center justify-center text-xs font-medium transition-all"
-                  style={{
-                    backgroundColor: button ? button.style.colour : 'transparent',
-                    borderColor: button ? button.style.colour : 'hsl(var(--border))',
-                    color: button ? 'white' : 'hsl(var(--muted-foreground))',
-                    fontWeight: button ? 'bold' : 'normal',
-                  }}
-                  title={button ? `${button.label} (${button.code})` : undefined}
-                >
-                  {label}
-                </div>
-              );
-            };
-
-            return (
-              <div className="space-y-1.5 font-mono">
-                {/* Number row */}
-                <div className="flex gap-1">
-                  {renderKey('`', '`')}
-                  {['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'].map(k => renderKey(k, k, 'w-10', '', k))}
-                  {renderKey('-', '-')}
-                  {renderKey('=', '=')}
-                  {renderKey('Backspace', 'delete', 'w-20', 'text-[10px]')}
-                </div>
-
-                {/* QWERTY row */}
-                <div className="flex gap-1">
-                  {renderKey('Tab', 'tab', 'w-16', 'text-[10px]')}
-                  {['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'].map(k => renderKey(k, k, 'w-10', '', k))}
-                  {renderKey('[', '[')}
-                  {renderKey(']', ']')}
-                  {renderKey('\\', '\\')}
-                </div>
-
-                {/* ASDF row */}
-                <div className="flex gap-1">
-                  {renderKey('CapsLock', 'caps lock', 'w-20', 'text-[10px]')}
-                  {['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'].map(k => renderKey(k, k, 'w-10', '', k))}
-                  {renderKey(';', ';')}
-                  {renderKey("'", "'")}
-                  {renderKey('Enter', 'return', 'w-20', 'text-[10px]')}
-                </div>
-
-                {/* ZXCV row */}
-                <div className="flex gap-1">
-                  {renderKey('Shift', 'shift', 'w-24', 'text-[10px]', 'left-shift')}
-                  {['Z', 'X', 'C', 'V', 'B', 'N', 'M'].map(k => renderKey(k, k, 'w-10', '', k))}
-                  {renderKey(',', ',')}
-                  {renderKey('.', '.')}
-                  {renderKey('/', '/')}
-                  {renderKey('Shift', 'shift', 'w-24', 'text-[10px]', 'right-shift')}
-                </div>
-
-                {/* Space row */}
-                <div className="flex gap-1 items-center">
-                  {renderKey('Fn', 'fn', 'w-10', 'text-[10px]')}
-                  {renderKey('Ctrl', '⌃', 'w-10')}
-                  {renderKey('Alt', '⌥', 'w-10', '', 'left-alt')}
-                  {renderKey('Cmd', '⌘', 'w-10', '', 'left-cmd')}
-                  {renderKey('Space', '', 'w-[216px]')}
-                  {renderKey('Cmd', '⌘', 'w-10', '', 'right-cmd')}
-                  {renderKey('Alt', '⌥', 'w-10', '', 'right-alt')}
-                  
-                  {/* Arrow keys */}
-                  <div className="flex flex-col gap-1 ml-2">
-                    <div className="flex justify-center">
-                      {renderArrowKey('ArrowUp', '↑')}
-                    </div>
-                    <div className="flex gap-1">
-                      {renderArrowKey('ArrowLeft', '←')}
-                      {renderArrowKey('ArrowDown', '↓')}
-                      {renderArrowKey('ArrowRight', '→')}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })()}
+          <HotkeyMapVisualiser buttons={buttons} />
         </div>
       </div>
 
       {/* Button Lists */}
       <div className="w-full space-y-4">
         <h3 className="text-sm font-semibold">Button Lists</h3>
-        {renderButtonTable(phaseButtons, "Phase Buttons", "phase")}
-        {renderButtonTable(contextButtons, "Context Buttons", "context")}
-        {renderButtonTable(terminationButtons, "Termination Buttons", "termination")}
+        <ButtonListTable
+          buttons={phaseButtons}
+          categoryName="Phase Buttons"
+          categoryType="phase"
+          selectedButtons={selectedButtons}
+          draggedButton={draggedListButton}
+          onSelect={handleListItemSelect}
+          onEdit={handleEditButton}
+          onDelete={handleDeleteButton}
+          onDragStart={handleListDragStart}
+          onDragOver={handleListDragOver}
+          onDrop={handleListDrop}
+          onDragEnd={handleListDragEnd}
+        />
+        <ButtonListTable
+          buttons={contextButtons}
+          categoryName="Context Buttons"
+          categoryType="context"
+          selectedButtons={selectedButtons}
+          draggedButton={draggedListButton}
+          onSelect={handleListItemSelect}
+          onEdit={handleEditButton}
+          onDelete={handleDeleteButton}
+          onDragStart={handleListDragStart}
+          onDragOver={handleListDragOver}
+          onDrop={handleListDrop}
+          onDragEnd={handleListDragEnd}
+        />
+        <ButtonListTable
+          buttons={terminationButtons}
+          categoryName="Termination Buttons"
+          categoryType="termination"
+          selectedButtons={selectedButtons}
+          draggedButton={draggedListButton}
+          onSelect={handleListItemSelect}
+          onEdit={handleEditButton}
+          onDelete={handleDeleteButton}
+          onDragStart={handleListDragStart}
+          onDragOver={handleListDragOver}
+          onDrop={handleListDrop}
+          onDragEnd={handleListDragEnd}
+        />
         {buttons.length === 0 && (
           <div className="py-8 text-center text-muted-foreground text-sm">
             No buttons configured
@@ -1553,41 +1052,39 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved, on
       />
 
       {/* Reset Confirmation Dialog */}
-      {showResetConfirm && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-card border border-border rounded-xl p-6 max-w-md mx-4 shadow-2xl">
-            <div className="flex items-start gap-3 mb-4">
-              <div className="p-2 bg-destructive/10 rounded-lg">
-                <AlertCircle className="w-5 h-5 text-destructive" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold mb-1">Reset to Default Configuration?</h3>
-                <p className="text-sm text-muted-foreground">
-                  This will replace all current buttons with the default configuration. This action cannot be undone.
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-2 justify-end">
-              <Button
-                onClick={() => setShowResetConfirm(false)}
-                size="sm"
-                variant="outline"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleResetConfig}
-                size="sm"
-                variant="destructive"
-                disabled={saveStatus === "saving"}
-              >
-                {saveStatus === "saving" ? "Resetting..." : "Reset"}
-              </Button>
-            </div>
+      <Modal
+        isOpen={showResetConfirm}
+        onClose={() => setShowResetConfirm(false)}
+        title="Reset to Default Configuration?"
+        icon={
+          <div className="p-2 bg-destructive/10 rounded-lg">
+            <AlertCircle className="w-5 h-5 text-destructive" />
           </div>
-        </div>,
-        document.body
-      )}
+        }
+        footer={
+          <>
+            <Button
+              onClick={() => setShowResetConfirm(false)}
+              size="sm"
+              variant="outline"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleResetConfig}
+              size="sm"
+              variant="destructive"
+              disabled={saveStatus === "saving"}
+            >
+              {saveStatus === "saving" ? "Resetting..." : "Reset"}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-muted-foreground">
+          This will replace all current buttons with the default configuration. This action cannot be undone.
+        </p>
+      </Modal>
     </div>
   );
 }
