@@ -5,14 +5,14 @@ import { CodePage } from "./components/CodePage";
 import { MatchesPage } from "./components/MatchesPage";
 import { SettingsPage } from "./components/SettingsPage";
 import { DataBrowserPage } from "./components/DataBrowserPage";
+import { MergeMatchesPage } from "./components/MergeMatchesPage";
 import { useAppStore } from "./lib/store";
+import { Page } from "./lib/types";
 import { showUnsavedConfigDialog } from "./lib/electron-api";
 import "./App.css";
 
 function App() {
-  const [currentPage, setCurrentPage] = useState<"matches" | "settings" | "data-browser" | null>(
-    "matches"
-  );
+  const [currentPage, setCurrentPage] = useState<Page | null>("matches");
   const [isConfigDirty, setIsConfigDirty] = useState(false);
   const { initialize, tabs, getActiveTab } = useAppStore();
 
@@ -34,7 +34,7 @@ function App() {
     return response === 0; // 0 = Discard Changes
   };
 
-  const handleNavigate = async (page: "matches" | "settings" | "data-browser") => {
+  const handleNavigate = async (page: Page) => {
     if (!(await confirmLeaveSettings())) return;
     setIsConfigDirty(false);
     setCurrentPage(page);
@@ -79,7 +79,13 @@ function App() {
         ) : (
           <main className="flex-1 overflow-auto p-4 bg-background">
             <div className="h-full bg-card/50 rounded-xl border border-border/40 backdrop-blur-sm">
-              {currentPage === "matches" && <MatchesPage onOpenMatch={handleOpenMatch} />}
+              {currentPage === "matches" && (
+                <MatchesPage
+                  onOpenMatch={handleOpenMatch}
+                  onMergeMatches={() => handleNavigate("merge")}
+                />
+              )}
+              {currentPage === "merge" && <MergeMatchesPage onOpenMatch={handleOpenMatch} />}
               {currentPage === "settings" && <SettingsPage onDirtyChange={setIsConfigDirty} />}
               {currentPage === "data-browser" && <DataBrowserPage />}
             </div>

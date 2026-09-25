@@ -1,7 +1,7 @@
 // Matches list page
 import { useEffect, useState } from "react";
 import { Button } from "./ui/Button";
-import { Plus, Trash2 } from "lucide-react";
+import { Combine, Plus, Trash2 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { getMatchDisplayName } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -9,9 +9,10 @@ import { NewMatchModal } from "./NewMatchModal";
 
 interface MatchesPageProps {
   onOpenMatch: (matchId: string) => Promise<void>;
+  onMergeMatches: () => void;
 }
 
-export function MatchesPage({ onOpenMatch }: MatchesPageProps) {
+export function MatchesPage({ onOpenMatch, onMergeMatches }: MatchesPageProps) {
   const { matches, refreshMatches, deleteMatch, codingWindows } = useAppStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const windowNames = new Map(codingWindows.map((w) => [w.id, w.name]));
@@ -42,15 +43,27 @@ export function MatchesPage({ onOpenMatch }: MatchesPageProps) {
             </p>
           </div>
 
-          <Button
-            onClick={() => setIsModalOpen(true)}
-            variant="attack"
-            size="sm"
-            className="gap-1.5"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            New Match
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={onMergeMatches}
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              disabled={matches.length < 2}
+            >
+              <Combine className="w-3.5 h-3.5" />
+              Merge Matches
+            </Button>
+            <Button
+              onClick={() => setIsModalOpen(true)}
+              variant="attack"
+              size="sm"
+              className="gap-1.5"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              New Match
+            </Button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-auto">

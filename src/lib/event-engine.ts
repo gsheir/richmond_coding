@@ -28,7 +28,7 @@ export class EventEngine {
   private phaseClassifiedListeners: ((phase: Phase) => void)[];
   private phaseTerminatedListeners: ((phase: Phase) => void)[];
   private lastPhaseWithUndefinedTermination: Phase | null;
-  private preShiftSnapshot: Phase[] | null;
+  private preShiftSnapshot: { phases: Phase[]; pointEvents: PointEvent[] } | null;
 
   constructor(clock: GameClock) {
     this.clock = clock;
@@ -407,15 +407,23 @@ export class EventEngine {
     return true;
   }
 
-  // Shifts every phase's start/end timestamps by a fixed delta – used to
+  // Shifts every phase and point event timestamp by a fixed delta – used to
   // align a timeline coded live against a real clock with a video's timeline.
-  shiftAllPhaseTimestamps(deltaMs: number): void {
-    this.preShiftSnapshot = this.phases.map((p) => ({ ...p }));
+  shiftAllTimestamps(deltaMs: number): void {
+    this.preShiftSnapshot = {
+      phases: this.phases.map((p) => ({ ...p })),
+      pointEvents: this.pointEvents.map((e) => ({ ...e })),
+    };
 
     this.phases = this.phases.map((phase) => ({
       ...phase,
       startTimeMs: Math.max(0, phase.startTimeMs + deltaMs),
       endTimeMs: phase.endTimeMs !== null ? Math.max(0, phase.endTimeMs + deltaMs) : null,
+    }));
+
+    this.pointEvents = this.pointEvents.map((event) => ({
+      ...event,
+      timeMs: Math.max(0, event.timeMs + deltaMs),
     }));
 
     if (this.activePhase) {
@@ -426,7 +434,8 @@ export class EventEngine {
   undoTimelineShift(): boolean {
     if (!this.preShiftSnapshot) return false;
 
-    this.phases = this.preShiftSnapshot;
+    this.phases = this.preShiftSnapshot.phases;
+    this.pointEvents = this.preShiftSnapshot.pointEvents;
     this.preShiftSnapshot = null;
 
     if (this.activePhase) {

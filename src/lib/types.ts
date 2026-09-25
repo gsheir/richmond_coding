@@ -1,5 +1,8 @@
 // Core type definitions for the Richmond Hockey coding app
 
+// Top-level pages reachable from the sidebar (null in App means the coding view)
+export type Page = "matches" | "merge" | "settings" | "data-browser";
+
 export enum ButtonType {
   PHASE = "phase",
   TERMINATION = "termination",

@@ -33,6 +33,7 @@ import {
   resolveButtons,
   resolveWindowId,
 } from "./coding-windows";
+import { MergeOptions, MergeSegment, createMergedMatch } from "./match-merge";
 
 interface TabData {
   tab: Tab;
@@ -103,6 +104,8 @@ interface AppState {
   saveMatch: (tabId: string) => Promise<void>;
   deleteMatch: (matchId: string) => Promise<void>;
   refreshMatches: () => Promise<void>;
+  // Creates a new match from several saved segments and returns its ID
+  mergeMatches: (segments: MergeSegment[], options: MergeOptions) => Promise<string>;
   
   // Settings actions
   updateSettings: (settings: Partial<{ defaultHomeTeam: string; defaultLeadMs: number; defaultLagMs: number }>) => void;
@@ -494,7 +497,7 @@ export const useAppStore = create<AppState>((set, get) => {
       const activeTab = get().getActiveTab();
       if (!activeTab) return;
 
-      activeTab.eventEngine.shiftAllPhaseTimestamps(deltaMs);
+      activeTab.eventEngine.shiftAllTimestamps(deltaMs);
 
       const updatedMatch = {
         ...activeTab.match,
@@ -620,6 +623,28 @@ export const useAppStore = create<AppState>((set, get) => {
       }
     },
     
+    mergeMatches: async (segments, options) => {
+      // Save any open segments first so unsaved coding is included
+      for (const tabData of get().tabs) {
+        if (segments.some((s) => s.matchId === tabData.tab.matchId)) {
+          await get().saveMatch(tabData.tab.id);
+        }
+      }
+
+      const resolved = await Promise.all(
+        segments.map(async (s) => ({
+          match: await loadMatchBackend(s.matchId),
+          offsetMs: s.offsetMs,
+          period: s.period,
+        }))
+      );
+
+      const merged = createMergedMatch(resolved, options);
+      await saveMatchBackend(merged);
+      await get().refreshMatches();
+      return merged.id;
+    },
+
     updateSettings: (partial) => {
       set(partial);
       const { defaultHomeTeam, defaultLeadMs, defaultLagMs } = get();

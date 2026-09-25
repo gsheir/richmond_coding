@@ -1,12 +1,13 @@
 // Sidebar navigation – collapsible icon rail
-import { FolderOpen, Settings, Moon, Sun, Database, Activity, ChevronRight, ChevronLeft } from "lucide-react";
+import { FolderOpen, Settings, Moon, Sun, Database, Activity, ChevronRight, ChevronLeft, Combine } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import { useAppStore } from "@/lib/store";
+import { Page } from "@/lib/types";
 
 interface SidebarProps {
-  currentPage: "matches" | "settings" | "data-browser" | null;
-  onNavigate: (page: "matches" | "settings" | "data-browser") => void;
+  currentPage: Page | null;
+  onNavigate: (page: Page) => void;
   onSwitchToCoding: () => void;
 }
 
@@ -32,10 +33,11 @@ export function Sidebar({ currentPage, onNavigate, onSwitchToCoding }: SidebarPr
     }
   }, [isDarkMode]);
 
-  const navItems = [
-    { id: "matches" as const, icon: FolderOpen, label: "Matches" },
-    { id: "data-browser" as const, icon: Database, label: "Data Browser" },
-    { id: "settings" as const, icon: Settings, label: "Settings" },
+  const navItems: { id: Page; icon: typeof FolderOpen; label: string }[] = [
+    { id: "matches", icon: FolderOpen, label: "Matches" },
+    { id: "merge", icon: Combine, label: "Merge Matches" },
+    { id: "data-browser", icon: Database, label: "Data Browser" },
+    { id: "settings", icon: Settings, label: "Settings" },
   ];
 
   const isCoding = currentPage === null && activeTabId !== null;
