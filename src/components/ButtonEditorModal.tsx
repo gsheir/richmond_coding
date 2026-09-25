@@ -251,6 +251,7 @@ export function ButtonEditorModal({
                   <option value="phase">Phase</option>
                   <option value="termination">Termination</option>
                   <option value="context">Context</option>
+                  <option value="point_event">Point Event</option>
                 </select>
               </div>
 
@@ -554,6 +555,34 @@ export function ButtonEditorModal({
                   </p>
                 </div>
 
+                <div>
+                  <label className="block text-sm font-medium mb-1">Lead Time (ms)</label>
+                  <input
+                    type="number"
+                    value={leadMs}
+                    onChange={(e) => setLeadMs(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Lag Time (ms)</label>
+                  <input
+                    type="number"
+                    value={lagMs}
+                    onChange={(e) => setLagMs(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Point Event Properties */}
+          {type === ButtonType.POINT_EVENT && (
+            <div>
+              <h3 className="text-sm font-semibold mb-3">Point Event Properties</h3>
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">Lead Time (ms)</label>
                   <input

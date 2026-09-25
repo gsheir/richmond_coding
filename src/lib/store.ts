@@ -90,6 +90,7 @@ interface AppState {
   handleButtonClick: (code: string, type: ButtonType) => void;
   undoLastPhase: () => void;
   deletePhase: (phaseId: number) => void;
+  deletePointEvent: (eventId: number) => void;
   clearAllPhases: () => void;
   updatePhase: (phaseId: number, updates: Partial<Phase>) => void;
   
@@ -111,6 +112,11 @@ export const useAppStore = create<AppState>((set, get) => {
     // Load phases if match has them
     if (match.phases.length > 0) {
       eventEngine.loadPhases(match.phases);
+    }
+
+    // Load point events if match has them
+    if (match.pointEvents && match.pointEvents.length > 0) {
+      eventEngine.loadPointEvents(match.pointEvents);
     }
     
     // Set up clock listener for this tab
@@ -196,6 +202,7 @@ export const useAppStore = create<AppState>((set, get) => {
           const updatedMatch = {
             ...tabData.match,
             phases: tabData.eventEngine.getAllPhases(),
+            pointEvents: tabData.eventEngine.getAllPointEvents(),
             modifiedAt: new Date().toISOString(),
             clockTimeMs: tabData.clock.currentTimeMs(),
           };
@@ -276,6 +283,7 @@ export const useAppStore = create<AppState>((set, get) => {
       const matchToSave = {
         ...tabToClose.match,
         phases: tabToClose.eventEngine.getAllPhases(),
+        pointEvents: tabToClose.eventEngine.getAllPointEvents(),
         modifiedAt: new Date().toISOString(),
         clockTimeMs: tabToClose.clock.currentTimeMs(),
       };
@@ -480,10 +488,11 @@ export const useAppStore = create<AppState>((set, get) => {
       const updatedMatch = {
         ...tabData.match,
         phases: tabData.eventEngine.getAllPhases(),
+        pointEvents: tabData.eventEngine.getAllPointEvents(),
         modifiedAt: new Date().toISOString(),
         clockTimeMs: tabData.clock.currentTimeMs(),
       };
-      
+
       try {
         await saveMatchBackend(updatedMatch);
         
@@ -586,11 +595,19 @@ export const useAppStore = create<AppState>((set, get) => {
     deletePhase: (phaseId: number) => {
       const activeTab = get().getActiveTab();
       if (!activeTab) return;
-      
+
       activeTab.eventEngine.deletePhase(phaseId);
       get().markActiveTabDirty();
     },
-    
+
+    deletePointEvent: (eventId: number) => {
+      const activeTab = get().getActiveTab();
+      if (!activeTab) return;
+
+      activeTab.eventEngine.deletePointEvent(eventId);
+      get().markActiveTabDirty();
+    },
+
     clearAllPhases: () => {
       const activeTab = get().getActiveTab();
       if (!activeTab) return;
@@ -627,6 +644,7 @@ export const useAppStore = create<AppState>((set, get) => {
       const updatedMatch = {
         ...activeTab.match,
         phases: activeTab.eventEngine.getAllPhases(),
+        pointEvents: activeTab.eventEngine.getAllPointEvents(),
       };
       
       const buttonConfig = get().buttonConfig;

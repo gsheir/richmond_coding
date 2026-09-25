@@ -519,6 +519,7 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved, on
   const phaseButtons = buttons.filter(b => b.type === 'phase');
   const contextButtons = buttons.filter(b => b.type === 'context');
   const terminationButtons = buttons.filter(b => b.type === 'termination');
+  const pointEventButtons = buttons.filter(b => b.type === 'point_event');
 
   // Toggle/replace selection when a row in a button list is clicked
   const handleListItemSelect = (e: MouseEvent, buttonCode: string) => {
@@ -984,6 +985,20 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved, on
           buttons={terminationButtons}
           categoryName="Termination Buttons"
           categoryType="termination"
+          selectedButtons={selectedButtons}
+          draggedButton={draggedListButton}
+          onSelect={handleListItemSelect}
+          onEdit={handleEditButton}
+          onDelete={handleDeleteButton}
+          onDragStart={handleListDragStart}
+          onDragOver={handleListDragOver}
+          onDrop={handleListDrop}
+          onDragEnd={handleListDragEnd}
+        />
+        <ButtonListTable
+          buttons={pointEventButtons}
+          categoryName="Point Event Buttons"
+          categoryType="point_event"
           selectedButtons={selectedButtons}
           draggedButton={draggedListButton}
           onSelect={handleListItemSelect}

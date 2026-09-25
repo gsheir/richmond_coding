@@ -6,11 +6,12 @@ export async function loadButtonConfig(): Promise<ButtonConfig[]> {
   try {
     const config = await loadCodingWindowConfig();
     
-    // Combine phase, context, and termination buttons
+    // Combine phase, context, termination, and point event buttons
     const allButtons = [
       ...(config.phase_buttons || []),
       ...(config.context_buttons || []),
       ...(config.termination_buttons || []),
+      ...(config.point_event_buttons || []),
     ];
     
     return allButtons.map((btn: any) => ({

@@ -46,6 +46,11 @@ export class MatchDatabase {
         console.log(`Migrating database schema from version ${currentVersion} to version 5...`);
         this.migrateToVersion5();
       }
+
+      if (currentVersion < 6) {
+        console.log(`Migrating database schema from version ${currentVersion} to version 6...`);
+        this.migrateToVersion6();
+      }
     }
   }
 
@@ -94,6 +99,21 @@ export class MatchDatabase {
         FOREIGN KEY (match_id, phase_id) REFERENCES phases(match_id, phase_id) ON DELETE CASCADE
       );
       CREATE INDEX IF NOT EXISTS idx_phase_contexts ON phase_contexts(match_id, phase_id);
+
+      -- Point events (single instantaneous timestamped events, distinct from phases)
+      CREATE TABLE IF NOT EXISTS point_events (
+        match_id TEXT NOT NULL,
+        event_id INTEGER NOT NULL,
+        time_ms INTEGER NOT NULL,
+        code TEXT NOT NULL,
+        label TEXT NOT NULL,
+        period TEXT NOT NULL,
+        lead_ms INTEGER NOT NULL,
+        lag_ms INTEGER NOT NULL,
+        PRIMARY KEY (match_id, event_id),
+        FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE
+      );
+      CREATE INDEX IF NOT EXISTS idx_point_events_match ON point_events(match_id);
 
       -- Settings table (key-value store)
       CREATE TABLE IF NOT EXISTS settings (
@@ -168,7 +188,7 @@ export class MatchDatabase {
       );
 
       -- Insert initial schema version
-      INSERT OR IGNORE INTO schema_version (version, applied_at) VALUES (5, datetime('now'));
+      INSERT OR IGNORE INTO schema_version (version, applied_at) VALUES (6, datetime('now'));
     `);
 
     console.log('Database schema initialized');
@@ -343,6 +363,30 @@ export class MatchDatabase {
     console.log('Database migrated to schema version 5');
   }
 
+  migrateToVersion6() {
+    // Add point_events table for single instantaneous timestamped events
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS point_events (
+        match_id TEXT NOT NULL,
+        event_id INTEGER NOT NULL,
+        time_ms INTEGER NOT NULL,
+        code TEXT NOT NULL,
+        label TEXT NOT NULL,
+        period TEXT NOT NULL,
+        lead_ms INTEGER NOT NULL,
+        lag_ms INTEGER NOT NULL,
+        PRIMARY KEY (match_id, event_id),
+        FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE
+      );
+      CREATE INDEX IF NOT EXISTS idx_point_events_match ON point_events(match_id);
+
+      -- Update schema version
+      INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (6, datetime('now'));
+    `);
+
+    console.log('Database migrated to schema version 6');
+  }
+
   // ==================== Match Operations ====================
 
   saveMatch(match) {
@@ -402,6 +446,29 @@ export class MatchDatabase {
           insertContext.run(match.id, phase.id, label, index);
         });
       }
+
+      // Delete existing point events for this match
+      this.db.prepare('DELETE FROM point_events WHERE match_id = ?').run(match.id);
+
+      // Insert point events
+      const insertPointEvent = this.db.prepare(
+        `INSERT INTO point_events
+         (match_id, event_id, time_ms, code, label, period, lead_ms, lag_ms)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      );
+
+      for (const event of match.pointEvents || []) {
+        insertPointEvent.run(
+          match.id,
+          event.id,
+          event.timeMs,
+          event.code,
+          event.label,
+          event.period,
+          event.leadMs,
+          event.lagMs
+        );
+      }
     });
 
     transaction();
@@ -455,12 +522,31 @@ export class MatchDatabase {
       };
     });
 
+    // Load point events
+    const pointEventRows = this.db
+      .prepare(
+        `SELECT event_id, time_ms, code, label, period, lead_ms, lag_ms
+         FROM point_events WHERE match_id = ? ORDER BY event_id`
+      )
+      .all(matchId);
+
+    const pointEvents = pointEventRows.map((row) => ({
+      id: row.event_id,
+      timeMs: row.time_ms,
+      code: row.code,
+      label: row.label,
+      period: row.period,
+      leadMs: row.lead_ms,
+      lagMs: row.lag_ms,
+    }));
+
     return {
       id: matchRow.id,
       date: matchRow.date,
       homeTeam: matchRow.home_team,
       awayTeam: matchRow.away_team,
       phases,
+      pointEvents,
       createdAt: matchRow.created_at,
       modifiedAt: matchRow.modified_at,
       clockTimeMs: matchRow.clock_time_ms,
@@ -907,12 +993,13 @@ export class MatchDatabase {
    * (or a legacy { buttons } array) into a single flat button array for storage.
    */
   normalizeButtonArray(config) {
-    const hasNewFormat = config.phase_buttons || config.context_buttons || config.termination_buttons;
+    const hasNewFormat = config.phase_buttons || config.context_buttons || config.termination_buttons || config.point_event_buttons;
     if (hasNewFormat) {
       return [
         ...(config.phase_buttons || []),
         ...(config.context_buttons || []),
         ...(config.termination_buttons || []),
+        ...(config.point_event_buttons || []),
       ];
     }
     return config.buttons || [];

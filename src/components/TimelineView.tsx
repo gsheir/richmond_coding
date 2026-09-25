@@ -1,11 +1,12 @@
 // Timeline view for coded phases
-import { Phase, ButtonConfig, ButtonType } from "@/lib/types";
+import { Phase, PointEvent, ButtonConfig, ButtonType } from "@/lib/types";
 import { formatTimeMs } from "@/lib/utils";
 
 import { ZoomIn, ZoomOut } from "lucide-react";
 
 interface TimelineViewProps {
   phases: Phase[];
+  pointEvents: PointEvent[];
   buttonConfig: ButtonConfig[];
   zoomLevel: number;
   onZoomChange: (zoom: number) => void;
@@ -34,6 +35,7 @@ function getNiceTickIntervalMs(totalDurationMs: number, canvasWidth: number): nu
 
 export function TimelineView({
   phases,
+  pointEvents,
   buttonConfig,
   zoomLevel,
   onZoomChange,
@@ -55,12 +57,28 @@ export function TimelineView({
   );
   const tracks = phaseButtons.filter(b => usedCodes.has(b.code));
 
-  // Total duration: furthest point reached across all phases or clock
+  // Build ordered track list for point event buttons (same ordering convention)
+  const pointEventButtons = buttonConfig
+    .filter(b => b.type === ButtonType.POINT_EVENT)
+    .sort((a, b) =>
+      a.position.x !== b.position.x
+        ? a.position.x - b.position.x
+        : a.position.y - b.position.y
+    );
+
+  const usedPointEventCodes = new Set(pointEvents.map(e => e.code));
+  const pointEventTracks = pointEventButtons.filter(b => usedPointEventCodes.has(b.code));
+
+  // Total duration: furthest point reached across all phases, point events, or clock
   const maxEndMs = phases.reduce((max, p) => {
     const end = p.endTimeMs ?? currentTimeMs;
     return Math.max(max, end, p.startTimeMs + 1000);
   }, 0);
-  const totalDurationMs = Math.max(maxEndMs, currentTimeMs, 1000);
+  const maxPointEventMs = pointEvents.reduce(
+    (max, e) => Math.max(max, e.timeMs + 1000),
+    0
+  );
+  const totalDurationMs = Math.max(maxEndMs, maxPointEventMs, currentTimeMs, 1000);
 
   // Canvas width grows with zoom level
   const canvasWidth = Math.round(800 * zoomLevel);
@@ -75,10 +93,10 @@ export function TimelineView({
   // Playhead position
   const playheadX = Math.round((currentTimeMs / totalDurationMs) * canvasWidth);
 
-  if (phases.length === 0) {
+  if (phases.length === 0 && pointEvents.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-sm text-muted-foreground italic">
-        No phases recorded yet.
+        No phases or events recorded yet.
       </div>
     );
   }
@@ -209,6 +227,65 @@ export function TimelineView({
                           </span>
                         )}
                       </div>
+                    );
+                  })}
+
+                  {/* Playhead line through this row */}
+                  <div
+                    className="absolute top-0 bottom-0 z-20 pointer-events-none"
+                    style={{ left: playheadX, width: 1, backgroundColor: "rgba(255,215,0,0.85)" }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Point event track rows */}
+          {pointEventTracks.map((track, rowIndex) => {
+            const trackEvents = pointEvents.filter(e => e.code === track.code);
+            return (
+              <div
+                key={track.code}
+                className="flex border-b border-border/20"
+                style={{
+                  height: ROW_HEIGHT,
+                  backgroundColor:
+                    (tracks.length + rowIndex) % 2 === 0 ? "rgba(255,255,255,0.015)" : "transparent",
+                }}
+              >
+                {/* Sticky label cell */}
+                <div
+                  className="shrink-0 sticky left-0 z-10 flex items-center px-2 text-xs font-medium overflow-hidden border-r border-border/20"
+                  style={{
+                    width: LABEL_WIDTH,
+                    backgroundColor: `${track.style.colour}28`,
+                    borderLeft: `3px solid ${track.style.colour}`,
+                  }}
+                >
+                  <span className="truncate text-foreground/90">{track.label}</span>
+                </div>
+
+                {/* Point event markers */}
+                <div className="relative flex-1">
+                  {trackEvents.map(event => {
+                    const left = (event.timeMs / totalDurationMs) * canvasWidth;
+                    const size = 10;
+
+                    return (
+                      <div
+                        key={event.id}
+                        className="absolute rounded-sm"
+                        style={{
+                          left: left - size / 2,
+                          top: (ROW_HEIGHT - size) / 2,
+                          width: size,
+                          height: size,
+                          backgroundColor: track.style.colour,
+                          transform: "rotate(45deg)",
+                          boxShadow: `0 0 4px 1px ${track.style.colour}88`,
+                        }}
+                        title={`${event.label} – ${formatTimeMs(event.timeMs)}`}
+                      />
                     );
                   })}
 

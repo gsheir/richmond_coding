@@ -27,6 +27,7 @@ export interface SerializedButtonConfig {
   phase_buttons: SerializedButton[];
   context_buttons: SerializedButton[];
   termination_buttons: SerializedButton[];
+  point_event_buttons: SerializedButton[];
 }
 
 function serializeButton(btn: ButtonConfig): SerializedButton {
@@ -60,6 +61,7 @@ export function serializeButtonConfig(buttons: ButtonConfig[]): SerializedButton
     phase_buttons: buttons.filter((b) => b.type === "phase").map(serializeButton),
     context_buttons: buttons.filter((b) => b.type === "context").map(serializeButton),
     termination_buttons: buttons.filter((b) => b.type === "termination").map(serializeButton),
+    point_event_buttons: buttons.filter((b) => b.type === "point_event").map(serializeButton),
   };
 }
 
@@ -69,11 +71,13 @@ export function deserializeButtonConfig(raw: {
   phase_buttons?: SerializedButton[];
   context_buttons?: SerializedButton[];
   termination_buttons?: SerializedButton[];
+  point_event_buttons?: SerializedButton[];
 }): ButtonConfig[] {
   const allButtons = [
     ...(raw.phase_buttons || []),
     ...(raw.context_buttons || []),
     ...(raw.termination_buttons || []),
+    ...(raw.point_event_buttons || []),
   ];
 
   return allButtons.map((btn): ButtonConfig => ({

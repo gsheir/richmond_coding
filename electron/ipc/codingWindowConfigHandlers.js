@@ -25,12 +25,13 @@ export function registerCodingWindowConfigHandlers({ registerHandler, getDatabas
       console.log('Loaded and saved default coding window config to database');
     }
 
-    // Convert flat button array back to the phase/context/termination shape the UI expects
+    // Convert flat button array back to the phase/context/termination/point_event shape the UI expects
     if (Array.isArray(config)) {
       config = {
         phase_buttons: config.filter((btn) => btn.type === 'phase'),
         context_buttons: config.filter((btn) => btn.type === 'context'),
         termination_buttons: config.filter((btn) => btn.type === 'termination'),
+        point_event_buttons: config.filter((btn) => btn.type === 'point_event'),
       };
     }
 
@@ -41,7 +42,7 @@ export function registerCodingWindowConfigHandlers({ registerHandler, getDatabas
     const database = getDatabase();
     const config = JSON.parse(configData);
 
-    const hasNewFormat = config.phase_buttons || config.context_buttons || config.termination_buttons;
+    const hasNewFormat = config.phase_buttons || config.context_buttons || config.termination_buttons || config.point_event_buttons;
     const hasOldFormat = config.buttons;
     if (!hasNewFormat && !hasOldFormat) {
       throw new Error('Invalid config: button configuration arrays required');
@@ -54,6 +55,9 @@ export function registerCodingWindowConfigHandlers({ registerHandler, getDatabas
     }
     if (config.termination_buttons && !Array.isArray(config.termination_buttons)) {
       throw new Error('Invalid config: termination_buttons must be an array');
+    }
+    if (config.point_event_buttons && !Array.isArray(config.point_event_buttons)) {
+      throw new Error('Invalid config: point_event_buttons must be an array');
     }
     if (config.buttons && !Array.isArray(config.buttons)) {
       throw new Error('Invalid config: buttons must be an array');

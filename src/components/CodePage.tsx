@@ -8,7 +8,7 @@ import { SaveIndicator } from "./SaveIndicator";
 import { TimelineShiftModal } from "./TimelineShiftModal";
 import { ChevronDown, ChevronUp, Flag, AlertCircle, Trash2, Clock as ClockIcon, Undo2 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
-import { ClockState, Phase, PhaseStatus } from "@/lib/types";
+import { ClockState, Phase, PhaseStatus, PointEvent } from "@/lib/types";
 import { GameClock } from "@/lib/clock";
 import { EventEngine } from "@/lib/event-engine";
 import { TimelineView } from "./TimelineView";
@@ -41,6 +41,7 @@ export function CodePage({
     stopClock,
     updatePhase,
     deletePhase,
+    deletePointEvent,
     shiftTimeline,
     undoTimelineShift,
   } = useAppStore();
@@ -60,6 +61,7 @@ export function CodePage({
   const [resizeStartWidth, setResizeStartWidth] = useState(0);
 
   const phases = eventEngine.getAllPhases();
+  const pointEvents = eventEngine.getAllPointEvents();
   const isRunning = clockState === ClockState.RUNNING;
   
   const tabData = tabs.find(t => t.tab.id === tabId);
@@ -184,8 +186,16 @@ export function CodePage({
     setIsResizingRightCol(true);
   };
 
-  // Sorted phases for the compact right-panel event list (newest first)
-  const sortedPhases = [...phases].reverse();
+  // Merged, reverse-chronological log of phases and point events for the
+  // compact right-panel event list (newest first)
+  type EventLogRow =
+    | { kind: 'phase'; timeMs: number; phase: Phase }
+    | { kind: 'point'; timeMs: number; event: PointEvent };
+
+  const sortedEventLog: EventLogRow[] = [
+    ...phases.map((phase): EventLogRow => ({ kind: 'phase', timeMs: phase.startTimeMs, phase })),
+    ...pointEvents.map((event): EventLogRow => ({ kind: 'point', timeMs: event.timeMs, event })),
+  ].sort((a, b) => b.timeMs - a.timeMs);
 
   const getPhaseStatusDot = (phase: Phase): string => {
     if (phase.status === PhaseStatus.ENDED_UNDEFINED) return 'bg-amber-500';
@@ -318,16 +328,18 @@ export function CodePage({
                 Analytics
               </button>
             </div>
-            <span className="ml-auto text-[10px] text-muted-foreground/60">{phases.length} phases</span>
+            <span className="ml-auto text-[10px] text-muted-foreground/60">
+              {phases.length} phases{pointEvents.length > 0 ? ` • ${pointEvents.length} events` : ''}
+            </span>
           </div>
 
           {/* Right panel content */}
           <div className="flex-1 min-h-0 overflow-auto">
             {rightPanelTab === 'events' ? (
               <>
-                {phases.length === 0 ? (
+                {sortedEventLog.length === 0 ? (
                   <div className="flex items-center justify-center h-24 text-muted-foreground text-xs italic">
-                    No phases recorded yet.
+                    No phases or events recorded yet.
                   </div>
                 ) : (
                   <table className="w-full text-xs">
@@ -341,46 +353,83 @@ export function CodePage({
                       </tr>
                     </thead>
                     <tbody>
-                      {sortedPhases.map((phase) => {
-                        const phaseBtn = buttonConfig.find(b => b.code === phase.phaseCode);
-                        const termColour =
-                          phase.terminationCategory === 'success' ? 'text-green-400' :
-                          phase.terminationCategory === 'failure' ? 'text-red-400' :
-                          'text-muted-foreground';
+                      {sortedEventLog.map((row) => {
+                        if (row.kind === 'phase') {
+                          const phase = row.phase;
+                          const phaseBtn = buttonConfig.find(b => b.code === phase.phaseCode);
+                          const termColour =
+                            phase.terminationCategory === 'success' ? 'text-green-400' :
+                            phase.terminationCategory === 'failure' ? 'text-red-400' :
+                            'text-muted-foreground';
+                          return (
+                            <tr key={`phase-${phase.id}`} className="border-b border-border/40 hover:bg-accent/30 transition-colors">
+                              <td className="pl-2 py-1.5">
+                                <div className={`w-1.5 h-1.5 rounded-full ${getPhaseStatusDot(phase)}`} />
+                              </td>
+                              <td className="px-2 py-1.5 font-mono">{formatTimeMs(phase.startTimeMs)}</td>
+                              <td className="px-2 py-1.5">
+                                {phase.phaseLabel ? (
+                                  <span
+                                    className="px-2 py-0.5 rounded-full text-[11px] font-semibold"
+                                    style={{ backgroundColor: phaseBtn?.style.colour || '#666', color: 'white' }}
+                                  >
+                                    {phase.phaseLabel}
+                                  </span>
+                                ) : (
+                                  '\u2014'
+                                )}
+                              </td>
+                              <td className={`px-2 py-1.5 ${termColour}`}>
+                                {phase.terminationEvent || '\u2014'}
+                              </td>
+                              <td className="px-1 py-1.5">
+                                <div className="flex items-center justify-center gap-1">
+                                  <button
+                                    onClick={() => updatePhase(phase.id, { needsReview: !phase.needsReview })}
+                                    className={`p-1 rounded hover:bg-accent/50 transition-colors ${phase.needsReview ? 'text-amber-500' : 'text-muted-foreground'}`}
+                                    title={phase.needsReview ? 'Remove review flag' : 'Flag for review'}
+                                  >
+                                    <Flag className="w-3 h-3" fill={phase.needsReview ? 'currentColor' : 'none'} />
+                                  </button>
+                                  <button
+                                    onClick={() => { if (confirm(`Delete phase "${phase.phaseLabel || 'Undefined'}"?`)) deletePhase(phase.id); }}
+                                    className="p-1 rounded hover:bg-destructive/50 transition-colors text-muted-foreground hover:text-destructive"
+                                    title="Delete phase"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        }
+
+                        const event = row.event;
+                        const eventBtn = buttonConfig.find(b => b.code === event.code);
                         return (
-                          <tr key={phase.id} className="border-b border-border/40 hover:bg-accent/30 transition-colors">
+                          <tr key={`point-${event.id}`} className="border-b border-border/40 hover:bg-accent/30 transition-colors">
                             <td className="pl-2 py-1.5">
-                              <div className={`w-1.5 h-1.5 rounded-full ${getPhaseStatusDot(phase)}`} />
+                              <div
+                                className="w-1.5 h-1.5 rounded-full"
+                                style={{ backgroundColor: eventBtn?.style.colour || '#666' }}
+                              />
                             </td>
-                            <td className="px-2 py-1.5 font-mono">{formatTimeMs(phase.startTimeMs)}</td>
+                            <td className="px-2 py-1.5 font-mono">{formatTimeMs(event.timeMs)}</td>
                             <td className="px-2 py-1.5">
-                              {phase.phaseLabel ? (
-                                <span
-                                  className="px-2 py-0.5 rounded-full text-[11px] font-semibold"
-                                  style={{ backgroundColor: phaseBtn?.style.colour || '#666', color: 'white' }}
-                                >
-                                  {phase.phaseLabel}
-                                </span>
-                              ) : (
-                                '\u2014'
-                              )}
+                              <span
+                                className="px-2 py-0.5 rounded-full text-[11px] font-semibold"
+                                style={{ backgroundColor: eventBtn?.style.colour || '#666', color: 'white' }}
+                              >
+                                {event.label}
+                              </span>
                             </td>
-                            <td className={`px-2 py-1.5 ${termColour}`}>
-                              {phase.terminationEvent || '\u2014'}
-                            </td>
+                            <td className="px-2 py-1.5 text-muted-foreground">{'\u2014'}</td>
                             <td className="px-1 py-1.5">
                               <div className="flex items-center justify-center gap-1">
                                 <button
-                                  onClick={() => updatePhase(phase.id, { needsReview: !phase.needsReview })}
-                                  className={`p-1 rounded hover:bg-accent/50 transition-colors ${phase.needsReview ? 'text-amber-500' : 'text-muted-foreground'}`}
-                                  title={phase.needsReview ? 'Remove review flag' : 'Flag for review'}
-                                >
-                                  <Flag className="w-3 h-3" fill={phase.needsReview ? 'currentColor' : 'none'} />
-                                </button>
-                                <button
-                                  onClick={() => { if (confirm(`Delete phase "${phase.phaseLabel || 'Undefined'}"?`)) deletePhase(phase.id); }}
+                                  onClick={() => { if (confirm(`Delete event "${event.label}"?`)) deletePointEvent(event.id); }}
                                   className="p-1 rounded hover:bg-destructive/50 transition-colors text-muted-foreground hover:text-destructive"
-                                  title="Delete phase"
+                                  title="Delete event"
                                 >
                                   <Trash2 className="w-3 h-3" />
                                 </button>
@@ -492,6 +541,7 @@ export function CodePage({
           <div style={{ height: `${eventLogHeight}px` }} className="overflow-hidden">
             <TimelineView
               phases={phases}
+              pointEvents={pointEvents}
               buttonConfig={buttonConfig}
               zoomLevel={timelineZoom}
               onZoomChange={setTimelineZoom}

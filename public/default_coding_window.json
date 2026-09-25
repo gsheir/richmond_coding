@@ -627,5 +627,6 @@
       "lag_ms": 5000,
       "for_possession_state": "out-of-possession"
     }
-  ]
+  ],
+  "point_event_buttons": []
 }

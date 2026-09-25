@@ -4,6 +4,7 @@ export enum ButtonType {
   PHASE = "phase",
   TERMINATION = "termination",
   CONTEXT = "context",
+  POINT_EVENT = "point_event",
 }
 
 export enum PhaseStatus {
@@ -34,12 +35,24 @@ export interface Phase {
   needsReview?: boolean;
 }
 
+// A single instantaneous timestamped event (as opposed to a duration-based Phase)
+export interface PointEvent {
+  id: number;
+  timeMs: number;
+  code: string;
+  label: string;
+  period: string;
+  leadMs: number;
+  lagMs: number;
+}
+
 export interface Match {
   id: string;
   date: string;
   homeTeam: string;
   awayTeam: string;
   phases: Phase[];
+  pointEvents: PointEvent[];
   createdAt: string;
   modifiedAt: string;
   clockTimeMs?: number;
@@ -141,6 +154,24 @@ export const terminatePhase = (
   status: PhaseStatus.TERMINATED,
 });
 
+export const createPointEvent = (
+  id: number,
+  timeMs: number,
+  code: string,
+  label: string,
+  period: string,
+  leadMs: number = 3000,
+  lagMs: number = 5000
+): PointEvent => ({
+  id,
+  timeMs,
+  code,
+  label,
+  period,
+  leadMs,
+  lagMs,
+});
+
 export const getPhaseStartTimeSeconds = (phase: Phase): number => {
   return Math.max(0, phase.startTimeMs - phase.leadMs) / 1000.0;
 };
@@ -164,6 +195,7 @@ export const createMatch = (
   homeTeam,
   awayTeam,
   phases: [],
+  pointEvents: [],
   createdAt: new Date().toISOString(),
   modifiedAt: new Date().toISOString(),
 });

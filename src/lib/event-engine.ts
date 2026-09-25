@@ -5,10 +5,12 @@ import {
   PhaseStatus,
   ButtonType,
   ButtonConfig,
+  PointEvent,
   createPhase,
   classifyPhase,
   addContextToPhase,
   terminatePhase,
+  createPointEvent,
 } from "./types";
 
 export class EventEngine {
@@ -16,6 +18,8 @@ export class EventEngine {
   private phases: Phase[];
   private activePhase: Phase | null;
   private nextPhaseId: number;
+  private pointEvents: PointEvent[];
+  private nextPointEventId: number;
   private buttonConfig: Record<string, ButtonConfig>;
   private phaseStartedListeners: ((phase: Phase) => void)[];
   private phaseClassifiedListeners: ((phase: Phase) => void)[];
@@ -28,6 +32,8 @@ export class EventEngine {
     this.phases = [];
     this.activePhase = null;
     this.nextPhaseId = 0;
+    this.pointEvents = [];
+    this.nextPointEventId = 0;
     this.buttonConfig = {};
     this.phaseStartedListeners = [];
     this.phaseClassifiedListeners = [];
@@ -128,6 +134,26 @@ export class EventEngine {
     return true;
   }
 
+  recordPointEvent(code: string): PointEvent | null {
+    const button = this.buttonConfig[code];
+    if (!button) return null;
+
+    const period = this.clock.getPeriod();
+    const timeMs = this.clock.currentTimeMs();
+
+    const event = createPointEvent(
+      this.nextPointEventId++,
+      timeMs,
+      code,
+      button.label,
+      period,
+      button.leadMs,
+      button.lagMs
+    );
+    this.pointEvents.push(event);
+    return event;
+  }
+
   handleButtonClick(code: string, buttonType: ButtonType): void {
     const button = this.buttonConfig[code];
     if (!button) return;
@@ -181,6 +207,10 @@ export class EventEngine {
 
       case ButtonType.CONTEXT:
         this.addContextToActivePhase(code);
+        break;
+
+      case ButtonType.POINT_EVENT:
+        this.recordPointEvent(code);
         break;
 
       case ButtonType.TERMINATION:
@@ -273,12 +303,30 @@ export class EventEngine {
     return [...this.phases];
   }
 
+  getAllPointEvents(): PointEvent[] {
+    return [...this.pointEvents];
+  }
+
+  // Undoes whichever of the last phase or last point event was recorded
+  // more recently, so a single Undo action works regardless of button type.
   undoLastAction(): boolean {
-    if (this.phases.length === 0) return false;
+    const lastPhase = this.phases[this.phases.length - 1];
+    const lastPointEvent = this.pointEvents[this.pointEvents.length - 1];
+
+    if (!lastPhase && !lastPointEvent) return false;
+
+    const undoPointEvent =
+      lastPointEvent && (!lastPhase || lastPointEvent.timeMs >= lastPhase.startTimeMs);
+
+    if (undoPointEvent) {
+      this.pointEvents.pop();
+      this.nextPointEventId--;
+      return true;
+    }
 
     // Remove the last phase
     const removedPhase = this.phases.pop();
-    
+
     // If the removed phase was active, clear active phase
     if (removedPhase && this.activePhase?.id === removedPhase.id) {
       this.activePhase = null;
@@ -294,12 +342,20 @@ export class EventEngine {
 
     // Remove the phase
     const removedPhase = this.phases.splice(index, 1)[0];
-    
+
     // If the removed phase was active, clear active phase
     if (removedPhase && this.activePhase?.id === removedPhase.id) {
       this.activePhase = null;
     }
 
+    return true;
+  }
+
+  deletePointEvent(eventId: number): boolean {
+    const index = this.pointEvents.findIndex((e) => e.id === eventId);
+    if (index === -1) return false;
+
+    this.pointEvents.splice(index, 1);
     return true;
   }
 
@@ -373,6 +429,8 @@ export class EventEngine {
     this.phases = [];
     this.activePhase = null;
     this.nextPhaseId = 0;
+    this.pointEvents = [];
+    this.nextPointEventId = 0;
     this.lastPhaseWithUndefinedTermination = null;
     this.preShiftSnapshot = null;
   }
@@ -383,6 +441,12 @@ export class EventEngine {
     this.activePhase = null;
     this.preShiftSnapshot = null;
     this.lastPhaseWithUndefinedTermination = null;
+  }
+
+  loadPointEvents(pointEvents: PointEvent[]): void {
+    this.pointEvents = [...pointEvents];
+    this.nextPointEventId =
+      pointEvents.length > 0 ? Math.max(...pointEvents.map((e) => e.id)) + 1 : 0;
   }
 
   onPhaseStarted(listener: (phase: Phase) => void): () => void {

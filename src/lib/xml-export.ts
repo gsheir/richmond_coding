@@ -2,6 +2,7 @@
 import {
   Match,
   Phase,
+  PointEvent,
   getPhaseStartTimeSeconds,
   getPhaseEndTimeSeconds,
   ButtonConfig,
@@ -16,14 +17,14 @@ interface InstanceData {
 }
 
 export function exportToSportscodeXML(match: Match, buttonConfig: ButtonConfig[]): string {
-  const { phases } = match;
+  const { phases, pointEvents } = match;
 
   const buttonsByCode: Record<string, ButtonConfig> = {};
   buttonConfig.forEach((btn) => {
     buttonsByCode[btn.code] = btn;
   });
 
-  // Generate instances for both phases and termination events
+  // Generate instances for phases, termination events, and point events
   const allInstances: InstanceData[] = [];
 
   phases
@@ -40,7 +41,12 @@ export function exportToSportscodeXML(match: Match, buttonConfig: ButtonConfig[]
         allInstances.push(terminationInstance);
       }
     });
-  
+
+  (pointEvents || []).forEach((event) => {
+    const pointEventButton = buttonsByCode[event.code];
+    allInstances.push(generatePointEventInstance(event, pointEventButton));
+  });
+
   // Sort by start time and assign sequential IDs
   allInstances.sort((a, b) => a.start - b.start);
   allInstances.forEach((instance, index) => {
@@ -109,6 +115,21 @@ function generateTerminationInstance(phase: Phase, terminationButton?: ButtonCon
     start,
     end,
     labels,
+  };
+}
+
+function generatePointEventInstance(event: PointEvent, pointEventButton?: ButtonConfig): InstanceData {
+  const leadMs = pointEventButton?.leadMs ?? event.leadMs;
+  const lagMs = pointEventButton?.lagMs ?? event.lagMs;
+  const start = Math.max(0, event.timeMs - leadMs) / 1000.0;
+  const end = (event.timeMs + lagMs) / 1000.0;
+
+  return {
+    id: 0, // Will be reassigned later
+    code: event.code,
+    start,
+    end,
+    labels: [],
   };
 }
 
