@@ -12,6 +12,7 @@ import { registerDialogHandlers } from './ipc/dialogHandlers.js';
 import { registerSettingsHandlers } from './ipc/settingsHandlers.js';
 import { registerCodingWindowConfigHandlers } from './ipc/codingWindowConfigHandlers.js';
 import { registerButtonConfigHandlers } from './ipc/buttonConfigHandlers.js';
+import { ensureDefaultCodingWindow } from './codingWindowTemplate.js';
 import { registerMigrationHandlers } from './ipc/migrationHandlers.js';
 import { registerDataBrowserHandlers } from './ipc/dataBrowserHandlers.js';
 
@@ -194,7 +195,7 @@ registerMatchHandlers({ registerHandler, getDatabase });
 registerDialogHandlers({ registerHandler, getMainWindow });
 registerSettingsHandlers({ registerHandler, getDatabase });
 registerCodingWindowConfigHandlers({ registerHandler, getDatabase, dirname: __dirname });
-registerButtonConfigHandlers({ registerHandler, getDatabase });
+registerButtonConfigHandlers({ registerHandler, getDatabase, dirname: __dirname });
 registerMigrationHandlers({ registerHandler, getDatabase, getMigration });
 registerDataBrowserHandlers({ registerHandler, getDatabase });
 
@@ -250,16 +251,23 @@ app.whenReady().then(() => {
           const config = JSON.parse(data);
           const buttonArray = database.normalizeButtonArray(config);
 
-          // Create default config and save buttons
-          const configId = database.createButtonConfig('Default', 'Imported from JSON configuration');
-          database.setActiveButtonConfig(configId);
-          database.saveButtonConfig(configId, buttonArray);
+          // Create default window and save buttons
+          const windowId = database.createCodingWindow('Default', 'Imported from JSON configuration');
+          database.setDefaultCodingWindow(windowId);
+          database.saveButtonConfig(windowId, buttonArray);
           console.log('Migrated coding window config from JSON to database');
         } catch (error) {
           console.error('Error migrating coding window config:', error);
         }
       }
     }
+  }
+
+  // Guarantee a default code window and assign it to any match without one
+  ensureDefaultCodingWindow(database, __dirname);
+  const assignedCount = database.assignDefaultWindowToUnassignedMatches();
+  if (assignedCount > 0) {
+    console.log(`Assigned default code window to ${assignedCount} match(es)`);
   }
 
   createWindow();

@@ -9,6 +9,7 @@ import {
   ButtonConfig,
   ButtonType,
   ClockState,
+  CodingWindow,
   createMatch,
   generateMatchId,
   getMatchDisplayName,
@@ -22,8 +23,16 @@ import {
   loadAutosave as loadAutosaveBackend,
   saveSettings as saveSettingsBackend,
   loadSettings as loadSettingsBackend,
+  listCodingWindows as listCodingWindowsBackend,
 } from "./electron-api";
 import { startAppLifecycleTimers } from "./app-lifecycle";
+import { loadButtonConfig } from "./config-loader";
+import {
+  getCodesUsedInMatch,
+  getMatchRelevantButtons,
+  resolveButtons,
+  resolveWindowId,
+} from "./coding-windows";
 
 interface TabData {
   tab: Tab;
@@ -34,6 +43,14 @@ interface TabData {
   currentTime: string;
   activePhaseId: number | null;
   lastTimelineShiftMs: number | null;
+  codingWindowId: number | null;
+}
+
+export interface TabButtons {
+  // Buttons in the tab's current code window
+  activeButtons: ButtonConfig[];
+  // One button per code across all windows, current window first
+  resolvedButtons: ButtonConfig[];
 }
 
 interface AppState {
@@ -44,8 +61,9 @@ interface AppState {
   // Match state
   matches: Match[];
   
-  // Button config
-  buttonConfig: ButtonConfig[];
+  // Code windows
+  codingWindows: CodingWindow[];
+  buttonsByWindowId: Record<number, ButtonConfig[]>;
   
   // Settings
   defaultHomeTeam: string;
@@ -54,7 +72,11 @@ interface AppState {
   
   // Actions
   initialize: () => void;
-  setButtonConfig: (config: ButtonConfig[]) => void;
+
+  // Code window actions
+  refreshCodingWindows: () => Promise<void>;
+  setMatchCodingWindow: (tabId: string, windowId: number) => Promise<void>;
+  getTabButtons: (tabId: string) => TabButtons;
   
   // Tab actions
   openTab: (matchId: string) => Promise<void>;
@@ -77,7 +99,7 @@ interface AppState {
   undoTimelineShift: () => void;
   
   // Match actions
-  createNewMatch: (date: string, homeTeam: string, awayTeam: string) => Promise<void>;
+  createNewMatch: (date: string, homeTeam: string, awayTeam: string, codingWindowId?: number) => Promise<void>;
   saveMatch: (tabId: string) => Promise<void>;
   deleteMatch: (matchId: string) => Promise<void>;
   refreshMatches: () => Promise<void>;
@@ -99,15 +121,20 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set, get) => {
-  const createTabData = (match: Match): TabData => {
+  const applyWindowToEngine = (eventEngine: EventEngine, windowId: number | null) => {
+    const { codingWindows, buttonsByWindowId } = get();
+    const activeButtons = windowId != null ? buttonsByWindowId[windowId] ?? [] : [];
+    eventEngine.setButtonConfig(activeButtons, resolveButtons(codingWindows, buttonsByWindowId, windowId));
+  };
+
+  const createTabData = (loadedMatch: Match): TabData => {
     const clock = new GameClock();
     const eventEngine = new EventEngine(clock);
     
-    // Set button config if available
-    const buttonConfig = get()?.buttonConfig || [];
-    if (buttonConfig.length > 0) {
-      eventEngine.setButtonConfig(buttonConfig);
-    }
+    // Fall back to the default window if the match has none or it was deleted
+    const codingWindowId = resolveWindowId(get().codingWindows, loadedMatch.codingWindowId);
+    const match: Match = { ...loadedMatch, codingWindowId: codingWindowId ?? undefined };
+    applyWindowToEngine(eventEngine, codingWindowId);
     
     // Load phases if match has them
     if (match.phases.length > 0) {
@@ -153,6 +180,7 @@ export const useAppStore = create<AppState>((set, get) => {
       currentTime: "00:00",
       activePhaseId: null,
       lastTimelineShiftMs: null,
+      codingWindowId,
     };
   };
   
@@ -160,7 +188,8 @@ export const useAppStore = create<AppState>((set, get) => {
     tabs: [],
     activeTabId: null,
     matches: [],
-    buttonConfig: [],
+    codingWindows: [],
+    buttonsByWindowId: {},
     defaultHomeTeam: "Richmond",
     defaultLeadMs: 5000,
     defaultLagMs: 5000,
@@ -211,7 +240,8 @@ export const useAppStore = create<AppState>((set, get) => {
         saveTabToDatabase: (tabId) => get().saveMatch(tabId),
       });
 
-      // Load matches
+      // Load code windows and matches
+      get().refreshCodingWindows().catch(console.error);
       get().refreshMatches();
       
       // Check for autosave
@@ -223,13 +253,58 @@ export const useAppStore = create<AppState>((set, get) => {
       }).catch(console.error);
     },
     
-    setButtonConfig: (config) => {
-      set({ buttonConfig: config });
-      // Update all existing tabs with new button config
-      const tabs = get().tabs;
-      tabs.forEach(tabData => {
-        tabData.eventEngine.setButtonConfig(config);
+    // Reloads every code window and its buttons, then re-applies them to open
+    // tabs (a window may have been edited, or deleted and replaced by the default)
+    refreshCodingWindows: async () => {
+      const windows = await listCodingWindowsBackend();
+      const buttonsByWindowId: Record<number, ButtonConfig[]> = {};
+      await Promise.all(
+        windows.map(async (w) => {
+          buttonsByWindowId[w.id] = await loadButtonConfig(w.id);
+        })
+      );
+      set({ codingWindows: windows, buttonsByWindowId });
+
+      const tabs = get().tabs.map((tabData) => {
+        const windowId = resolveWindowId(windows, tabData.codingWindowId);
+        applyWindowToEngine(tabData.eventEngine, windowId);
+        if (windowId === tabData.codingWindowId) return tabData;
+        return {
+          ...tabData,
+          codingWindowId: windowId,
+          match: { ...tabData.match, codingWindowId: windowId ?? undefined },
+        };
       });
+      set({ tabs });
+    },
+
+    setMatchCodingWindow: async (tabId, windowId) => {
+      const { tabs, codingWindows } = get();
+      const tabIndex = tabs.findIndex(t => t.tab.id === tabId);
+      if (tabIndex === -1 || !codingWindows.some(w => w.id === windowId)) return;
+
+      const tabData = tabs[tabIndex];
+      applyWindowToEngine(tabData.eventEngine, windowId);
+
+      const newTabs = [...tabs];
+      newTabs[tabIndex] = {
+        ...tabData,
+        codingWindowId: windowId,
+        match: { ...tabData.match, codingWindowId: windowId },
+        tab: { ...tabData.tab, isDirty: true },
+      };
+      set({ tabs: newTabs });
+
+      await get().saveMatch(tabId);
+    },
+
+    getTabButtons: (tabId) => {
+      const { tabs, codingWindows, buttonsByWindowId } = get();
+      const windowId = tabs.find(t => t.tab.id === tabId)?.codingWindowId ?? null;
+      return {
+        activeButtons: windowId != null ? buttonsByWindowId[windowId] ?? [] : [],
+        resolvedButtons: resolveButtons(codingWindows, buttonsByWindowId, windowId),
+      };
     },
     
     getActiveTab: () => {
@@ -251,6 +326,9 @@ export const useAppStore = create<AppState>((set, get) => {
       
       // Load match data
       try {
+        if (get().codingWindows.length === 0) {
+          await get().refreshCodingWindows();
+        }
         const match = await loadMatchBackend(matchId);
         const tabData = createTabData(match);
         
@@ -464,9 +542,9 @@ export const useAppStore = create<AppState>((set, get) => {
       get().markActiveTabDirty();
     },
 
-    createNewMatch: async (date, homeTeam, awayTeam) => {
+    createNewMatch: async (date, homeTeam, awayTeam, codingWindowId) => {
       const id = generateMatchId(date, homeTeam, awayTeam);
-      const match = createMatch(id, date, homeTeam, awayTeam);
+      const match = { ...createMatch(id, date, homeTeam, awayTeam), codingWindowId };
       
       // Save the new match immediately
       try {
@@ -647,8 +725,14 @@ export const useAppStore = create<AppState>((set, get) => {
         pointEvents: activeTab.eventEngine.getAllPointEvents(),
       };
       
-      const buttonConfig = get().buttonConfig;
-      const xmlContent = exportToSportscodeXML(updatedMatch, buttonConfig);
+      // Current window's buttons plus any from earlier windows still referenced by the match
+      const { activeButtons, resolvedButtons } = get().getTabButtons(activeTab.tab.id);
+      const exportButtons = getMatchRelevantButtons(
+        resolvedButtons,
+        activeButtons,
+        getCodesUsedInMatch(updatedMatch.phases, updatedMatch.pointEvents)
+      );
+      const xmlContent = exportToSportscodeXML(updatedMatch, exportButtons);
       
       // Create default filename from match details
       const cleanName = (name: string) => name.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_-]/g, "");

@@ -1,49 +1,73 @@
-// IPC handlers for named button-configuration-set management (list/create/switch/delete/duplicate).
+// IPC handlers for managing named code windows (list/create/duplicate/rename/set default/delete).
 import { getDatabasePath } from '../paths.js';
+import { ensureDefaultCodingWindow, readTemplateButtons } from '../codingWindowTemplate.js';
 
-export function registerButtonConfigHandlers({ registerHandler, getDatabase }) {
-  registerHandler('list-button-configs', async () => {
-    const configs = getDatabase().listButtonConfigs();
-    return { success: true, configs };
-  }, { requireDatabase: true });
-
-  registerHandler('get-active-button-config', async () => {
+export function registerButtonConfigHandlers({ registerHandler, getDatabase, dirname }) {
+  registerHandler('list-coding-windows', async () => {
     const database = getDatabase();
-    const config = database.getActiveButtonConfig();
-    if (config) {
-      const buttons = database.getButtons(config.id);
-      return { success: true, config, buttons };
+    ensureDefaultCodingWindow(database, dirname);
+    return { success: true, windows: database.listCodingWindows() };
+  }, { requireDatabase: true });
+
+  // source: 'blank', 'template', or the ID of a window to copy
+  registerHandler('create-coding-window', async (_event, name, description, source) => {
+    const database = getDatabase();
+
+    let buttons = [];
+    if (source === 'template') {
+      buttons = readTemplateButtons(database, dirname);
+    } else if (typeof source === 'number') {
+      if (!database.getCodingWindow(source)) {
+        throw new Error('Source code window not found');
+      }
+      buttons = database.getButtonsForWindow(source);
     }
-    return { success: true, config: null, buttons: [] };
+
+    const create = database.db.transaction(() => {
+      const windowId = database.createCodingWindow(name, description);
+      database.saveButtonConfig(windowId, buttons);
+      return windowId;
+    });
+
+    return { success: true, windowId: create() };
   }, { requireDatabase: true });
 
-  registerHandler('create-button-config', async (_event, name, description) => {
-    const configId = getDatabase().createButtonConfig(name, description);
-    return { success: true, configId };
+  registerHandler('duplicate-coding-window', async (_event, sourceWindowId) => {
+    const database = getDatabase();
+    const source = database.getCodingWindow(sourceWindowId);
+    if (!source) {
+      return { success: false, error: 'Source code window not found' };
+    }
+
+    const duplicate = database.db.transaction(() => {
+      const windowId = database.createCodingWindow(
+        database.getUniqueWindowName(source.name),
+        source.description
+      );
+      database.saveButtonConfig(windowId, database.getButtonsForWindow(sourceWindowId));
+      return windowId;
+    });
+
+    return { success: true, windowId: duplicate() };
   }, { requireDatabase: true });
 
-  registerHandler('set-active-button-config', async (_event, configId) => {
-    getDatabase().setActiveButtonConfig(configId);
+  registerHandler('rename-coding-window', async (_event, windowId, name, description) => {
+    getDatabase().renameCodingWindow(windowId, name, description);
     return { success: true };
   }, { requireDatabase: true });
 
-  registerHandler('delete-button-config', async (_event, configId) => {
-    getDatabase().deleteButtonConfig(configId);
+  registerHandler('set-default-coding-window', async (_event, windowId) => {
+    const database = getDatabase();
+    if (!database.getCodingWindow(windowId)) {
+      throw new Error('Code window not found');
+    }
+    database.setDefaultCodingWindow(windowId);
     return { success: true };
   }, { requireDatabase: true });
 
-  registerHandler('duplicate-button-config', async (_event, sourceConfigId, newName) => {
-    const database = getDatabase();
-    const sourceConfig = database.getButtonConfig(sourceConfigId);
-    if (!sourceConfig) {
-      return { success: false, error: 'Source configuration not found' };
-    }
-
-    const newConfigId = database.createButtonConfig(newName, `Duplicated from ${sourceConfig.name}`);
-    const sourceButtons = database.getButtons(sourceConfigId);
-    database.saveButtonConfig(newConfigId, sourceButtons);
-
-    return { success: true, configId: newConfigId };
+  registerHandler('delete-coding-window', async (_event, windowId) => {
+    const reassignedCount = getDatabase().deleteCodingWindow(windowId);
+    return { success: true, reassignedCount };
   }, { requireDatabase: true });
 
   registerHandler('get-database-path', async () => {

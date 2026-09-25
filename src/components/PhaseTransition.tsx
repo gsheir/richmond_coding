@@ -1,8 +1,7 @@
 // Phase Transition visualization showing phase progression patterns
 
 import { useState, useMemo } from "react";
-import { Phase } from "@/lib/types";
-import { useAppStore } from "@/lib/store";
+import { ButtonConfig, Phase } from "@/lib/types";
 import {
   calculatePhaseTransitions,
   getAvailableStartingPhases,
@@ -12,6 +11,7 @@ import {
 
 interface PhaseTransitionProps {
   phases: Phase[];
+  buttonConfig: ButtonConfig[];
 }
 
 interface TransitionFlowProps {
@@ -96,15 +96,16 @@ function TransitionFlow({
 function PossessionSection({
   possessionState,
   phases,
+  buttonConfig,
   selectedPhaseCode,
   setSelectedPhaseCode,
 }: {
   possessionState: "in-possession" | "out-of-possession";
   phases: Phase[];
+  buttonConfig: ButtonConfig[];
   selectedPhaseCode: string | null;
   setSelectedPhaseCode: (code: string | null) => void;
 }) {
-  const { buttonConfig } = useAppStore();
 
   // Get available starting phases for this possession state
   const availablePhases = useMemo(
@@ -210,7 +211,7 @@ function PossessionSection({
   );
 }
 
-export function PhaseTransition({ phases }: PhaseTransitionProps) {
+export function PhaseTransition({ phases, buttonConfig }: PhaseTransitionProps) {
   const [subTab, setSubTab] = useState<'in-possession' | 'out-of-possession'>('in-possession');
   
   // Maintain separate selections for each possession state
@@ -267,6 +268,7 @@ export function PhaseTransition({ phases }: PhaseTransitionProps) {
           <PossessionSection 
             possessionState="in-possession" 
             phases={phases}
+            buttonConfig={buttonConfig}
             selectedPhaseCode={selectedPhaseCodes['in-possession']}
             setSelectedPhaseCode={setSelectedPhaseCode}
           />
@@ -276,6 +278,7 @@ export function PhaseTransition({ phases }: PhaseTransitionProps) {
           <PossessionSection 
             possessionState="out-of-possession" 
             phases={phases}
+            buttonConfig={buttonConfig}
             selectedPhaseCode={selectedPhaseCodes['out-of-possession']}
             setSelectedPhaseCode={setSelectedPhaseCode}
           />

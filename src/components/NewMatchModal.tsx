@@ -1,8 +1,9 @@
 // Modal for creating a new match
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "./ui/Button";
 import { Modal } from "./ui/Modal";
 import { useAppStore } from "@/lib/store";
+import { getDefaultWindowId, resolveWindowId } from "@/lib/coding-windows";
 
 interface NewMatchModalProps {
   isOpen: boolean;
@@ -10,11 +11,18 @@ interface NewMatchModalProps {
 }
 
 export function NewMatchModal({ isOpen, onClose }: NewMatchModalProps) {
-  const { defaultHomeTeam, createNewMatch } = useAppStore();
+  const { defaultHomeTeam, createNewMatch, codingWindows } = useAppStore();
   
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [homeTeam, setHomeTeam] = useState(defaultHomeTeam);
   const [awayTeam, setAwayTeam] = useState("");
+  const [codingWindowId, setCodingWindowId] = useState<number | null>(null);
+
+  // Preselect the default code window (and recover if the chosen one disappears)
+  useEffect(() => {
+    if (!isOpen) return;
+    setCodingWindowId((current) => resolveWindowId(codingWindows, current));
+  }, [isOpen, codingWindows]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,13 +31,14 @@ export function NewMatchModal({ isOpen, onClose }: NewMatchModalProps) {
       return;
     }
 
-    await createNewMatch(date, homeTeam.trim(), awayTeam.trim());
+    await createNewMatch(date, homeTeam.trim(), awayTeam.trim(), codingWindowId ?? undefined);
     onClose();
     
     // Reset form
     setDate(new Date().toISOString().split("T")[0]);
     setHomeTeam(defaultHomeTeam);
     setAwayTeam("");
+    setCodingWindowId(getDefaultWindowId(codingWindows));
   };
 
   const handleCancel = () => {
@@ -38,6 +47,7 @@ export function NewMatchModal({ isOpen, onClose }: NewMatchModalProps) {
     setDate(new Date().toISOString().split("T")[0]);
     setHomeTeam(defaultHomeTeam);
     setAwayTeam("");
+    setCodingWindowId(getDefaultWindowId(codingWindows));
   };
 
   const isValid = date && homeTeam.trim() && awayTeam.trim();
@@ -91,6 +101,28 @@ export function NewMatchModal({ isOpen, onClose }: NewMatchModalProps) {
                 placeholder="Enter away team name"
                 className="w-full px-3 py-2 text-sm bg-background border border-border/50 rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
               />
+            </div>
+
+            {/* Code Window */}
+            <div>
+              <label htmlFor="modal-coding-window" className="block text-sm font-medium mb-1.5">
+                Code Window
+              </label>
+              <select
+                id="modal-coding-window"
+                value={codingWindowId ?? ""}
+                onChange={(e) => setCodingWindowId(Number(e.target.value))}
+                className="w-full px-3 py-2 text-sm bg-background border border-border/50 rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                {codingWindows.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name}{w.isDefault ? " (default)" : ""}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Can be changed later from the code page.
+              </p>
             </div>
 
             {/* Actions */}

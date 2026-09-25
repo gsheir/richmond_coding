@@ -1,39 +1,12 @@
-// Load button configuration from JSON via Electron API
-import { ButtonConfig, ButtonType } from "./types";
+// Load a code window's button configuration via the Electron API
+import { ButtonConfig } from "./types";
 import { loadCodingWindowConfig } from "./electron-api";
+import { deserializeButtonConfig } from "./button-config-serialization";
 
-export async function loadButtonConfig(): Promise<ButtonConfig[]> {
+// Loads the given code window's buttons, or the default window's if no ID is given
+export async function loadButtonConfig(windowId?: number): Promise<ButtonConfig[]> {
   try {
-    const config = await loadCodingWindowConfig();
-    
-    // Combine phase, context, termination, and point event buttons
-    const allButtons = [
-      ...(config.phase_buttons || []),
-      ...(config.context_buttons || []),
-      ...(config.termination_buttons || []),
-      ...(config.point_event_buttons || []),
-    ];
-    
-    return allButtons.map((btn: any) => ({
-      code: btn.code,
-      label: btn.label,
-      type: btn.type as ButtonType,
-      category: btn.category,
-      hotkey: btn.hotkey,
-      position: btn.position,
-      style: {
-        colour: btn.style.colour,
-        opacity: btn.style.opacity,
-        fontSize: btn.style.font_size ?? 12,
-        fontWeight: btn.style.font_weight ?? "bold",
-      },
-      leadMs: btn.lead_ms ?? 3000,
-      lagMs: btn.lag_ms ?? 5000,
-      possessionState: btn.possession_state,
-      hierarchyLevel: btn.hierarchy_level,
-      transitionType: btn.transition_type,
-      forPossessionState: btn.for_possession_state,
-    }));
+    return deserializeButtonConfig(await loadCodingWindowConfig(windowId));
   } catch (error) {
     console.error("Failed to load button config:", error);
     return [];

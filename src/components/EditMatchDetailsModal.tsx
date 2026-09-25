@@ -7,16 +7,17 @@ import { Modal } from "./ui/Modal";
 
 interface EditMatchDetailsModalProps {
   tabId: string;
-  match: { date: string; homeTeam: string; awayTeam: string };
+  match: { date: string; homeTeam: string; awayTeam: string; codingWindowId?: number };
   clockState: ClockState;
   onClose: () => void;
 }
 
 export function EditMatchDetailsModal({ tabId, match, clockState, onClose }: EditMatchDetailsModalProps) {
-  const { updateActiveMatch, saveMatch } = useAppStore();
+  const { updateActiveMatch, saveMatch, codingWindows, setMatchCodingWindow } = useAppStore();
   const [date, setDate] = useState(match.date);
   const [homeTeam, setHomeTeam] = useState(match.homeTeam);
   const [awayTeam, setAwayTeam] = useState(match.awayTeam);
+  const [codingWindowId, setCodingWindowId] = useState(match.codingWindowId);
 
   const canEdit = clockState !== ClockState.RUNNING;
   const canSave = canEdit && !!date && !!homeTeam.trim() && !!awayTeam.trim();
@@ -24,7 +25,12 @@ export function EditMatchDetailsModal({ tabId, match, clockState, onClose }: Edi
   const handleSave = async () => {
     if (!canSave) return;
     updateActiveMatch(date, homeTeam.trim(), awayTeam.trim());
-    await saveMatch(tabId);
+    if (codingWindowId !== undefined && codingWindowId !== match.codingWindowId) {
+      // Also saves the match
+      await setMatchCodingWindow(tabId, codingWindowId);
+    } else {
+      await saveMatch(tabId);
+    }
     onClose();
   };
 
@@ -88,6 +94,22 @@ export function EditMatchDetailsModal({ tabId, match, clockState, onClose }: Edi
               placeholder="Enter away team"
               className="w-full px-2.5 py-1.5 text-sm bg-background/50 border border-border/50 rounded-md focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
             />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium mb-1">Code Window</label>
+            <select
+              value={codingWindowId ?? ""}
+              onChange={e => setCodingWindowId(Number(e.target.value))}
+              disabled={!canEdit}
+              className="w-full px-2.5 py-1.5 text-sm bg-background/50 border border-border/50 rounded-md focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+            >
+              {codingWindows.map(w => (
+                <option key={w.id} value={w.id}>
+                  {w.name}{w.isDefault ? " (default)" : ""}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       </Modal>

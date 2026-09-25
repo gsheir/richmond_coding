@@ -1,13 +1,16 @@
 // Settings page
 import { useAppStore } from "@/lib/store";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ButtonConfig } from "@/lib/types";
 import { VisualLayoutEditor } from "./VisualLayoutEditor";
+import { CodingWindowManager } from "./CodingWindowManager";
 import { 
   getDatabasePath,
   openConfigDirectory,
+  showUnsavedConfigDialog,
 } from "@/lib/electron-api";
 import { loadButtonConfig } from "@/lib/config-loader";
+import { getDefaultWindowId } from "@/lib/coding-windows";
 import { ExternalLink, FolderOpen } from "lucide-react";
 import { Button } from "./ui/Button";
 
@@ -21,34 +24,62 @@ export function SettingsPage({ onDirtyChange }: SettingsPageProps) {
     defaultLeadMs,
     defaultLagMs,
     updateSettings,
-    setButtonConfig,
+    codingWindows,
+    refreshCodingWindows,
   } = useAppStore();
 
+  const [selectedWindowId, setSelectedWindowId] = useState<number | null>(null);
   const [buttons, setButtons] = useState<ButtonConfig[]>([]);
   const [databasePath, setDatabasePath] = useState<string>("");
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
+  const [isEditorDirty, setIsEditorDirty] = useState(false);
 
-  // Load button configuration on mount
+  const selectedWindow = codingWindows.find((w) => w.id === selectedWindowId) ?? null;
+
+  // Refresh code windows (match counts etc.) and the database path on mount
   useEffect(() => {
-    const loadConfig = async () => {
-      try {
-        setIsLoadingConfig(true);
-        const buttons = await loadButtonConfig();
-        setButtons(buttons);
-        // Also update global store on initial load
-        if (buttons.length > 0) {
-          setButtonConfig(buttons);
-        }
-        const path = await getDatabasePath();
-        setDatabasePath(path);
-      } catch (error) {
-        console.error("Failed to load button configuration:", error);
-      } finally {
-        setIsLoadingConfig(false);
-      }
+    refreshCodingWindows().catch((error) => console.error("Failed to load code windows:", error));
+    getDatabasePath()
+      .then(setDatabasePath)
+      .catch((error) => console.error("Failed to get database path:", error));
+  }, [refreshCodingWindows]);
+
+  // Select the default window initially, or when the selected one is deleted
+  useEffect(() => {
+    if (codingWindows.length === 0) return;
+    if (selectedWindowId === null || !codingWindows.some((w) => w.id === selectedWindowId)) {
+      setSelectedWindowId(getDefaultWindowId(codingWindows));
+    }
+  }, [codingWindows, selectedWindowId]);
+
+  // Load the selected window's buttons into the editor
+  useEffect(() => {
+    if (selectedWindowId === null) return;
+    let cancelled = false;
+    setIsLoadingConfig(true);
+    loadButtonConfig(selectedWindowId).then((loaded) => {
+      if (cancelled) return;
+      setButtons(loaded);
+      setIsLoadingConfig(false);
+    });
+    return () => {
+      cancelled = true;
     };
-    loadConfig();
-  }, [setButtonConfig]);
+  }, [selectedWindowId]);
+
+  const handleDirtyChange = useCallback(
+    (dirty: boolean) => {
+      setIsEditorDirty(dirty);
+      onDirtyChange?.(dirty);
+    },
+    [onDirtyChange]
+  );
+
+  const confirmDiscardChanges = async () => {
+    if (!isEditorDirty) return true;
+    const response = await showUnsavedConfigDialog();
+    return response === 0; // 0 = Discard Changes
+  };
 
   const handleOpenConfigDirectory = async () => {
     try {
@@ -157,20 +188,41 @@ export function SettingsPage({ onDirtyChange }: SettingsPageProps) {
         </div>
       </div>
 
-      {/* Code Window Configuration */}
+      {/* Code Windows */}
       <div className="bg-card/80 backdrop-blur-sm rounded-xl border border-border/50 p-4">
-        <h3 className="text-sm font-semibold mb-4">Code Window Configuration</h3>
+        <h3 className="text-sm font-semibold mb-4">Code Windows</h3>
+        <CodingWindowManager
+          windows={codingWindows}
+          selectedWindowId={selectedWindowId}
+          onSelect={setSelectedWindowId}
+          confirmDiscardChanges={confirmDiscardChanges}
+          onWindowsChanged={refreshCodingWindows}
+        />
+      </div>
 
-        {isLoadingConfig ? (
+      {/* Code Window Layout */}
+      <div className="bg-card/80 backdrop-blur-sm rounded-xl border border-border/50 p-4">
+        <h3 className="text-sm font-semibold mb-4">
+          Code Window Layout
+          {selectedWindow && (
+            <span className="text-muted-foreground font-normal"> – {selectedWindow.name}</span>
+          )}
+        </h3>
+
+        {isLoadingConfig || selectedWindowId === null ? (
           <div className="py-8 text-center text-muted-foreground text-sm">
             Loading configuration...
           </div>
         ) : (
           <VisualLayoutEditor
+            key={selectedWindowId}
+            windowId={selectedWindowId}
             buttons={buttons}
             onButtonsChange={setButtons}
-            onConfigSaved={(savedButtons) => setButtonConfig(savedButtons)}
-            onDirtyChange={onDirtyChange}
+            onConfigSaved={() => {
+              refreshCodingWindows().catch(console.error);
+            }}
+            onDirtyChange={handleDirtyChange}
           />
         )}
       </div>

@@ -13,6 +13,7 @@ import { GameClock } from "@/lib/clock";
 import { EventEngine } from "@/lib/event-engine";
 import { TimelineView } from "./TimelineView";
 import { formatTimeMs } from "@/lib/utils";
+import { getCodesUsedInMatch, getMatchRelevantButtons } from "@/lib/coding-windows";
 
 const EVENT_LOG_MIN_HEIGHT = 100;
 const EVENT_LOG_MAX_HEIGHT = 600;
@@ -35,8 +36,10 @@ export function CodePage({
   currentTime,
 }: CodePageProps) {
   const {
-    buttonConfig,
     tabs,
+    codingWindows,
+    getTabButtons,
+    setMatchCodingWindow,
     startClock,
     stopClock,
     updatePhase,
@@ -66,10 +69,19 @@ export function CodePage({
   
   const tabData = tabs.find(t => t.tab.id === tabId);
 
+  // activeButtons drive the code window; resolvedButtons also cover codes
+  // recorded with a previous code window, so earlier events still render
+  const { activeButtons, resolvedButtons } = getTabButtons(tabId);
+  const analyticsButtons = getMatchRelevantButtons(
+    resolvedButtons,
+    activeButtons,
+    getCodesUsedInMatch(phases, pointEvents)
+  );
+
   // Get active phase possession state for button filtering
   const activePhase = eventEngine.getActivePhase();
   const activePhasePossession = activePhase?.phaseCode 
-    ? buttonConfig.find(btn => btn.code === activePhase.phaseCode)?.possessionState
+    ? resolvedButtons.find(btn => btn.code === activePhase.phaseCode)?.possessionState
     : undefined;
 
   // Find last terminated phase
@@ -80,8 +92,21 @@ export function CodePage({
 
   // Get button config for active phase color
   const activePhaseButton = activePhase?.phaseCode 
-    ? buttonConfig.find(b => b.code === activePhase.phaseCode)
+    ? resolvedButtons.find(b => b.code === activePhase.phaseCode)
     : null;
+
+  const handleCodingWindowChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const windowId = Number(e.target.value);
+    // Release focus so coding hotkeys aren't swallowed by the dropdown
+    e.target.blur();
+    if (
+      activePhase &&
+      !confirm("A phase is in progress. It will keep its code, but terminations will now come from the new code window. Switch code window?")
+    ) {
+      return;
+    }
+    setMatchCodingWindow(tabId, windowId);
+  };
 
   // Shift+Space to toggle clock start/pause
   useEffect(() => {
@@ -92,7 +117,7 @@ export function CodePage({
         
         // Don't trigger if typing in an input or textarea
         const target = e.target as HTMLElement;
-        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable) {
           return;
         }
         
@@ -218,13 +243,25 @@ export function CodePage({
 
         {/* Code window \u2013 fills all available horizontal space */}
         <div className="flex flex-col flex-1 min-w-0">
-          <div className="px-3 py-1.5 border-b border-border/40 flex items-center bg-card/30 shrink-0">
+          <div className="px-3 py-1.5 border-b border-border/40 flex items-center gap-2 bg-card/30 shrink-0">
             <h3 className="font-semibold text-[10px] uppercase tracking-wider text-muted-foreground">Code Window</h3>
+            <select
+              value={tabData?.codingWindowId ?? ""}
+              onChange={handleCodingWindowChange}
+              title="Code window used for this match"
+              className="max-w-[220px] px-1.5 py-0.5 text-[11px] bg-background/50 border border-border/50 rounded focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              {codingWindows.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.name}{w.isDefault ? " (default)" : ""}
+                </option>
+              ))}
+            </select>
             <span className="ml-auto text-[10px] text-muted-foreground/50">Shift+Space to start / stop</span>
           </div>
           <div className="flex-1 min-h-0 overflow-hidden relative">
             <ButtonGrid
-              buttons={buttonConfig}
+              buttons={activeButtons}
               disabled={!isRunning}
               activePhasePossession={activePhasePossession}
             />
@@ -356,7 +393,7 @@ export function CodePage({
                       {sortedEventLog.map((row) => {
                         if (row.kind === 'phase') {
                           const phase = row.phase;
-                          const phaseBtn = buttonConfig.find(b => b.code === phase.phaseCode);
+                          const phaseBtn = resolvedButtons.find(b => b.code === phase.phaseCode);
                           const termColour =
                             phase.terminationCategory === 'success' ? 'text-green-400' :
                             phase.terminationCategory === 'failure' ? 'text-red-400' :
@@ -405,7 +442,7 @@ export function CodePage({
                         }
 
                         const event = row.event;
-                        const eventBtn = buttonConfig.find(b => b.code === event.code);
+                        const eventBtn = resolvedButtons.find(b => b.code === event.code);
                         return (
                           <tr key={`point-${event.id}`} className="border-b border-border/40 hover:bg-accent/30 transition-colors">
                             <td className="pl-2 py-1.5">
@@ -473,9 +510,9 @@ export function CodePage({
                   </button>
                 </div>
                 {analyticsTab === 'efficiency' ? (
-                  <PhaseEfficiency phases={phases} />
+                  <PhaseEfficiency phases={phases} buttonConfig={analyticsButtons} />
                 ) : (
-                  <PhaseTransition phases={phases} />
+                  <PhaseTransition phases={phases} buttonConfig={analyticsButtons} />
                 )}
               </div>
             )}
@@ -542,7 +579,7 @@ export function CodePage({
             <TimelineView
               phases={phases}
               pointEvents={pointEvents}
-              buttonConfig={buttonConfig}
+              buttonConfig={resolvedButtons}
               zoomLevel={timelineZoom}
               onZoomChange={setTimelineZoom}
               currentTimeMs={clock.currentTimeMs()}

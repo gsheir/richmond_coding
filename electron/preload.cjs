@@ -38,14 +38,14 @@ const electronAPI = {
     ipcRenderer.invoke('load-settings'),
 
   // Coding window configuration operations
-  loadCodingWindowConfig: () =>
-    ipcRenderer.invoke('load-coding-window-config'),
+  loadCodingWindowConfig: (windowId) =>
+    ipcRenderer.invoke('load-coding-window-config', windowId),
   
-  saveCodingWindowConfig: (configData) =>
-    ipcRenderer.invoke('save-coding-window-config', configData),
+  saveCodingWindowConfig: (windowId, configData) =>
+    ipcRenderer.invoke('save-coding-window-config', windowId, configData),
   
-  resetCodingWindowConfig: () =>
-    ipcRenderer.invoke('reset-coding-window-config'),
+  resetCodingWindowConfig: (windowId) =>
+    ipcRenderer.invoke('reset-coding-window-config', windowId),
   
   getCodingWindowConfigPath: () =>
     ipcRenderer.invoke('get-coding-window-config-path'),
@@ -103,24 +103,24 @@ const electronAPI = {
   dbInsertRow: (tableName, rowData) =>
     ipcRenderer.invoke('insert-table-row', tableName, rowData),
 
-  // Button configuration management
-  listButtonConfigs: () =>
-    ipcRenderer.invoke('list-button-configs'),
-  
-  getActiveButtonConfig: () =>
-    ipcRenderer.invoke('get-active-button-config'),
-  
-  createButtonConfig: (name, description) =>
-    ipcRenderer.invoke('create-button-config', name, description),
-  
-  setActiveButtonConfig: (configId) =>
-    ipcRenderer.invoke('set-active-button-config', configId),
-  
-  deleteButtonConfig: (configId) =>
-    ipcRenderer.invoke('delete-button-config', configId),
-  
-  duplicateButtonConfig: (sourceConfigId, newName) =>
-    ipcRenderer.invoke('duplicate-button-config', sourceConfigId, newName),
+  // Code window management
+  listCodingWindows: () =>
+    ipcRenderer.invoke('list-coding-windows'),
+
+  createCodingWindow: (name, description, source) =>
+    ipcRenderer.invoke('create-coding-window', name, description, source),
+
+  duplicateCodingWindow: (sourceWindowId) =>
+    ipcRenderer.invoke('duplicate-coding-window', sourceWindowId),
+
+  renameCodingWindow: (windowId, name, description) =>
+    ipcRenderer.invoke('rename-coding-window', windowId, name, description),
+
+  setDefaultCodingWindow: (windowId) =>
+    ipcRenderer.invoke('set-default-coding-window', windowId),
+
+  deleteCodingWindow: (windowId) =>
+    ipcRenderer.invoke('delete-coding-window', windowId),
 
   // Menu event listeners
   onNavigateToSettings: (callback) => {

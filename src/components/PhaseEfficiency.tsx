@@ -1,9 +1,9 @@
 // Phase efficiency visualization with horizontal stacked bars
-import { Phase, PhaseStatus } from "@/lib/types";
-import { useAppStore } from "@/lib/store";
+import { ButtonConfig, Phase, PhaseStatus } from "@/lib/types";
 
 interface PhaseEfficiencyProps {
   phases: Phase[];
+  buttonConfig: ButtonConfig[];
 }
 
 interface PhaseStats {
@@ -16,8 +16,7 @@ interface PhaseStats {
   successRate: number;
 }
 
-export function PhaseEfficiency({ phases }: PhaseEfficiencyProps) {
-  const { buttonConfig } = useAppStore();
+export function PhaseEfficiency({ phases, buttonConfig }: PhaseEfficiencyProps) {
 
   // Filter to only terminated phases
   const terminatedPhases = phases.filter(p => p.status === PhaseStatus.TERMINATED);

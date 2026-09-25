@@ -80,24 +80,29 @@ export function deserializeButtonConfig(raw: {
     ...(raw.point_event_buttons || []),
   ];
 
+  // Database rows can carry nulls for unset fields, so fall back to defaults
   return allButtons.map((btn): ButtonConfig => ({
     code: btn.code,
     label: btn.label,
     type: btn.type as ButtonConfig["type"],
     category: btn.category || undefined,
     hotkey: btn.hotkey || undefined,
-    position: btn.position,
+    position: {
+      ...btn.position,
+      x: btn.position.x ?? 0,
+      y: btn.position.y ?? 0,
+    },
     style: {
       colour: btn.style.colour,
-      opacity: btn.style.opacity,
-      fontSize: btn.style.font_size,
-      fontWeight: btn.style.font_weight,
+      opacity: btn.style.opacity ?? 1,
+      fontSize: btn.style.font_size ?? 12,
+      fontWeight: btn.style.font_weight ?? "bold",
     },
-    leadMs: btn.lead_ms,
-    lagMs: btn.lag_ms,
-    possessionState: btn.possession_state as ButtonConfig["possessionState"],
-    hierarchyLevel: btn.hierarchy_level,
-    transitionType: btn.transition_type as ButtonConfig["transitionType"],
-    forPossessionState: btn.for_possession_state as ButtonConfig["forPossessionState"],
+    leadMs: btn.lead_ms ?? 3000,
+    lagMs: btn.lag_ms ?? 5000,
+    possessionState: (btn.possession_state || undefined) as ButtonConfig["possessionState"],
+    hierarchyLevel: btn.hierarchy_level ?? undefined,
+    transitionType: (btn.transition_type || undefined) as ButtonConfig["transitionType"],
+    forPossessionState: (btn.for_possession_state || undefined) as ButtonConfig["forPossessionState"],
   }));
 }

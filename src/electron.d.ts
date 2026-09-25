@@ -31,49 +31,21 @@ export interface TableDataOptions {
   filters?: Record<string, any>;
 }
 
-// Button configuration types
+// Code window types
 
-// A saved, named set of buttons (the `button_configs` table row)
-export interface ButtonConfigSet {
+// A saved, named code window (the `button_configs` table row plus usage count)
+export interface CodingWindowRow {
   id: number;
   name: string;
   description: string | null;
-  is_active: number;
+  is_default: number;
+  match_count: number;
   created_at: string;
   updated_at: string;
 }
 
-// A single button belonging to a ButtonConfigSet (the `buttons` table row)
-export interface Button {
-  id: number;
-  config_id: number;
-  key: string;
-  label: string;
-  code: string;
-  type: string;
-  category: string | null;
-  colour: string;
-  hotkey: string | null;
-  sort_order: number;
-  // Position metadata
-  position_x: number | null;
-  position_y: number | null;
-  position_width: number | null;
-  position_height: number | null;
-  // Style metadata
-  style_opacity: number | null;
-  style_font_size: number | null;
-  style_font_weight: string | null;
-  // Phase metadata
-  lead_ms: number | null;
-  lag_ms: number | null;
-  possession_state: string | null;
-  hierarchy_level: number | null;
-  // Termination metadata
-  transition_type: string | null;
-  for_possession_state: string | null;
-  created_at: string;
-}
+// Where a new code window's buttons come from: nothing, the built-in template, or another window's ID
+export type CodingWindowSource = "blank" | "template" | number;
 
 interface ElectronAPI {
   saveMatch: (matchId: string, matchData: string) => Promise<{ success: boolean; error?: string }>;
@@ -87,9 +59,9 @@ interface ElectronAPI {
   exportXML: (matchData: string, defaultFilename: string) => Promise<{ success: boolean; filePath?: string; cancelled?: boolean; error?: string }>;
   saveSettings: (settingsData: string) => Promise<{ success: boolean; error?: string }>;
   loadSettings: () => Promise<{ success: boolean; data?: string | null; error?: string }>;
-  loadCodingWindowConfig: () => Promise<{ success: boolean; data?: string; error?: string }>;
-  saveCodingWindowConfig: (configData: string) => Promise<{ success: boolean; error?: string }>;
-  resetCodingWindowConfig: () => Promise<{ success: boolean; data?: string; error?: string }>;
+  loadCodingWindowConfig: (windowId?: number) => Promise<{ success: boolean; data?: string; error?: string }>;
+  saveCodingWindowConfig: (windowId: number, configData: string) => Promise<{ success: boolean; error?: string }>;
+  resetCodingWindowConfig: (windowId: number) => Promise<{ success: boolean; data?: string; error?: string }>;
   getCodingWindowConfigPath: () => Promise<{ success: boolean; path?: string; error?: string }>;
   openConfigDirectory: () => Promise<{ success: boolean; error?: string }>;
   getDatabasePath: () => Promise<{ success: boolean; path?: string; error?: string }>;
@@ -110,13 +82,13 @@ interface ElectronAPI {
   dbDeleteRow: (tableName: string, rowId: any) => Promise<{ success: boolean; deleted?: boolean; error?: string }>;
   dbDeleteRows: (tableName: string, rowIds: any[]) => Promise<{ success: boolean; deletedCount?: number; error?: string }>;
   dbInsertRow: (tableName: string, rowData: Record<string, any>) => Promise<{ success: boolean; insertedId?: number; error?: string }>;
-  // Button configuration management
-  listButtonConfigs: () => Promise<{ success: boolean; configs?: ButtonConfigSet[]; error?: string }>;
-  getActiveButtonConfig: () => Promise<{ success: boolean; config?: ButtonConfigSet | null; buttons?: Button[]; error?: string }>;
-  createButtonConfig: (name: string, description?: string) => Promise<{ success: boolean; configId?: number; error?: string }>;
-  setActiveButtonConfig: (configId: number) => Promise<{ success: boolean; error?: string }>;
-  deleteButtonConfig: (configId: number) => Promise<{ success: boolean; error?: string }>;
-  duplicateButtonConfig: (sourceConfigId: number, newName: string) => Promise<{ success: boolean; configId?: number; error?: string }>;
+  // Code window management
+  listCodingWindows: () => Promise<{ success: boolean; windows?: CodingWindowRow[]; error?: string }>;
+  createCodingWindow: (name: string, description: string | null, source: CodingWindowSource) => Promise<{ success: boolean; windowId?: number; error?: string }>;
+  duplicateCodingWindow: (sourceWindowId: number) => Promise<{ success: boolean; windowId?: number; error?: string }>;
+  renameCodingWindow: (windowId: number, name: string, description: string | null) => Promise<{ success: boolean; error?: string }>;
+  setDefaultCodingWindow: (windowId: number) => Promise<{ success: boolean; error?: string }>;
+  deleteCodingWindow: (windowId: number) => Promise<{ success: boolean; reassignedCount?: number; error?: string }>;
   onNavigateToSettings: (callback: () => void) => void;
   onNewMatch: (callback: () => void) => void;
   onSaveMatch: (callback: () => void) => void;

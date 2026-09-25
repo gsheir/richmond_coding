@@ -41,6 +41,9 @@ export function ButtonGrid({ buttons, disabled = false, activePhasePossession }:
 
       if (e.metaKey || e.ctrlKey || e.altKey) return;
 
+      // Let dropdowns (e.g. the code window selector) handle their own keys
+      if ((e.target as HTMLElement).tagName === 'SELECT') return;
+
       // Find first button matching hotkey that is not disabled
       const button = buttons.find((btn) => {
         if (!btn.hotkey) return false;

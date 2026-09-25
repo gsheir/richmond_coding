@@ -12,8 +12,9 @@ interface MatchesPageProps {
 }
 
 export function MatchesPage({ onOpenMatch }: MatchesPageProps) {
-  const { matches, refreshMatches, deleteMatch } = useAppStore();
+  const { matches, refreshMatches, deleteMatch, codingWindows } = useAppStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const windowNames = new Map(codingWindows.map((w) => [w.id, w.name]));
 
   useEffect(() => {
     refreshMatches();
@@ -70,6 +71,8 @@ export function MatchesPage({ onOpenMatch }: MatchesPageProps) {
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {match.phases.length} phases · Last modified{" "}
                       {new Date(match.modifiedAt).toLocaleDateString()}
+                      {match.codingWindowId !== undefined && windowNames.has(match.codingWindowId) &&
+                        ` · ${windowNames.get(match.codingWindowId)}`}
                     </p>
                   </div>
 

@@ -57,6 +57,17 @@ export interface Match {
   modifiedAt: string;
   clockTimeMs?: number;
   timelineOffsetMs?: number;
+  codingWindowId?: number;
+}
+
+// A named, saved set of buttons that a match is coded with
+export interface CodingWindow {
+  id: number;
+  name: string;
+  description: string | null;
+  isDefault: boolean;
+  matchCount: number;
+  updatedAt: string;
 }
 
 export interface Tab {

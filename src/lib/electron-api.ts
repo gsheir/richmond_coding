@@ -1,9 +1,10 @@
 // Electron backend API bindings
-import { Match } from "./types";
-import { TableSchema, TableDataOptions, ColumnInfo, ForeignKeyInfo, ButtonConfigSet, Button, Row, RowId } from "../electron";
+import { CodingWindow, Match } from "./types";
+import { SerializedButtonConfig } from "./button-config-serialization";
+import { TableSchema, TableDataOptions, ColumnInfo, ForeignKeyInfo, CodingWindowRow, CodingWindowSource, Row, RowId } from "../electron";
 
 // Re-export types
-export type { TableSchema, TableDataOptions, ColumnInfo, ForeignKeyInfo, ButtonConfigSet, Button, Row, RowId };
+export type { TableSchema, TableDataOptions, ColumnInfo, ForeignKeyInfo, CodingWindowSource, Row, RowId };
 
 // Settings interface
 export interface Settings {
@@ -151,9 +152,10 @@ export async function loadSettings(): Promise<Settings | null> {
 }
 
 // Coding window configuration operations
-export async function loadCodingWindowConfig(): Promise<any> {
+// Loads a code window's buttons (the default window's if no ID is given)
+export async function loadCodingWindowConfig(windowId?: number): Promise<SerializedButtonConfig> {
   const result = await callIpc(
-    (api) => api.loadCodingWindowConfig(),
+    (api) => api.loadCodingWindowConfig(windowId),
     "Failed to load coding window config"
   );
   if (!result.data) {
@@ -162,16 +164,17 @@ export async function loadCodingWindowConfig(): Promise<any> {
   return JSON.parse(result.data);
 }
 
-export async function saveCodingWindowConfig(config: any): Promise<void> {
+export async function saveCodingWindowConfig(windowId: number, config: SerializedButtonConfig): Promise<void> {
   await callIpc(
-    (api) => api.saveCodingWindowConfig(JSON.stringify(config)),
+    (api) => api.saveCodingWindowConfig(windowId, JSON.stringify(config)),
     "Failed to save coding window config"
   );
 }
 
-export async function resetCodingWindowConfig(): Promise<any> {
+// Replaces a code window's buttons with the built-in template
+export async function resetCodingWindowConfig(windowId: number): Promise<SerializedButtonConfig> {
   const result = await callIpc(
-    (api) => api.resetCodingWindowConfig(),
+    (api) => api.resetCodingWindowConfig(windowId),
     "Failed to reset coding window config"
   );
   if (!result.data) {
@@ -304,52 +307,70 @@ export async function dbInsertRow(
   return result.insertedId || 0;
 }
 
-// Button configuration management
-export async function listButtonConfigs(): Promise<ButtonConfigSet[]> {
-  const result = await callIpc(
-    (api) => api.listButtonConfigs(),
-    "Failed to list button configs"
+// Code window management
+const toCodingWindow = (row: CodingWindowRow): CodingWindow => ({
+  id: row.id,
+  name: row.name,
+  description: row.description,
+  isDefault: row.is_default === 1,
+  matchCount: row.match_count,
+  updatedAt: row.updated_at,
+});
+
+export async function listCodingWindows(): Promise<CodingWindow[]> {
+  const result = await callIpcOptional(
+    (api) => api.listCodingWindows(),
+    "Failed to list code windows",
+    "electronAPI not available, returning empty code window list"
   );
-  return result.configs || [];
+  return (result?.windows ?? []).map(toCodingWindow);
 }
 
-export async function getActiveButtonConfig(): Promise<{ config: ButtonConfigSet | null; buttons: Button[] }> {
+export async function createCodingWindow(
+  name: string,
+  description: string | null,
+  source: CodingWindowSource
+): Promise<number> {
   const result = await callIpc(
-    (api) => api.getActiveButtonConfig(),
-    "Failed to get active button config"
+    (api) => api.createCodingWindow(name, description, source),
+    "Failed to create code window"
   );
-  return {
-    config: result.config || null,
-    buttons: result.buttons || [],
-  };
+  if (!result.windowId) {
+    throw new Error("Failed to create code window");
+  }
+  return result.windowId;
 }
 
-export async function createButtonConfig(name: string, description?: string): Promise<number> {
+export async function duplicateCodingWindow(sourceWindowId: number): Promise<number> {
   const result = await callIpc(
-    (api) => api.createButtonConfig(name, description),
-    "Failed to create button config"
+    (api) => api.duplicateCodingWindow(sourceWindowId),
+    "Failed to duplicate code window"
   );
-  return result.configId || 0;
+  if (!result.windowId) {
+    throw new Error("Failed to duplicate code window");
+  }
+  return result.windowId;
 }
 
-export async function setActiveButtonConfig(configId: number): Promise<void> {
+export async function renameCodingWindow(windowId: number, name: string, description: string | null): Promise<void> {
   await callIpc(
-    (api) => api.setActiveButtonConfig(configId),
-    "Failed to set active button config"
+    (api) => api.renameCodingWindow(windowId, name, description),
+    "Failed to rename code window"
   );
 }
 
-export async function deleteButtonConfig(configId: number): Promise<void> {
+export async function setDefaultCodingWindow(windowId: number): Promise<void> {
   await callIpc(
-    (api) => api.deleteButtonConfig(configId),
-    "Failed to delete button config"
+    (api) => api.setDefaultCodingWindow(windowId),
+    "Failed to set default code window"
   );
 }
 
-export async function duplicateButtonConfig(sourceConfigId: number, newName: string): Promise<number> {
+// Returns the number of matches reassigned to the default window
+export async function deleteCodingWindow(windowId: number): Promise<number> {
   const result = await callIpc(
-    (api) => api.duplicateButtonConfig(sourceConfigId, newName),
-    "Failed to duplicate button config"
+    (api) => api.deleteCodingWindow(windowId),
+    "Failed to delete code window"
   );
-  return result.configId || 0;
+  return result.reassignedCount ?? 0;
 }

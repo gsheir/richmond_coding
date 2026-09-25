@@ -6,7 +6,6 @@ import { MatchesPage } from "./components/MatchesPage";
 import { SettingsPage } from "./components/SettingsPage";
 import { DataBrowserPage } from "./components/DataBrowserPage";
 import { useAppStore } from "./lib/store";
-import { loadButtonConfig } from "./lib/config-loader";
 import { showUnsavedConfigDialog } from "./lib/electron-api";
 import "./App.css";
 
@@ -15,17 +14,12 @@ function App() {
     "matches"
   );
   const [isConfigDirty, setIsConfigDirty] = useState(false);
-  const { initialize, setButtonConfig, tabs, getActiveTab } = useAppStore();
+  const { initialize, tabs, getActiveTab } = useAppStore();
 
   useEffect(() => {
-    // Initialize app
+    // Initialise app (settings, code windows, matches)
     initialize();
-
-    // Load button configuration
-    loadButtonConfig().then((config) => {
-      setButtonConfig(config);
-    });
-  }, [initialize, setButtonConfig]);
+  }, [initialize]);
 
   // When all tabs are closed and we're not on a page, auto-navigate to matches
   useEffect(() => {

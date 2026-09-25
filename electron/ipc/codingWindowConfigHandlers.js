@@ -1,45 +1,38 @@
-// IPC handlers for the coding-window button configuration (load/save/reset/path).
+// IPC handlers for a code window's button layout (load/save/reset/path).
 import { app, shell } from 'electron';
-import * as fs from 'fs';
-import { getDefaultConfigPath, getUserConfigPath } from '../paths.js';
+import { getUserConfigPath } from '../paths.js';
+import { ensureDefaultCodingWindow, readTemplateButtons } from '../codingWindowTemplate.js';
+
+// Convert a flat button array to the phase/context/termination/point_event shape the UI expects
+function toCategorisedConfig(buttons) {
+  return {
+    phase_buttons: buttons.filter((btn) => btn.type === 'phase'),
+    context_buttons: buttons.filter((btn) => btn.type === 'context'),
+    termination_buttons: buttons.filter((btn) => btn.type === 'termination'),
+    point_event_buttons: buttons.filter((btn) => btn.type === 'point_event'),
+  };
+}
 
 export function registerCodingWindowConfigHandlers({ registerHandler, getDatabase, dirname }) {
-  registerHandler('load-coding-window-config', async () => {
+  // Loads the given window's buttons, or the default window's if no ID is given
+  registerHandler('load-coding-window-config', async (_event, windowId) => {
     const database = getDatabase();
-    let config = database.loadButtonConfig();
+    const targetId = windowId ?? ensureDefaultCodingWindow(database, dirname).id;
 
-    if (!config) {
-      const defaultConfigPath = getDefaultConfigPath(dirname);
-      if (!fs.existsSync(defaultConfigPath)) {
-        return { success: false, error: 'No configuration file found' };
-      }
-
-      const defaultData = fs.readFileSync(defaultConfigPath, 'utf8');
-      const defaultConfig = JSON.parse(defaultData);
-      const buttonArray = database.normalizeButtonArray(defaultConfig);
-
-      const activeConfig = database.getOrCreateActiveConfig();
-      database.saveButtonConfig(activeConfig.id, buttonArray);
-
-      config = buttonArray;
-      console.log('Loaded and saved default coding window config to database');
+    const buttons = database.loadButtonConfig(targetId);
+    if (!buttons) {
+      return { success: false, error: 'Code window not found' };
     }
 
-    // Convert flat button array back to the phase/context/termination/point_event shape the UI expects
-    if (Array.isArray(config)) {
-      config = {
-        phase_buttons: config.filter((btn) => btn.type === 'phase'),
-        context_buttons: config.filter((btn) => btn.type === 'context'),
-        termination_buttons: config.filter((btn) => btn.type === 'termination'),
-        point_event_buttons: config.filter((btn) => btn.type === 'point_event'),
-      };
-    }
-
-    return { success: true, data: JSON.stringify(config) };
+    return { success: true, data: JSON.stringify(toCategorisedConfig(buttons)) };
   }, { requireDatabase: true });
 
-  registerHandler('save-coding-window-config', async (_event, configData) => {
+  registerHandler('save-coding-window-config', async (_event, windowId, configData) => {
     const database = getDatabase();
+    if (!database.getCodingWindow(windowId)) {
+      throw new Error('Code window not found');
+    }
+
     const config = JSON.parse(configData);
 
     const hasNewFormat = config.phase_buttons || config.context_buttons || config.termination_buttons || config.point_event_buttons;
@@ -47,45 +40,27 @@ export function registerCodingWindowConfigHandlers({ registerHandler, getDatabas
     if (!hasNewFormat && !hasOldFormat) {
       throw new Error('Invalid config: button configuration arrays required');
     }
-    if (config.phase_buttons && !Array.isArray(config.phase_buttons)) {
-      throw new Error('Invalid config: phase_buttons must be an array');
-    }
-    if (config.context_buttons && !Array.isArray(config.context_buttons)) {
-      throw new Error('Invalid config: context_buttons must be an array');
-    }
-    if (config.termination_buttons && !Array.isArray(config.termination_buttons)) {
-      throw new Error('Invalid config: termination_buttons must be an array');
-    }
-    if (config.point_event_buttons && !Array.isArray(config.point_event_buttons)) {
-      throw new Error('Invalid config: point_event_buttons must be an array');
-    }
-    if (config.buttons && !Array.isArray(config.buttons)) {
-      throw new Error('Invalid config: buttons must be an array');
+    for (const key of ['phase_buttons', 'context_buttons', 'termination_buttons', 'point_event_buttons', 'buttons']) {
+      if (config[key] && !Array.isArray(config[key])) {
+        throw new Error(`Invalid config: ${key} must be an array`);
+      }
     }
 
-    const buttonArray = database.normalizeButtonArray(config);
-    const activeConfig = database.getOrCreateActiveConfig();
-    database.saveButtonConfig(activeConfig.id, buttonArray);
-
+    database.saveButtonConfig(windowId, database.normalizeButtonArray(config));
     return { success: true };
   }, { requireDatabase: true });
 
-  registerHandler('reset-coding-window-config', async () => {
+  // Replaces the given window's buttons with the built-in template
+  registerHandler('reset-coding-window-config', async (_event, windowId) => {
     const database = getDatabase();
-    const defaultConfigPath = getDefaultConfigPath(dirname);
-
-    if (!fs.existsSync(defaultConfigPath)) {
-      return { success: false, error: 'Default configuration file not found' };
+    if (!database.getCodingWindow(windowId)) {
+      throw new Error('Code window not found');
     }
 
-    const defaultData = fs.readFileSync(defaultConfigPath, 'utf8');
-    const defaultConfig = JSON.parse(defaultData);
-    const buttonArray = database.normalizeButtonArray(defaultConfig);
+    const buttons = readTemplateButtons(database, dirname);
+    database.saveButtonConfig(windowId, buttons);
 
-    const activeConfig = database.getOrCreateActiveConfig();
-    database.saveButtonConfig(activeConfig.id, buttonArray);
-
-    return { success: true, data: JSON.stringify(defaultConfig) };
+    return { success: true, data: JSON.stringify(toCategorisedConfig(database.loadButtonConfig(windowId))) };
   }, { requireDatabase: true });
 
   registerHandler('get-coding-window-config-path', async () => {

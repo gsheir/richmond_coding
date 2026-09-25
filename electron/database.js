@@ -51,6 +51,11 @@ export class MatchDatabase {
         console.log(`Migrating database schema from version ${currentVersion} to version 6...`);
         this.migrateToVersion6();
       }
+
+      if (currentVersion < 7) {
+        console.log(`Migrating database schema from version ${currentVersion} to version 7...`);
+        this.migrateToVersion7();
+      }
     }
   }
 
@@ -64,7 +69,8 @@ export class MatchDatabase {
         away_team TEXT NOT NULL,
         clock_time_ms INTEGER DEFAULT 0,
         created_at TEXT NOT NULL,
-        modified_at TEXT NOT NULL
+        modified_at TEXT NOT NULL,
+        coding_window_id INTEGER REFERENCES button_configs(id) ON DELETE SET NULL
       );
       CREATE INDEX IF NOT EXISTS idx_matches_date ON matches(date);
       CREATE INDEX IF NOT EXISTS idx_matches_teams ON matches(home_team, away_team);
@@ -141,7 +147,7 @@ export class MatchDatabase {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL UNIQUE,
         description TEXT,
-        is_active INTEGER DEFAULT 0,
+        is_default INTEGER DEFAULT 0,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
@@ -188,7 +194,7 @@ export class MatchDatabase {
       );
 
       -- Insert initial schema version
-      INSERT OR IGNORE INTO schema_version (version, applied_at) VALUES (6, datetime('now'));
+      INSERT OR IGNORE INTO schema_version (version, applied_at) VALUES (7, datetime('now'));
     `);
 
     console.log('Database schema initialized');
@@ -387,6 +393,22 @@ export class MatchDatabase {
     console.log('Database migrated to schema version 6');
   }
 
+  migrateToVersion7() {
+    // Multiple code windows: is_active now means "default for new matches",
+    // and each match records the code window it is coded with.
+    this.db.exec(`
+      ALTER TABLE button_configs RENAME COLUMN is_active TO is_default;
+      ALTER TABLE matches ADD COLUMN coding_window_id INTEGER REFERENCES button_configs(id) ON DELETE SET NULL;
+
+      INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (7, datetime('now'));
+    `);
+
+    // Existing matches were coded with the single (default) window
+    this.assignDefaultWindowToUnassignedMatches();
+
+    console.log('Database migrated to schema version 7');
+  }
+
   // ==================== Match Operations ====================
 
   saveMatch(match) {
@@ -395,8 +417,8 @@ export class MatchDatabase {
       this.db
         .prepare(
           `INSERT OR REPLACE INTO matches 
-           (id, date, home_team, away_team, clock_time_ms, created_at, modified_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`
+           (id, date, home_team, away_team, clock_time_ms, created_at, modified_at, coding_window_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, (SELECT id FROM button_configs WHERE id = ?))`
         )
         .run(
           match.id,
@@ -405,7 +427,8 @@ export class MatchDatabase {
           match.awayTeam,
           match.clockTimeMs || 0,
           match.createdAt,
-          match.modifiedAt
+          match.modifiedAt,
+          match.codingWindowId ?? null
         );
 
       // Delete existing phases for this match
@@ -478,7 +501,7 @@ export class MatchDatabase {
     // Load match
     const matchRow = this.db
       .prepare(
-        `SELECT id, date, home_team, away_team, clock_time_ms, created_at, modified_at
+        `SELECT id, date, home_team, away_team, clock_time_ms, created_at, modified_at, coding_window_id
          FROM matches WHERE id = ?`
       )
       .get(matchId);
@@ -550,6 +573,7 @@ export class MatchDatabase {
       createdAt: matchRow.created_at,
       modifiedAt: matchRow.modified_at,
       clockTimeMs: matchRow.clock_time_ms,
+      codingWindowId: matchRow.coding_window_id ?? undefined,
     };
   }
 
@@ -689,109 +713,170 @@ export class MatchDatabase {
     }
   }
 
-  // New normalized schema methods
-  
+  // Code window (button configuration) methods
+
   /**
-   * Get all button configurations
+   * List all code windows with the number of matches using each
    */
-  listButtonConfigs() {
-    try {
-      return this.db
-        .prepare('SELECT * FROM button_configs ORDER BY name')
-        .all();
-    } catch (error) {
-      // Table might not exist yet (before migration)
-      console.error('Error listing button configs:', error.message);
-      return [];
-    }
+  listCodingWindows() {
+    return this.db
+      .prepare(
+        `SELECT bc.*, COUNT(m.id) AS match_count
+         FROM button_configs bc
+         LEFT JOIN matches m ON m.coding_window_id = bc.id
+         GROUP BY bc.id
+         ORDER BY bc.name COLLATE NOCASE`
+      )
+      .all();
   }
 
   /**
-   * Get the active button configuration
+   * Get the code window new matches start with
    */
-  getActiveButtonConfig() {
-    try {
-      return this.db
-        .prepare('SELECT * FROM button_configs WHERE is_active = 1')
-        .get();
-    } catch (error) {
-      // Table might not exist yet (before migration)
-      console.error('Error getting active button config:', error.message);
-      return null;
-    }
+  getDefaultCodingWindow() {
+    return this.db
+      .prepare('SELECT * FROM button_configs WHERE is_default = 1')
+      .get();
   }
 
   /**
-   * Get a button configuration by ID
+   * Get a code window by ID
    */
-  getButtonConfig(configId) {
+  getCodingWindow(windowId) {
     return this.db
       .prepare('SELECT * FROM button_configs WHERE id = ?')
-      .get(configId);
+      .get(windowId);
   }
 
   /**
-   * Create a new button configuration
+   * Throw if another code window already uses this name (case-insensitive)
    */
-  createButtonConfig(name, description = null) {
+  assertWindowNameAvailable(name, excludeWindowId = null) {
+    const trimmed = (name || '').trim();
+    if (!trimmed) {
+      throw new Error('Code window name is required');
+    }
+    const clash = this.db
+      .prepare('SELECT id FROM button_configs WHERE name = ? COLLATE NOCASE AND id IS NOT ?')
+      .get(trimmed, excludeWindowId);
+    if (clash) {
+      throw new Error(`A code window named "${trimmed}" already exists`);
+    }
+    return trimmed;
+  }
+
+  /**
+   * Generate an unused name such as "Name (copy)" or "Name (copy 2)"
+   */
+  getUniqueWindowName(baseName) {
+    const exists = (name) =>
+      !!this.db.prepare('SELECT id FROM button_configs WHERE name = ? COLLATE NOCASE').get(name);
+
+    let candidate = `${baseName} (copy)`;
+    let counter = 2;
+    while (exists(candidate)) {
+      candidate = `${baseName} (copy ${counter++})`;
+    }
+    return candidate;
+  }
+
+  /**
+   * Create a new, empty code window
+   */
+  createCodingWindow(name, description = null) {
+    const trimmed = this.assertWindowNameAvailable(name);
     const result = this.db
       .prepare(
-        `INSERT INTO button_configs (name, description, is_active, created_at, updated_at)
+        `INSERT INTO button_configs (name, description, is_default, created_at, updated_at)
          VALUES (?, ?, 0, datetime('now'), datetime('now'))`
       )
-      .run(name, description);
-    
-    return result.lastInsertRowid;
+      .run(trimmed, description || null);
+
+    return Number(result.lastInsertRowid);
   }
 
   /**
-   * Set a configuration as active (deactivates others)
+   * Rename a code window and/or update its description
    */
-  setActiveButtonConfig(configId) {
+  renameCodingWindow(windowId, name, description = null) {
+    const trimmed = this.assertWindowNameAvailable(name, windowId);
+    this.db
+      .prepare(
+        `UPDATE button_configs SET name = ?, description = ?, updated_at = datetime('now') WHERE id = ?`
+      )
+      .run(trimmed, description || null, windowId);
+  }
+
+  /**
+   * Mark a code window as the default for new matches (clears the others)
+   */
+  setDefaultCodingWindow(windowId) {
     const tx = this.db.transaction(() => {
-      // Deactivate all configs
-      this.db.prepare('UPDATE button_configs SET is_active = 0').run();
-      
-      // Activate the specified config
-      this.db
-        .prepare('UPDATE button_configs SET is_active = 1, updated_at = datetime(\'now\') WHERE id = ?')
-        .run(configId);
+      this.db.prepare('UPDATE button_configs SET is_default = 0').run();
+      this.db.prepare('UPDATE button_configs SET is_default = 1 WHERE id = ?').run(windowId);
     });
-    
+
     tx();
   }
 
   /**
-   * Delete a button configuration (and all its buttons via cascade)
+   * Count matches coded with a code window
    */
-  deleteButtonConfig(configId) {
-    // Don't allow deleting the last config
-    const count = this.db
-      .prepare('SELECT COUNT(*) as count FROM button_configs')
-      .get().count;
-    
-    if (count <= 1) {
-      throw new Error('Cannot delete the last button configuration');
-    }
+  countMatchesUsingWindow(windowId) {
+    return this.db
+      .prepare('SELECT COUNT(*) AS count FROM matches WHERE coding_window_id = ?')
+      .get(windowId).count;
+  }
 
-    // If deleting the active config, activate another one first
-    const config = this.db
-      .prepare('SELECT is_active FROM button_configs WHERE id = ?')
-      .get(configId);
-    
-    if (config && config.is_active === 1) {
-      const otherConfig = this.db
-        .prepare('SELECT id FROM button_configs WHERE id != ? LIMIT 1')
-        .get(configId);
-      
-      if (otherConfig) {
-        this.setActiveButtonConfig(otherConfig.id);
+  /**
+   * Point any match without a (valid) code window at the default window
+   */
+  assignDefaultWindowToUnassignedMatches() {
+    const defaultWindow = this.getDefaultCodingWindow();
+    if (!defaultWindow) return 0;
+
+    return this.db
+      .prepare('UPDATE matches SET coding_window_id = ? WHERE coding_window_id IS NULL')
+      .run(defaultWindow.id).changes;
+  }
+
+  /**
+   * Delete a code window (and its buttons via cascade). Matches using it are
+   * reassigned to the default window. Returns the number of matches reassigned.
+   */
+  deleteCodingWindow(windowId) {
+    let reassigned = 0;
+
+    const tx = this.db.transaction(() => {
+      const count = this.db
+        .prepare('SELECT COUNT(*) AS count FROM button_configs')
+        .get().count;
+      if (count <= 1) {
+        throw new Error('Cannot delete the last code window');
       }
-    }
 
-    this.db
-      .prepare('DELETE FROM button_configs WHERE id = ?')
-      .run(configId);
+      const window = this.getCodingWindow(windowId);
+      if (!window) {
+        throw new Error('Code window not found');
+      }
+
+      if (window.is_default === 1) {
+        const other = this.db
+          .prepare('SELECT id FROM button_configs WHERE id != ? ORDER BY name COLLATE NOCASE LIMIT 1')
+          .get(windowId);
+        this.setDefaultCodingWindow(other.id);
+      }
+
+      const defaultWindow = this.getDefaultCodingWindow();
+      reassigned = this.db
+        .prepare('UPDATE matches SET coding_window_id = ? WHERE coding_window_id = ?')
+        .run(defaultWindow.id, windowId).changes;
+
+      this.db.prepare('DELETE FROM button_configs WHERE id = ?').run(windowId);
+    });
+
+    tx();
+    return reassigned;
   }
 
   /**
@@ -912,6 +997,7 @@ export class MatchDatabase {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
       );
       
+      // Numeric fields use ?? so legitimate zero values (e.g. x = 0) are kept
       buttons.forEach((button, index) => {
         insertStmt.run(
           configId,
@@ -923,17 +1009,17 @@ export class MatchDatabase {
           button.style?.colour || button.colour || '#666666',
           button.hotkey || null,
           button.sortOrder !== undefined ? button.sortOrder : index,
-          button.position?.x || null,
-          button.position?.y || null,
-          button.position?.width || null,
-          button.position?.height || null,
-          button.style?.opacity || null,
-          button.style?.font_size || null,
+          button.position?.x ?? null,
+          button.position?.y ?? null,
+          button.position?.width ?? null,
+          button.position?.height ?? null,
+          button.style?.opacity ?? null,
+          button.style?.font_size ?? null,
           button.style?.font_weight || null,
-          button.lead_ms || button.leadMs || null,
-          button.lag_ms || button.lagMs || null,
+          button.lead_ms ?? button.leadMs ?? null,
+          button.lag_ms ?? button.lagMs ?? null,
           button.possession_state || button.possessionState || null,
-          button.hierarchy_level || button.hierarchyLevel || null,
+          button.hierarchy_level ?? button.hierarchyLevel ?? null,
           button.transition_type || button.transitionType || null,
           button.for_possession_state || button.forPossessionState || null
         );
@@ -949,19 +1035,11 @@ export class MatchDatabase {
   }
 
   /**
-   * Load the active button configuration
+   * Get a code window's buttons in the application's wire format
+   * (flat array with nested position/style objects)
    */
-  loadButtonConfig() {
-    const config = this.getActiveButtonConfig();
-    
-    if (!config) {
-      return null;
-    }
-    
-    const buttons = this.getButtons(config.id);
-    
-    // Convert to application format (flat array of buttons with full metadata)
-    return buttons.map((btn) => ({
+  getButtonsForWindow(windowId) {
+    return this.getButtons(windowId).map((btn) => ({
       code: btn.code,
       label: btn.label,
       type: btn.type,
@@ -989,6 +1067,18 @@ export class MatchDatabase {
   }
 
   /**
+   * Load a code window's buttons (the default window if no ID is given).
+   * Returns null if the window doesn't exist.
+   */
+  loadButtonConfig(windowId = null) {
+    const window = windowId != null ? this.getCodingWindow(windowId) : this.getDefaultCodingWindow();
+    if (!window) {
+      return null;
+    }
+    return this.getButtonsForWindow(window.id);
+  }
+
+  /**
    * Flatten a { phase_buttons, context_buttons, termination_buttons } config object
    * (or a legacy { buttons } array) into a single flat button array for storage.
    */
@@ -1006,24 +1096,11 @@ export class MatchDatabase {
   }
 
   /**
-   * Get the active button configuration, creating a default one if none exists.
-   */
-  getOrCreateActiveConfig() {
-    let activeConfig = this.getActiveButtonConfig();
-    if (!activeConfig) {
-      const configId = this.createButtonConfig('Default', 'Default button configuration');
-      this.setActiveButtonConfig(configId);
-      activeConfig = this.getActiveButtonConfig();
-    }
-    return activeConfig;
-  }
-
-  /**
    * Migrate from legacy button_config to new schema
    */
   migrateButtonConfig() {
     // Check if we need to migrate or re-migrate with full metadata
-    const existingConfig = this.getActiveButtonConfig();
+    const existingConfig = this.getDefaultCodingWindow();
     
     // Load legacy config
     const legacyConfig = this.loadButtonConfigLegacy();
@@ -1038,8 +1115,8 @@ export class MatchDatabase {
         .prepare('SELECT position_x, lead_ms, hierarchy_level FROM buttons WHERE config_id = ? LIMIT 1')
         .get(existingConfig.id);
       
-      // If metadata is present, no need to re-migrate
-      if (sampleButton && (sampleButton.position_x !== null || sampleButton.lead_ms !== null)) {
+      // If metadata is present (or the window is intentionally blank), no need to re-migrate
+      if (!sampleButton || sampleButton.position_x !== null || sampleButton.lead_ms !== null) {
         console.log('Button config already migrated with full metadata');
         return { migrated: false, reason: 'Already migrated' };
       }
@@ -1059,8 +1136,8 @@ export class MatchDatabase {
       if (existingConfig) {
         configId = existingConfig.id;
       } else {
-        configId = this.createButtonConfig('Default', 'Migrated from legacy configuration');
-        this.setActiveButtonConfig(configId);
+        configId = this.createCodingWindow('Default', 'Migrated from legacy configuration');
+        this.setDefaultCodingWindow(configId);
       }
       
       // Migrate buttons with full metadata
@@ -1105,7 +1182,7 @@ export class MatchDatabase {
     tx();
     
     console.log('Button config migration complete');
-    return { migrated: true, configId: this.getActiveButtonConfig().id };
+    return { migrated: true, configId: this.getDefaultCodingWindow().id };
   }
 
   // ==================== Data Browser Operations ====================

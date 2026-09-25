@@ -18,13 +18,14 @@ import { serializeButtonConfig, deserializeButtonConfig } from "@/lib/button-con
 export const PILL_HEIGHT_THRESHOLD = 24;
 
 interface VisualLayoutEditorProps {
+  windowId: number;
   buttons: ButtonConfig[];
   onButtonsChange: (buttons: ButtonConfig[]) => void;
   onConfigSaved?: (buttons: ButtonConfig[]) => void;
   onDirtyChange?: (isDirty: boolean) => void;
 }
 
-export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved, onDirtyChange }: VisualLayoutEditorProps) {
+export function VisualLayoutEditor({ windowId, buttons, onButtonsChange, onConfigSaved, onDirtyChange }: VisualLayoutEditorProps) {
   const [selectedButtons, setSelectedButtons] = useState<string[]>([]);
   const [draggingButton, setDraggingButton] = useState<string | null>(null);
   const [editingButton, setEditingButton] = useState<ButtonConfig | null>(null);
@@ -411,7 +412,7 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved, on
     try {
       setSaveStatus("saving");
 
-      await saveCodingWindowConfig(serializeButtonConfig(buttons));
+      await saveCodingWindowConfig(windowId, serializeButtonConfig(buttons));
       
       // Update global store after successful save
       if (typeof onConfigSaved === 'function') {
@@ -434,8 +435,8 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved, on
   const handleResetConfig = async () => {
     try {
       setSaveStatus("saving");
-      const defaultConfig = await resetCodingWindowConfig();
-      const loadedButtons = deserializeButtonConfig(defaultConfig);
+      const templateConfig = await resetCodingWindowConfig(windowId);
+      const loadedButtons = deserializeButtonConfig(templateConfig);
 
       onButtonsChange(loadedButtons);
       
@@ -575,7 +576,7 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved, on
             className="shrink-0"
           >
             <RotateCcw className="w-4 h-4" />
-            Reset to Default
+            Reset to Template
           </Button>
 
           {/* Align, Distribute and Position controls – wrap onto their own row together */}
@@ -1032,7 +1033,7 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved, on
       <Modal
         isOpen={showResetConfirm}
         onClose={() => setShowResetConfirm(false)}
-        title="Reset to Default Configuration?"
+        title="Reset to Built-in Template?"
         icon={
           <div className="p-2 bg-destructive/10 rounded-lg">
             <AlertCircle className="w-5 h-5 text-destructive" />
@@ -1059,7 +1060,7 @@ export function VisualLayoutEditor({ buttons, onButtonsChange, onConfigSaved, on
         }
       >
         <p className="text-sm text-muted-foreground">
-          This will replace all current buttons with the default configuration. This action cannot be undone.
+          This will replace all buttons in this code window with the built-in template. Other code windows are not affected. This action cannot be undone.
         </p>
       </Modal>
     </div>

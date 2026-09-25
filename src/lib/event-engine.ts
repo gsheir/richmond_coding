@@ -20,7 +20,10 @@ export class EventEngine {
   private nextPhaseId: number;
   private pointEvents: PointEvent[];
   private nextPointEventId: number;
+  // Buttons in the match's current code window – drives new coding actions
   private buttonConfig: Record<string, ButtonConfig>;
+  // Buttons from every code window – used to look up codes already recorded
+  private buttonLookup: Record<string, ButtonConfig>;
   private phaseStartedListeners: ((phase: Phase) => void)[];
   private phaseClassifiedListeners: ((phase: Phase) => void)[];
   private phaseTerminatedListeners: ((phase: Phase) => void)[];
@@ -35,6 +38,7 @@ export class EventEngine {
     this.pointEvents = [];
     this.nextPointEventId = 0;
     this.buttonConfig = {};
+    this.buttonLookup = {};
     this.phaseStartedListeners = [];
     this.phaseClassifiedListeners = [];
     this.phaseTerminatedListeners = [];
@@ -42,10 +46,16 @@ export class EventEngine {
     this.preShiftSnapshot = null;
   }
 
-  setButtonConfig(buttons: ButtonConfig[]): void {
+  // activeButtons: the current code window. resolvedButtons: all windows'
+  // buttons (current window taking precedence), used for existing codes.
+  setButtonConfig(activeButtons: ButtonConfig[], resolvedButtons: ButtonConfig[] = activeButtons): void {
     this.buttonConfig = {};
-    buttons.forEach((btn) => {
+    activeButtons.forEach((btn) => {
       this.buttonConfig[btn.code] = btn;
+    });
+    this.buttonLookup = {};
+    resolvedButtons.forEach((btn) => {
+      this.buttonLookup[btn.code] = btn;
     });
   }
 
@@ -102,7 +112,7 @@ export class EventEngine {
     if (index === -1) return false;
 
     // Get the category from the button config
-    const button = terminationEvent ? this.buttonConfig[terminationEvent] : null;
+    const button = terminationEvent ? this.buttonLookup[terminationEvent] : null;
     const terminationCategory = button?.category || null;
 
     this.activePhase = terminatePhase(this.activePhase, endTimeMs, terminationEvent, terminationCategory);
@@ -187,7 +197,7 @@ export class EventEngine {
           // Complete the termination with auto-determined code
           const index = this.phases.indexOf(this.activePhase);
           if (index !== -1) {
-            const button = terminationCode ? this.buttonConfig[terminationCode] : null;
+            const button = terminationCode ? this.buttonLookup[terminationCode] : null;
             const terminationCategory = button?.category || null;
             this.activePhase = terminatePhase(this.activePhase, this.activePhase.endTimeMs!, terminationCode, terminationCategory);
             this.phases[index] = this.activePhase;
@@ -226,7 +236,7 @@ export class EventEngine {
             // Phase was ended with Space, now applying proper termination
             const index = this.phases.indexOf(this.activePhase);
             if (index !== -1) {
-              const button = this.buttonConfig[code];
+              const button = this.buttonLookup[code];
               const terminationCategory = button?.category || null;
               // Use the existing endTimeMs from when END_PHASE was pressed
               this.activePhase = terminatePhase(this.activePhase, this.activePhase.endTimeMs!, code, terminationCategory);
@@ -244,7 +254,8 @@ export class EventEngine {
   }
 
   private determineAutoTermination(currentPhase: Phase, newPhaseButton: ButtonConfig): string | null {
-    const currentButton = this.buttonConfig[currentPhase.phaseCode || ""];
+    // The current phase may have been coded with a previous code window
+    const currentButton = this.buttonLookup[currentPhase.phaseCode || ""];
     if (!currentButton) return null;
     
     const currentPossession = currentButton.possessionState;
@@ -381,7 +392,7 @@ export class EventEngine {
     if (index === -1) return false;
 
     const phase = this.phases[index];
-    const button = terminationCode ? this.buttonConfig[terminationCode] : null;
+    const button = terminationCode ? this.buttonLookup[terminationCode] : null;
     const terminationCategory = button?.category || null;
 
     this.phases[index] = {
